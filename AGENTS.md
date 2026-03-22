@@ -15,7 +15,7 @@ These rules apply to the whole repository unless a deeper `AGENTS.md` adds narro
 ### Frontend, if introduced, is standardized on:
 
 - `bun` as the package manager and runtime
-- a VoidZero-aligned stack for the app toolchain
+- a VoidZero-aligned stack for the app toolchain (lint, format)
 - default expectation: `Vite` for dev/build and `Vitest` for tests
 
 ### Do not introduce by default:
