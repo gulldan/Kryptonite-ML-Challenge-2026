@@ -58,9 +58,7 @@ class LocalTrackingRun:
         run_metadata["finished_at"] = utc_now()
         run_metadata["status"] = "completed"
         run_metadata["summary"] = summary or {}
-        (self.run_dir / "run.json").write_text(
-            json.dumps(run_metadata, indent=2, sort_keys=True)
-        )
+        (self.run_dir / "run.json").write_text(json.dumps(run_metadata, indent=2, sort_keys=True))
         return run_metadata
 
 
