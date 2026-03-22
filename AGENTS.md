@@ -120,6 +120,13 @@ This repository should evolve as a monorepo with clear boundaries.
 - Preferred workflow is: commit locally, push, then fetch/pull on `gpu-server` before running GPU jobs
 - Do not try to version datasets from `datasets/` or make git depend on them being present
 
+### Branch integration workflow
+
+- Complete the task on a task branch first, including relevant checks and Linear status updates
+- After a task is fully complete, merge that task branch into `develop`
+- Treat `develop` as the integration branch for completed work; do not leave completed task branches unmerged
+- After merging completed work into `develop`, push `develop` and use that updated branch as the base for subsequent integration work on `gpu-server`
+
 ## 6. Default Commands
 
 ### Python workflow
