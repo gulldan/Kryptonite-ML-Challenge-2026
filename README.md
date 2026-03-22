@@ -9,7 +9,6 @@ Repository-wide contributor rules live in [AGENTS.md](./AGENTS.md). Local rules 
 - `uv` for environment management, dependencies, lockfiles, and command execution
 - `ruff` for formatting and linting
 - `ty` for static type checking
-- `pre-commit` for repeatable local quality checks
 
 ## Quick Start
 
@@ -44,6 +43,7 @@ uv run pytest
 ```
 
 See [docs/repository-layout.md](./docs/repository-layout.md) for module boundaries and naming conventions.
+See [docs/configuration.md](./docs/configuration.md) for config overrides and secret handling.
 
 ## Naming Conventions
 
