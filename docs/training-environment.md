@@ -30,6 +30,12 @@ uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml
 For `gpu-server`:
 
 ```bash
+mkdir -p .local/bin .cache/uv
+install -m 755 /home/qwerty/.local/bin/uv .local/bin/uv
+install -m 755 /home/qwerty/.local/bin/uvx .local/bin/uvx
+export PATH="$PWD/.local/bin:$PATH"
+export UV_CACHE_DIR="$PWD/.cache/uv"
+export XDG_CACHE_HOME="$PWD/.cache"
 uv sync --dev --group train --group tracking
 uv pip install --python .venv/bin/python --extra-index-url https://pypi.nvidia.com/simple tensorrt-cu12
 uv run python scripts/training_env_smoke.py --config configs/deployment/train.toml --require-gpu
@@ -55,6 +61,7 @@ When the machine is expected to have real datasets and manifests mounted or sync
 - `onnxruntime` is also exposed as a standalone `infer` group so the runtime/demo container can stay smaller than the training image.
 - `mlflow` and `wandb` are installed but not wired in as the default tracker yet; the project still defaults to the lightweight local backend described in `docs/tracking.md`.
 - TensorRT stays outside the lockfile because NVIDIA's current wheel-stub packaging cannot be resolved cleanly from this macOS development host. The install command above keeps the GPU path explicit and reproducible for `gpu-server`.
+- On `gpu-server`, keep `uv`, `uvx`, and the `uv` cache on the same `/mnt/storage/Kryptonite-ML-Challenge-2026` volume as the repository checkout. This avoids filling the smaller home-disk while syncing the heavy PyTorch/NVIDIA stack.
 
 ## Limitations
 

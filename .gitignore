@@ -1,9 +1,11 @@
 .DS_Store
 .coverage
+.cache/
 .env
 .env.*
 .idea/
 .ipynb_checkpoints/
+.local/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
