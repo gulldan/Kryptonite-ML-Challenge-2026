@@ -6,6 +6,7 @@ Bring up a new machine with one `uv` command and verify that the project can imp
 
 ## Dependency Groups
 
+- `infer`: `onnxruntime`
 - `train`: `torch`, `torchaudio`, `onnx`, `onnxruntime`, `hydra-core`, `typer`
 - `tracking`: `mlflow`, `wandb`
 
@@ -22,6 +23,7 @@ For a local development machine:
 ```bash
 uv sync --dev --group train --group tracking
 uv run python scripts/training_env_smoke.py
+uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml
 ```
 
 For `gpu-server`:
@@ -47,6 +49,7 @@ uv run python scripts/training_env_smoke.py --output json
 ## Scope Decisions
 
 - `torch` and `torchaudio` stay in the `train` group because they are required for baseline model and feature work.
+- `onnxruntime` is also exposed as a standalone `infer` group so the runtime/demo container can stay smaller than the training image.
 - `mlflow` and `wandb` are installed but not wired in as the default tracker yet; the project still defaults to the lightweight local backend described in `docs/tracking.md`.
 - TensorRT stays outside the lockfile because NVIDIA's current wheel-stub packaging cannot be resolved cleanly from this macOS development host. The install command above keeps the GPU path explicit and reproducible for `gpu-server`.
 

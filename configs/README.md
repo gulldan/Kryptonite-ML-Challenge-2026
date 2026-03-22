@@ -10,9 +10,12 @@ Prefer concern-based groupings such as:
 - `configs/serve/`
 
 Current bootstrap config lives in `configs/base.toml`.
+Deployment-specific runtime profiles live in `configs/deployment/`.
+
 Validate and inspect it with:
 
 ```bash
 uv run python scripts/show_config.py --config configs/base.toml
 uv run python scripts/show_config.py --config configs/base.toml --override runtime.seed=123
+uv run python scripts/show_config.py --config configs/deployment/infer.toml
 ```

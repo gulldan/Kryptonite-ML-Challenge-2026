@@ -55,6 +55,7 @@ See [docs/repository-layout.md](./docs/repository-layout.md) for module boundari
 See [docs/configuration.md](./docs/configuration.md) for config overrides and secret handling.
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
+See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
 See [docs/training-environment.md](./docs/training-environment.md) for environment groups and setup commands.
 See [docs/tracking.md](./docs/tracking.md) for local run tracking and artifact logging.
 

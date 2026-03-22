@@ -1,0 +1,48 @@
+[paths]
+project_root = "."
+dataset_root = "datasets"
+artifacts_root = "artifacts"
+cache_root = "artifacts/cache"
+manifests_root = "artifacts/manifests"
+
+[runtime]
+seed = 42
+device = "cpu"
+log_level = "INFO"
+num_workers = 2
+
+[reproducibility]
+deterministic = true
+pythonhashseed = 42
+fingerprint_paths = ["configs/deployment/infer.toml", "configs/schema.json"]
+
+[training]
+batch_size = 1
+eval_batch_size = 1
+max_epochs = 1
+precision = "fp32"
+
+[backends]
+inference = "onnxruntime"
+export = "onnx"
+allow_torch = false
+allow_onnx = true
+allow_tensorrt = false
+
+[export]
+opset = 18
+dynamic_axes = true
+profile = "baseline"
+
+[tracking]
+enabled = false
+backend = "local"
+experiment = "kryptonite-infer"
+run_name_prefix = "infer"
+output_root = "artifacts/tracking"
+copy_artifacts = false
+
+[secrets]
+wandb_api_key = "WANDB_API_KEY"
+mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"
+huggingface_hub_token = "HUGGINGFACE_HUB_TOKEN"
