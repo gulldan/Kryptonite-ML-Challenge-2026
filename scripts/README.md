@@ -6,6 +6,7 @@ Scripts should be thin wrappers around reusable code in `src/kryptonite/`, not a
 
 Current entrypoints include:
 
+- `scripts/dataset_leakage_report.py` for reproducible duplicate/leakage/split-integrity audits from manifests
 - `scripts/acquire_ffsvc2022_surrogate.py` for server-only FFSVC 2022 surrogate data acquisition
 - `scripts/dataset_profile_report.py` for reproducible dataset profile JSON/Markdown reports from manifests
 - `scripts/dataset_sync.py` for reproducible dataset/manifests sync and gpu-server readiness reporting

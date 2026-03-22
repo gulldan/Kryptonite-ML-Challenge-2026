@@ -17,6 +17,7 @@ Repository-wide contributor rules live in [AGENTS.md](./AGENTS.md). Local rules 
 ```bash
 uv sync --dev --group train --group tracking
 uv run python scripts/training_env_smoke.py
+uv run python scripts/dataset_leakage_report.py
 uv run ruff format .
 uv run ruff check .
 uvx ty check
