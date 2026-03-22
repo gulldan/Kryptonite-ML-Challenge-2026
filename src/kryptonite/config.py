@@ -27,6 +27,13 @@ class RuntimeConfig:
 
 
 @dataclass(slots=True)
+class ReproducibilityConfig:
+    deterministic: bool
+    pythonhashseed: int
+    fingerprint_paths: list[str]
+
+
+@dataclass(slots=True)
 class TrainingConfig:
     batch_size: int
     eval_batch_size: int
@@ -61,6 +68,7 @@ class SecretRefs:
 class ProjectConfig:
     paths: PathsConfig
     runtime: RuntimeConfig
+    reproducibility: ReproducibilityConfig
     training: TrainingConfig
     backends: BackendsConfig
     export: ExportConfig
@@ -71,6 +79,7 @@ class ProjectConfig:
         payload = {
             "paths": asdict(self.paths),
             "runtime": asdict(self.runtime),
+            "reproducibility": asdict(self.reproducibility),
             "training": asdict(self.training),
             "backends": asdict(self.backends),
             "export": asdict(self.export),
@@ -102,6 +111,7 @@ def load_project_config(
     config = ProjectConfig(
         paths=PathsConfig(**require_section(data, "paths")),
         runtime=RuntimeConfig(**require_section(data, "runtime")),
+        reproducibility=ReproducibilityConfig(**require_section(data, "reproducibility")),
         training=TrainingConfig(**require_section(data, "training")),
         backends=BackendsConfig(**require_section(data, "backends")),
         export=ExportConfig(**require_section(data, "export")),

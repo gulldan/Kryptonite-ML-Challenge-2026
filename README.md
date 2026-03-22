@@ -44,6 +44,7 @@ uv run pytest
 
 See [docs/repository-layout.md](./docs/repository-layout.md) for module boundaries and naming conventions.
 See [docs/configuration.md](./docs/configuration.md) for config overrides and secret handling.
+See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 
 ## Naming Conventions
 

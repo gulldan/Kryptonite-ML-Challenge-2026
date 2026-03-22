@@ -11,6 +11,11 @@ device = "auto"
 log_level = "INFO"
 num_workers = 4
 
+[reproducibility]
+deterministic = true
+pythonhashseed = 42
+fingerprint_paths = ["configs/base.toml", "configs/schema.json"]
+
 [training]
 batch_size = 16
 eval_batch_size = 32

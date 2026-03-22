@@ -9,6 +9,7 @@ Keep runtime parameters in versioned config files and keep secret values out of 
 - `configs/base.toml` contains the versioned default profile
 - `configs/schema.json` documents the expected shape
 - `.env.example` lists supported secret variables
+- `scripts/repro_check.py` performs a reproducibility self-check for a config
 
 ## Overrides
 
@@ -38,3 +39,23 @@ The config stores environment variable names, not secret values. At runtime, the
 - `HUGGINGFACE_HUB_TOKEN`
 
 By default, the CLI masks secret values when printing them.
+
+## Reproducibility Hooks
+
+The config includes a `reproducibility` section with:
+
+- `deterministic`
+- `pythonhashseed`
+- `fingerprint_paths`
+
+Run the self-check with:
+
+```bash
+uv run python scripts/repro_check.py --config configs/base.toml --self-check
+```
+
+This launches two short subprocess runs with the same seed and `PYTHONHASHSEED`, then verifies:
+
+- identical control metadata
+- identical fingerprints for tracked inputs
+- equal probe outputs from seeded randomness

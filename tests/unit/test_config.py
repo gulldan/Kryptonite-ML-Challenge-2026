@@ -8,6 +8,8 @@ def test_load_project_config_uses_defaults() -> None:
 
     assert config.paths.dataset_root == "datasets"
     assert config.runtime.seed == 42
+    assert config.reproducibility.deterministic is True
+    assert config.reproducibility.pythonhashseed == 42
     assert config.backends.allow_tensorrt is False
     assert config.resolved_secrets["wandb_api_key"] is None
 
