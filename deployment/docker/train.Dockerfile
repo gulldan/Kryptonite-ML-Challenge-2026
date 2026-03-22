@@ -27,8 +27,9 @@ FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 WORKDIR /app
 
 ENV PATH="/app/.venv/bin:${PATH}" \
+    KRYP_REQUIRE_DEPLOYMENT_ARTIFACTS=0 \
     PYTHONUNBUFFERED=1
 
 COPY --from=builder /app /app
 
-CMD ["python", "scripts/training_env_smoke.py"]
+CMD ["python", "scripts/training_env_smoke.py", "--config", "configs/deployment/train.toml"]

@@ -22,7 +22,8 @@ For a local development machine:
 
 ```bash
 uv sync --dev --group train --group tracking
-uv run python scripts/training_env_smoke.py
+uv run python scripts/generate_demo_artifacts.py --config configs/deployment/infer.toml
+uv run python scripts/training_env_smoke.py --config configs/deployment/train.toml
 uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml
 ```
 
@@ -31,7 +32,7 @@ For `gpu-server`:
 ```bash
 uv sync --dev --group train --group tracking
 uv pip install --python .venv/bin/python --extra-index-url https://pypi.nvidia.com/simple tensorrt-cu12
-uv run python scripts/training_env_smoke.py --require-gpu
+uv run python scripts/training_env_smoke.py --config configs/deployment/train.toml --require-gpu
 ```
 
 The smoke script fails fast if any required import is broken and prints the resolved versions plus lightweight backend details such as:
@@ -43,8 +44,10 @@ The smoke script fails fast if any required import is broken and prints the reso
 JSON output is available for automation:
 
 ```bash
-uv run python scripts/training_env_smoke.py --output json
+uv run python scripts/training_env_smoke.py --config configs/deployment/train.toml --output json
 ```
+
+When the machine is expected to have real datasets and manifests mounted or synced already, add `--require-artifacts` to turn the artifact checks from advisory into a hard gate.
 
 ## Scope Decisions
 

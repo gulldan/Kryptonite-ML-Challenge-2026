@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from kryptonite.config import ProjectConfig
+from kryptonite.deployment import ArtifactReport
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,10 +153,11 @@ def build_service_metadata(
     *,
     config: ProjectConfig,
     report: ServeRuntimeReport,
+    artifact_report: ArtifactReport,
 ) -> dict[str, Any]:
     return {
         "service": "kryptonite-infer",
-        "status": "ok" if report.passed else "degraded",
+        "status": "ok" if report.passed and artifact_report.passed else "degraded",
         "selected_backend": report.selected_backend,
         "runtime": {
             "python_version": report.python_version,
@@ -166,7 +168,9 @@ def build_service_metadata(
         "config": {
             "tracking_enabled": config.tracking.enabled,
             "artifacts_root": config.paths.artifacts_root,
+            "manifests_root": config.paths.manifests_root,
         },
+        "artifacts": artifact_report.to_dict(),
         "backends": [probe.to_dict() for probe in report.probes],
     }
 

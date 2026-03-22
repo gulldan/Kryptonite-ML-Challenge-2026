@@ -7,7 +7,9 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from kryptonite.config import ProjectConfig
+from kryptonite.deployment import render_artifact_report
 
+from .deployment import build_infer_artifact_report
 from .runtime import (
     build_serve_runtime_report,
     build_service_metadata,
@@ -20,12 +22,17 @@ def create_http_server(
     host: str,
     port: int,
     config: ProjectConfig,
+    require_artifacts: bool = False,
 ) -> ThreadingHTTPServer:
     report = build_serve_runtime_report(config=config)
     if not report.passed:
         raise RuntimeError(render_serve_runtime_report(report))
 
-    payload = build_service_metadata(config=config, report=report)
+    artifact_report = build_infer_artifact_report(config=config, strict=require_artifacts)
+    if not artifact_report.passed:
+        raise RuntimeError(render_artifact_report(artifact_report))
+
+    payload = build_service_metadata(config=config, report=report, artifact_report=artifact_report)
     return ThreadingHTTPServer((host, port), _build_handler(payload))
 
 
@@ -34,8 +41,14 @@ def run_http_server(
     host: str,
     port: int,
     config: ProjectConfig,
+    require_artifacts: bool = False,
 ) -> None:
-    server = create_http_server(host=host, port=port, config=config)
+    server = create_http_server(
+        host=host,
+        port=port,
+        config=config,
+        require_artifacts=require_artifacts,
+    )
     try:
         server.serve_forever()
     finally:

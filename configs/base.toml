@@ -46,3 +46,8 @@ copy_artifacts = true
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"
 huggingface_hub_token = "HUGGINGFACE_HUB_TOKEN"
+
+[deployment]
+model_bundle_root = "artifacts/model-bundle"
+demo_subset_root = "artifacts/demo-subset"
+require_artifacts = false

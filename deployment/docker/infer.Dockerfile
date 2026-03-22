@@ -27,6 +27,7 @@ FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 WORKDIR /app
 
 ENV PATH="/app/.venv/bin:${PATH}" \
+    KRYP_REQUIRE_DEPLOYMENT_ARTIFACTS=0 \
     PYTHONUNBUFFERED=1
 
 COPY --from=builder /app /app

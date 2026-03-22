@@ -12,6 +12,9 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.reproducibility.pythonhashseed == 42
     assert config.backends.allow_tensorrt is False
     assert config.tracking.backend == "local"
+    assert config.deployment.model_bundle_root == "artifacts/model-bundle"
+    assert config.deployment.demo_subset_root == "artifacts/demo-subset"
+    assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] is None
 
 
@@ -34,6 +37,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.training.batch_size == 8
     assert config.runtime.log_level == "DEBUG"
     assert config.backends.allow_tensorrt is True
+    assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 
 
