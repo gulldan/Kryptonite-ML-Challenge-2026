@@ -1,0 +1,40 @@
+notes = [
+  "This plan only syncs what already exists in the local checkout; it does not fetch competition datasets from external storage.",
+  "As of 2026-03-22, the repo-local source tree contains only the synthetic demo dataset and demo artifacts. EDA and baseline data readiness remain blocked until real raw datasets and manifests are materialized locally and re-synced.",
+]
+
+[remote]
+host = "gpu-server"
+project_root = "/mnt/storage/Kryptonite-ML-Challenge-2026"
+ssh_options = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"]
+
+[report]
+local_path = "artifacts/reports/gpu-server-data-sync.json"
+remote_path = "artifacts/reports/gpu-server-data-sync.json"
+
+[[payloads]]
+name = "datasets"
+source = "datasets"
+target = "datasets"
+path_type = "dir"
+checksum_mode = "catalog"
+required = true
+description = "Raw datasets that downstream EDA, baseline, and demo tooling expect under the repo checkout."
+
+[[payloads]]
+name = "manifests"
+source = "artifacts/manifests"
+target = "artifacts/manifests"
+path_type = "dir"
+checksum_mode = "sha256"
+required = true
+description = "Resolved manifests and metadata artifacts that should live next to the checkout on gpu-server."
+
+[[payloads]]
+name = "demo_subset"
+source = "artifacts/demo-subset"
+target = "artifacts/demo-subset"
+path_type = "dir"
+checksum_mode = "sha256"
+required = false
+description = "Mini-demo enrollment and test subset used by the current deploy smoke flow."

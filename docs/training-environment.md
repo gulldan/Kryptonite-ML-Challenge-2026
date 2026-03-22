@@ -29,7 +29,13 @@ uv run python scripts/training_env_smoke.py --config configs/deployment/train.to
 uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml
 ```
 
-For `gpu-server`:
+Before target-machine smoke on `gpu-server`, sync the local dataset/manifests payloads with:
+
+```bash
+uv run python scripts/dataset_sync.py --plan configs/data-sync/gpu-server.toml --execute
+```
+
+Then on `gpu-server`:
 
 ```bash
 mkdir -p .local/bin .cache/uv
@@ -56,6 +62,8 @@ uv run python scripts/training_env_smoke.py --config configs/deployment/train.to
 ```
 
 When the machine is expected to have real datasets and manifests mounted or synced already, add `--require-artifacts` to turn the artifact checks from advisory into a hard gate.
+
+See `docs/gpu-server-data-sync.md` for the sync workflow, current server-state audit, and known data limitations.
 
 ## Scope Decisions
 

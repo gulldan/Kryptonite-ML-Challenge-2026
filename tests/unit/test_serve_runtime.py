@@ -70,8 +70,13 @@ def test_create_http_server_fails_when_backend_is_unavailable(monkeypatch) -> No
         create_http_server(host="127.0.0.1", port=0, config=config)
 
 
-def test_create_http_server_fails_when_required_artifacts_are_missing(monkeypatch) -> None:
-    config = load_project_config(config_path=Path("configs/deployment/infer.toml"))
+def test_create_http_server_fails_when_required_artifacts_are_missing(
+    monkeypatch, tmp_path
+) -> None:
+    config = load_project_config(
+        config_path=Path("configs/deployment/infer.toml"),
+        overrides=[f'paths.project_root="{tmp_path}"'],
+    )
 
     def fake_load_module(module_name: str) -> object:
         if module_name == "onnxruntime":

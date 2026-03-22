@@ -1,0 +1,41 @@
+name = "ffsvc2022-surrogate"
+dataset_root = "datasets/ffsvc2022-surrogate"
+notes = [
+  "Run this plan on gpu-server only. Do not materialize these downloads on the MacBook.",
+  "This is a surrogate bundle for pipeline bring-up, not a challenge-legal training recipe. The official FFSVC 2022 dev set is intended for tuning/evaluation, but we can still use it as a stand-in to exercise ingestion, manifests, splits, trials, training, and evaluation code before the Dataton data is released.",
+  "Official FFSVC 2020 main train/dev/eval data and VoxCeleb remain gated/manual. This plan automates only the artifacts that are directly downloadable from the official FFSVC 2022 page today.",
+]
+
+[[artifacts]]
+name = "ffsvc2022_dev_trials"
+url = "https://ffsvc.github.io/assets/ffsvc2022/trials_dev_keys"
+target_path = "metadata/trials_dev_keys.txt"
+checksum = "de0a22b157c3f5173a58b2bbc2ee0cab"
+checksum_algorithm = "md5"
+description = "Official FFSVC 2022 dev trials file."
+
+[[artifacts]]
+name = "ffsvc2022_dev_meta"
+url = "https://ffsvc.github.io/assets/ffsvc2022/dev_meta_list"
+target_path = "metadata/dev_meta_list.txt"
+checksum = "8ad1bdc99529e85be5ed453873a670e2"
+checksum_algorithm = "md5"
+description = "Official FFSVC 2022 dev metadata with speaker information."
+
+[[artifacts]]
+name = "ffsvc2022_eval_trials"
+url = "https://ffsvc.github.io/assets/ffsvc2022/trials_eval"
+target_path = "metadata/trials_eval.txt"
+checksum = "4a2af9dc8132ddd8826439cc3c1e440f"
+checksum_algorithm = "md5"
+description = "Official FFSVC 2022 eval trials file."
+
+[[artifacts]]
+name = "ffsvc2022_dev_wavs"
+url = "https://zenodo.org/api/records/6466068/files/dev.tar.gz/content"
+target_path = "downloads/dev.tar.gz"
+checksum = "e7fb015c5c6389da21d8966ce549e59f"
+checksum_algorithm = "md5"
+size_bytes = 8648134878
+extract_to = "raw/dev"
+description = "Official FFSVC 2022 dev audio archive from Zenodo."
