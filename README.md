@@ -10,6 +10,8 @@ Repository-wide contributor rules live in [AGENTS.md](./AGENTS.md). Local rules 
 - `ruff` for formatting and linting
 - `ty` for static type checking
 
+`uv sync` is expected to materialize the working environment in the repository-local `.venv`. Treat `.venv` as the canonical environment for this repo on both local machines and `gpu-server`; `uv` cache contents are not the working environment.
+
 ## Quick Start
 
 ```bash
@@ -28,6 +30,8 @@ uv sync --dev --group train --group tracking
 uv pip install --python .venv/bin/python --extra-index-url https://pypi.nvidia.com/simple tensorrt-cu12
 uv run python scripts/training_env_smoke.py --require-gpu
 ```
+
+The important detail is that TensorRT is layered into the same repo-local `.venv` created by `uv sync`, not into a separate global environment.
 
 ## Repository Layout
 

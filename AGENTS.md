@@ -32,6 +32,7 @@ If a new tool duplicates `uv`, `ruff`, `ty`, or the Bun/VoidZero frontend stack,
 
 - Keep Python project configuration in `pyproject.toml`
 - Commit `uv.lock`
+- Materialize the managed Python environment in the repository-local `.venv` via `uv sync`; do not rely on an ad hoc global environment or on `uv`'s cache as the working environment
 - Configure `ruff` in `pyproject.toml`
 - Configure `ty` in `pyproject.toml` once the Python package layout is created
 
@@ -116,6 +117,7 @@ This repository should evolve as a monorepo with clear boundaries.
 
 - For GPU-bound work, connect over `ssh` to `gpu-server`
 - On `gpu-server`, run repository commands from `/mnt/storage/Kryptonite-ML-Challenge-2026`
+- On both local machines and `gpu-server`, the canonical working environment is `/mnt/storage/Kryptonite-ML-Challenge-2026/.venv` (or `./.venv` locally) created by `uv sync`
 - Keep local datasets on the GPU machine in `/mnt/storage/Kryptonite-ML-Challenge-2026/datasets`
 - Preferred workflow is: commit locally, push, then fetch/pull on `gpu-server` before running GPU jobs
 - Do not try to version datasets from `datasets/` or make git depend on them being present
@@ -131,7 +133,7 @@ This repository should evolve as a monorepo with clear boundaries.
 
 ### Python workflow
 
-- Install and sync: `uv sync --dev`
+- Install and sync: `uv sync --dev` (creates or updates the repo-local `.venv`)
 - Add runtime dependency: `uv add <package>`
 - Add dev dependency: `uv add --group dev <package>`
 - Run a module or script: `uv run <command>`
@@ -141,6 +143,7 @@ This repository should evolve as a monorepo with clear boundaries.
 - Type-check: `uvx ty check`
 
 If `ty` is installed as a managed tool, `uv tool run ty check` is also acceptable. Do not rely on a global `ty` binary being present.
+If a machine needs optional extras such as TensorRT, layer them into the same repo-local `.venv` after `uv sync`.
 
 ### Frontend workflow
 

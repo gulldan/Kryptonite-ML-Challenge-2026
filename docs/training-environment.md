@@ -4,6 +4,8 @@
 
 Bring up a new machine with one `uv` command and verify that the project can import the training and experiment-tracking stack before any real training loop lands.
 
+The canonical working environment lives in the repository-local `.venv` created by `uv sync`. `uv` cache entries are not treated as the project's active environment.
+
 ## Dependency Groups
 
 - `infer`: `onnxruntime`
