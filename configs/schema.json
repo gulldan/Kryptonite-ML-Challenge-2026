@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KryptoniteConfig",
+  "type": "object",
+  "required": [
+    "paths",
+    "runtime",
+    "training",
+    "backends",
+    "export",
+    "secrets"
+  ],
+  "properties": {
+    "paths": {
+      "type": "object",
+      "required": [
+        "project_root",
+        "dataset_root",
+        "artifacts_root",
+        "cache_root",
+        "manifests_root"
+      ],
+      "properties": {
+        "project_root": { "type": "string" },
+        "dataset_root": { "type": "string" },
+        "artifacts_root": { "type": "string" },
+        "cache_root": { "type": "string" },
+        "manifests_root": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["seed", "device", "log_level", "num_workers"],
+      "properties": {
+        "seed": { "type": "integer", "minimum": 0 },
+        "device": { "type": "string" },
+        "log_level": { "type": "string" },
+        "num_workers": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "training": {
+      "type": "object",
+      "required": ["batch_size", "eval_batch_size", "max_epochs", "precision"],
+      "properties": {
+        "batch_size": { "type": "integer", "minimum": 1 },
+        "eval_batch_size": { "type": "integer", "minimum": 1 },
+        "max_epochs": { "type": "integer", "minimum": 1 },
+        "precision": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "backends": {
+      "type": "object",
+      "required": [
+        "inference",
+        "export",
+        "allow_torch",
+        "allow_onnx",
+        "allow_tensorrt"
+      ],
+      "properties": {
+        "inference": { "type": "string" },
+        "export": { "type": "string" },
+        "allow_torch": { "type": "boolean" },
+        "allow_onnx": { "type": "boolean" },
+        "allow_tensorrt": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "export": {
+      "type": "object",
+      "required": ["opset", "dynamic_axes", "profile"],
+      "properties": {
+        "opset": { "type": "integer", "minimum": 1 },
+        "dynamic_axes": { "type": "boolean" },
+        "profile": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "secrets": {
+      "type": "object",
+      "required": [
+        "wandb_api_key",
+        "mlflow_tracking_token",
+        "huggingface_hub_token"
+      ],
+      "properties": {
+        "wandb_api_key": { "type": "string" },
+        "mlflow_tracking_token": { "type": "string" },
+        "huggingface_hub_token": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
