@@ -36,3 +36,5 @@ def test_health_endpoint_reports_selected_backend(monkeypatch) -> None:
     assert payload["service"] == "kryptonite-infer"
     assert payload["selected_backend"] == "onnxruntime"
     assert payload["status"] == "ok"
+    assert payload["artifacts"]["scope"] == "infer"
+    assert payload["artifacts"]["strict"] is False

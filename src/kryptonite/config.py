@@ -75,6 +75,13 @@ class SecretRefs:
 
 
 @dataclass(slots=True)
+class DeploymentConfig:
+    model_bundle_root: str
+    demo_subset_root: str
+    require_artifacts: bool
+
+
+@dataclass(slots=True)
 class ProjectConfig:
     paths: PathsConfig
     runtime: RuntimeConfig
@@ -84,6 +91,7 @@ class ProjectConfig:
     export: ExportConfig
     tracking: TrackingConfig
     secrets: SecretRefs
+    deployment: DeploymentConfig
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
 
     def to_dict(self, *, mask_secrets: bool = True) -> dict[str, Any]:
@@ -96,6 +104,7 @@ class ProjectConfig:
             "export": asdict(self.export),
             "tracking": asdict(self.tracking),
             "secrets": asdict(self.secrets),
+            "deployment": asdict(self.deployment),
             "resolved_secrets": dict(self.resolved_secrets),
         }
         if mask_secrets:
@@ -129,6 +138,17 @@ def load_project_config(
         export=ExportConfig(**require_section(data, "export")),
         tracking=TrackingConfig(**require_section(data, "tracking")),
         secrets=SecretRefs(**require_section(data, "secrets")),
+        deployment=DeploymentConfig(
+            **optional_section(
+                data,
+                "deployment",
+                {
+                    "model_bundle_root": "artifacts/model-bundle",
+                    "demo_subset_root": "artifacts/demo-subset",
+                    "require_artifacts": False,
+                },
+            )
+        ),
     )
     config.resolved_secrets = {
         key: env.get(env_var_name) for key, env_var_name in asdict(config.secrets).items()
@@ -141,6 +161,15 @@ def require_section(data: dict[str, Any], name: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"Config section '{name}' is missing or invalid.")
     return value
+
+
+def optional_section(data: dict[str, Any], name: str, default: dict[str, Any]) -> dict[str, Any]:
+    value = data.get(name)
+    if value is None:
+        return dict(default)
+    if not isinstance(value, dict):
+        raise ValueError(f"Config section '{name}' is missing or invalid.")
+    return {**default, **value}
 
 
 def apply_override(data: dict[str, Any], override: str) -> None:

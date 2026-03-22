@@ -6,6 +6,7 @@ Scripts should be thin wrappers around reusable code in `src/kryptonite/`, not a
 
 Current entrypoints include:
 
+- `scripts/generate_demo_artifacts.py` for reproducible mini-demo dataset/manifests/model bundle generation
 - `scripts/infer_smoke.py` for inference-runtime and API startup smoke validation
 - `scripts/repro_check.py` for reproducibility smoke validation
 - `scripts/show_config.py` for config inspection and overrides

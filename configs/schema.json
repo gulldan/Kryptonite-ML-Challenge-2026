@@ -10,7 +10,8 @@
     "backends",
     "export",
     "tracking",
-    "secrets"
+    "secrets",
+    "deployment"
   ],
   "properties": {
     "paths": {
@@ -125,6 +126,20 @@
         "wandb_api_key": { "type": "string" },
         "mlflow_tracking_token": { "type": "string" },
         "huggingface_hub_token": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "deployment": {
+      "type": "object",
+      "required": [
+        "model_bundle_root",
+        "demo_subset_root",
+        "require_artifacts"
+      ],
+      "properties": {
+        "model_bundle_root": { "type": "string" },
+        "demo_subset_root": { "type": "string" },
+        "require_artifacts": { "type": "boolean" }
       },
       "additionalProperties": false
     }

@@ -7,25 +7,25 @@ manifests_root = "artifacts/manifests"
 
 [runtime]
 seed = 42
-device = "cpu"
+device = "auto"
 log_level = "INFO"
-num_workers = 2
+num_workers = 4
 
 [reproducibility]
 deterministic = true
 pythonhashseed = 42
-fingerprint_paths = ["configs/deployment/infer.toml", "configs/schema.json"]
+fingerprint_paths = ["configs/deployment/train.toml", "configs/schema.json"]
 
 [training]
-batch_size = 1
-eval_batch_size = 1
-max_epochs = 1
+batch_size = 16
+eval_batch_size = 32
+max_epochs = 10
 precision = "fp32"
 
 [backends]
-inference = "onnxruntime"
+inference = "torch"
 export = "onnx"
-allow_torch = false
+allow_torch = true
 allow_onnx = true
 allow_tensorrt = false
 
@@ -37,8 +37,8 @@ profile = "baseline"
 [tracking]
 enabled = false
 backend = "local"
-experiment = "kryptonite-infer"
-run_name_prefix = "infer"
+experiment = "kryptonite-train"
+run_name_prefix = "train"
 output_root = "artifacts/tracking"
 copy_artifacts = false
 
