@@ -107,9 +107,20 @@ This repository should evolve as a monorepo with clear boundaries.
 
 - Large raw datasets do not belong in git
 - Commit manifests, schemas, metadata contracts, and small fixtures
+- Local datasets live in `datasets/` under the repository root and must stay git-ignored
 - Generated outputs go to ignored artifact locations unless they are intentionally versioned deliverables
 
-## 5. Default Commands
+## 5. Execution Environments
+
+### GPU server workflow
+
+- For GPU-bound work, connect over `ssh` to `gpu-server`
+- On `gpu-server`, run repository commands from `/mnt/storage/Kryptonite-ML-Challenge-2026`
+- Keep local datasets on the GPU machine in `/mnt/storage/Kryptonite-ML-Challenge-2026/datasets`
+- Preferred workflow is: commit locally, push, then fetch/pull on `gpu-server` before running GPU jobs
+- Do not try to version datasets from `datasets/` or make git depend on them being present
+
+## 6. Default Commands
 
 ### Python workflow
 
@@ -135,7 +146,7 @@ When `apps/web` exists:
 
 Frontend scripts must stay inside `apps/web/package.json`; do not add a second package manager.
 
-## 6. Quality Gates
+## 7. Quality Gates
 
 Before considering work complete for touched Python code:
 
@@ -150,7 +161,7 @@ Before considering work complete for touched frontend code:
 - the frontend remains isolated in `apps/web`
 - no backend-only concerns leak into the frontend package
 
-## 7. Agent Behavior Rules
+## 8. Agent Behavior Rules
 
 All agents must follow these rules:
 
@@ -163,7 +174,7 @@ All agents must follow these rules:
 - Do not mix training logic, serving logic, and exploratory logic in the same module
 - Do not put frontend code into Python app folders or Python code into frontend app folders
 
-## 8. Future Local AGENTS Files
+## 9. Future Local AGENTS Files
 
 When these directories appear, add local `AGENTS.md` files:
 
