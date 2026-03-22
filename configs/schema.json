@@ -9,6 +9,7 @@
     "training",
     "backends",
     "export",
+    "tracking",
     "secrets"
   ],
   "properties": {
@@ -90,6 +91,26 @@
         "opset": { "type": "integer", "minimum": 1 },
         "dynamic_axes": { "type": "boolean" },
         "profile": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "tracking": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "backend",
+        "experiment",
+        "run_name_prefix",
+        "output_root",
+        "copy_artifacts"
+      ],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "backend": { "type": "string" },
+        "experiment": { "type": "string" },
+        "run_name_prefix": { "type": "string" },
+        "output_root": { "type": "string" },
+        "copy_artifacts": { "type": "boolean" }
       },
       "additionalProperties": false
     },

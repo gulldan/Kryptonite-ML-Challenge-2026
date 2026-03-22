@@ -58,6 +58,16 @@ class ExportConfig:
 
 
 @dataclass(slots=True)
+class TrackingConfig:
+    enabled: bool
+    backend: str
+    experiment: str
+    run_name_prefix: str
+    output_root: str
+    copy_artifacts: bool
+
+
+@dataclass(slots=True)
 class SecretRefs:
     wandb_api_key: str
     mlflow_tracking_token: str
@@ -72,6 +82,7 @@ class ProjectConfig:
     training: TrainingConfig
     backends: BackendsConfig
     export: ExportConfig
+    tracking: TrackingConfig
     secrets: SecretRefs
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
 
@@ -83,6 +94,7 @@ class ProjectConfig:
             "training": asdict(self.training),
             "backends": asdict(self.backends),
             "export": asdict(self.export),
+            "tracking": asdict(self.tracking),
             "secrets": asdict(self.secrets),
             "resolved_secrets": dict(self.resolved_secrets),
         }
@@ -115,6 +127,7 @@ def load_project_config(
         training=TrainingConfig(**require_section(data, "training")),
         backends=BackendsConfig(**require_section(data, "backends")),
         export=ExportConfig(**require_section(data, "export")),
+        tracking=TrackingConfig(**require_section(data, "tracking")),
         secrets=SecretRefs(**require_section(data, "secrets")),
     )
     config.resolved_secrets = {

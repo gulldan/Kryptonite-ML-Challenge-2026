@@ -59,3 +59,14 @@ This launches two short subprocess runs with the same seed and `PYTHONHASHSEED`,
 - identical control metadata
 - identical fingerprints for tracked inputs
 - equal probe outputs from seeded randomness
+
+## Tracking
+
+The config also includes a `tracking` section. Right now the default backend is `local`, which writes:
+
+- run metadata
+- params
+- metrics
+- copied artifact files
+
+into `artifacts/tracking/<run_id>/`.
