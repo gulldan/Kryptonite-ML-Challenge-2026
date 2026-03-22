@@ -5,6 +5,7 @@
   "required": [
     "paths",
     "runtime",
+    "reproducibility",
     "training",
     "backends",
     "export",
@@ -37,6 +38,19 @@
         "device": { "type": "string" },
         "log_level": { "type": "string" },
         "num_workers": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "reproducibility": {
+      "type": "object",
+      "required": ["deterministic", "pythonhashseed", "fingerprint_paths"],
+      "properties": {
+        "deterministic": { "type": "boolean" },
+        "pythonhashseed": { "type": "integer", "minimum": 0 },
+        "fingerprint_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
       "additionalProperties": false
     },
