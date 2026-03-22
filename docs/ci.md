@@ -6,10 +6,11 @@ The current GitHub Actions workflow is intentionally narrow and only validates e
 
 Current checks:
 
-- `uv sync --dev --frozen`
+- `uv sync --dev --group train --group tracking --frozen`
 - `uv run ruff check .`
 - `uv run ty check`
 - `uv run pytest`
+- `uv run python scripts/training_env_smoke.py`
 - `uv run python scripts/show_config.py --config configs/base.toml --override runtime.seed=123 --override backends.allow_tensorrt=true`
 - `uv run python scripts/repro_check.py --config configs/base.toml --self-check`
 
@@ -18,6 +19,7 @@ Current checks:
 The Linear issue mentions smoke checks for audio pipeline, fbank extraction, scoring, ONNX export, and API startup. Those entrypoints do not exist in the repository yet, so the workflow currently focuses on:
 
 - broken imports
+- broken training-environment imports
 - broken config loading
 - broken reproducibility hooks
 - broken unit tests
