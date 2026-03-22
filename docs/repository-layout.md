@@ -13,7 +13,7 @@
 ## Supporting Areas
 
 - `apps/api/` stays thin and delegates to `src/kryptonite/serve/`.
-- `dts/` is the local dataset root on working machines and on `gpu-server`; it is intentionally git-ignored.
+- `datasets/` is the local dataset root on working machines and on `gpu-server`; it is intentionally git-ignored.
 - `scripts/` holds reproducible CLI entrypoints, never one-off root scripts.
 - `notebooks/` is exploratory only and must call into reusable code in `src/` or `scripts/`.
 - `artifacts/` is for ignored local outputs and should not become a source of truth.

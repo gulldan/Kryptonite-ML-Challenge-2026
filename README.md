@@ -30,7 +30,7 @@ uv run pytest
 ├── artifacts/            # ignored generated outputs
 ├── assets/               # small curated fixtures and demo assets
 ├── configs/              # runtime, training, evaluation, deployment config
-├── dts/                  # local datasets, ignored by git
+├── datasets/             # local datasets, ignored by git
 ├── deployment/           # deployment-oriented manifests and packaging notes
 ├── docs/                 # architecture, runbooks, model cards
 ├── notebooks/            # exploration only, never the source of truth
@@ -50,7 +50,7 @@ See [docs/repository-layout.md](./docs/repository-layout.md) for module boundari
 - Python packages, modules, and scripts use `snake_case`.
 - Markdown documents use `kebab-case`.
 - Configs should be grouped by concern, for example `configs/training/` or `configs/eval/`.
-- Local datasets live in `dts/` and must stay out of git.
+- Local datasets live in `datasets/` and must stay out of git.
 - Generated outputs belong in `artifacts/`, not in `src/`, `notebooks/`, or the repository root.
 
 ## Quality Gates
