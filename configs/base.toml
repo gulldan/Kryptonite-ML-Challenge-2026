@@ -34,6 +34,14 @@ opset = 18
 dynamic_axes = true
 profile = "baseline"
 
+[tracking]
+enabled = true
+backend = "local"
+experiment = "kryptonite-dev"
+run_name_prefix = "smoke"
+output_root = "artifacts/tracking"
+copy_artifacts = true
+
 [secrets]
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"

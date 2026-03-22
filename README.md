@@ -46,6 +46,7 @@ See [docs/repository-layout.md](./docs/repository-layout.md) for module boundari
 See [docs/configuration.md](./docs/configuration.md) for config overrides and secret handling.
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
+See [docs/tracking.md](./docs/tracking.md) for local run tracking and artifact logging.
 
 ## Naming Conventions
 

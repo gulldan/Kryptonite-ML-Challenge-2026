@@ -11,6 +11,7 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.reproducibility.deterministic is True
     assert config.reproducibility.pythonhashseed == 42
     assert config.backends.allow_tensorrt is False
+    assert config.tracking.backend == "local"
     assert config.resolved_secrets["wandb_api_key"] is None
 
 
