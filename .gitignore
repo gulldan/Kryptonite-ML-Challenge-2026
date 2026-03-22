@@ -1,0 +1,15 @@
+.DS_Store
+.coverage
+.idea/
+.ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+build/
+dts/
+dist/
+htmlcov/
+*.egg-info/
+*.pyc
