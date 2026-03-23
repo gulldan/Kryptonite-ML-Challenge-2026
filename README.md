@@ -67,6 +67,7 @@ See [docs/gpu-server-data-sync.md](./docs/gpu-server-data-sync.md) for gpu-serve
 See [docs/training-environment.md](./docs/training-environment.md) for environment groups and setup commands.
 See [docs/tracking.md](./docs/tracking.md) for local run tracking and artifact logging.
 See [docs/unified-metadata-schema.md](./docs/unified-metadata-schema.md) for the versioned manifest-row contract and validation workflow.
+See [docs/audio-normalization.md](./docs/audio-normalization.md) for the 16 kHz mono normalization policy and reproducible CLI flow.
 
 ## Naming Conventions
 

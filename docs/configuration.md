@@ -70,3 +70,24 @@ The config also includes a `tracking` section. Right now the default backend is 
 - copied artifact files
 
 into `artifacts/tracking/<run_id>/`.
+
+## Audio Normalization
+
+The base config also includes a `normalization` section for the manifest-driven audio rewrite flow:
+
+- `target_sample_rate_hz`
+- `target_channels`
+- `output_format`
+- `output_pcm_bits_per_sample`
+- `peak_headroom_db`
+- `dc_offset_threshold`
+- `clipped_sample_threshold`
+
+The defaults currently define the canonical preprocessing bundle for this repo:
+
+- `16 kHz`
+- `mono`
+- `PCM16 WAV`
+- `1 dB` peak headroom
+
+Use them through `scripts/normalize_audio_dataset.py`, and override only when a specific experiment needs a different derived bundle.

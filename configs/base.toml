@@ -42,6 +42,15 @@ run_name_prefix = "smoke"
 output_root = "artifacts/tracking"
 copy_artifacts = true
 
+[normalization]
+target_sample_rate_hz = 16000
+target_channels = 1
+output_format = "wav"
+output_pcm_bits_per_sample = 16
+peak_headroom_db = 1.0
+dc_offset_threshold = 0.01
+clipped_sample_threshold = 0.999
+
 [secrets]
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"

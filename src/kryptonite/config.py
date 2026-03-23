@@ -68,6 +68,17 @@ class TrackingConfig:
 
 
 @dataclass(slots=True)
+class NormalizationConfig:
+    target_sample_rate_hz: int
+    target_channels: int
+    output_format: str
+    output_pcm_bits_per_sample: int
+    peak_headroom_db: float
+    dc_offset_threshold: float
+    clipped_sample_threshold: float
+
+
+@dataclass(slots=True)
 class SecretRefs:
     wandb_api_key: str
     mlflow_tracking_token: str
@@ -90,6 +101,7 @@ class ProjectConfig:
     backends: BackendsConfig
     export: ExportConfig
     tracking: TrackingConfig
+    normalization: NormalizationConfig
     secrets: SecretRefs
     deployment: DeploymentConfig
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
@@ -103,6 +115,7 @@ class ProjectConfig:
             "backends": asdict(self.backends),
             "export": asdict(self.export),
             "tracking": asdict(self.tracking),
+            "normalization": asdict(self.normalization),
             "secrets": asdict(self.secrets),
             "deployment": asdict(self.deployment),
             "resolved_secrets": dict(self.resolved_secrets),
@@ -137,6 +150,21 @@ def load_project_config(
         backends=BackendsConfig(**require_section(data, "backends")),
         export=ExportConfig(**require_section(data, "export")),
         tracking=TrackingConfig(**require_section(data, "tracking")),
+        normalization=NormalizationConfig(
+            **optional_section(
+                data,
+                "normalization",
+                {
+                    "target_sample_rate_hz": 16000,
+                    "target_channels": 1,
+                    "output_format": "wav",
+                    "output_pcm_bits_per_sample": 16,
+                    "peak_headroom_db": 1.0,
+                    "dc_offset_threshold": 0.01,
+                    "clipped_sample_threshold": 0.999,
+                },
+            )
+        ),
         secrets=SecretRefs(**require_section(data, "secrets")),
         deployment=DeploymentConfig(
             **optional_section(

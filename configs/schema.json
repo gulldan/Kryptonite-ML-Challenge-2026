@@ -10,6 +10,7 @@
     "backends",
     "export",
     "tracking",
+    "normalization",
     "secrets",
     "deployment"
   ],
@@ -112,6 +113,28 @@
         "run_name_prefix": { "type": "string" },
         "output_root": { "type": "string" },
         "copy_artifacts": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "normalization": {
+      "type": "object",
+      "required": [
+        "target_sample_rate_hz",
+        "target_channels",
+        "output_format",
+        "output_pcm_bits_per_sample",
+        "peak_headroom_db",
+        "dc_offset_threshold",
+        "clipped_sample_threshold"
+      ],
+      "properties": {
+        "target_sample_rate_hz": { "type": "integer", "minimum": 1 },
+        "target_channels": { "type": "integer", "minimum": 1 },
+        "output_format": { "type": "string", "enum": ["wav", "flac"] },
+        "output_pcm_bits_per_sample": { "type": "integer", "minimum": 1 },
+        "peak_headroom_db": { "type": "number", "minimum": 0.0 },
+        "dc_offset_threshold": { "type": "number", "minimum": 0.0 },
+        "clipped_sample_threshold": { "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0 }
       },
       "additionalProperties": false
     },
