@@ -158,9 +158,9 @@ def resolve_vad_settings(
     backend: str = "silero_vad_v6_onnx",
     provider: str = "auto",
 ) -> VADSettings:
-    normalized_mode = mode.lower()
-    normalized_backend = backend.lower()
-    normalized_provider = provider.lower()
+    normalized_mode = _normalize_vad_mode(mode)
+    normalized_backend = _normalize_vad_backend(backend)
+    normalized_provider = _normalize_vad_provider(provider)
     if normalized_mode == "none":
         return VADSettings(
             mode="none",
@@ -327,9 +327,9 @@ def _detect_speech_segments(
 
 @lru_cache(maxsize=3)
 def _load_silero_model(backend: str, provider: str) -> SileroVADOnnxModel:
-    if backend not in SUPPORTED_VAD_BACKENDS:
-        raise ValueError(f"Unsupported VAD backend {backend!r}; expected {SUPPORTED_VAD_BACKENDS}")
-    providers = _resolve_execution_providers(provider)
+    _normalize_vad_backend(backend)
+    normalized_provider = _normalize_vad_provider(provider)
+    providers = _resolve_execution_providers(normalized_provider)
     return SileroVADOnnxModel(
         model_path=_resolve_silero_model_path(),
         providers=providers,
@@ -342,15 +342,14 @@ def _resolve_silero_model_path() -> str:
     return str(package_root.joinpath("silero_vad.onnx"))
 
 
-def _resolve_execution_providers(provider: str) -> tuple[str, ...]:
+def _resolve_execution_providers(provider: VADProvider) -> tuple[str, ...]:
     onnxruntime = _import_onnxruntime()
     available_providers = set(onnxruntime.get_available_providers())
-    normalized_provider = provider.lower()
-    if normalized_provider == "cpu":
+    if provider == "cpu":
         if "CPUExecutionProvider" not in available_providers:
             raise RuntimeError("onnxruntime CPUExecutionProvider is not available")
         return ("CPUExecutionProvider",)
-    if normalized_provider == "cuda":
+    if provider == "cuda":
         if "CUDAExecutionProvider" not in available_providers:
             raise RuntimeError(
                 "VAD provider is set to 'cuda' but CUDAExecutionProvider is not available"
@@ -359,7 +358,7 @@ def _resolve_execution_providers(provider: str) -> tuple[str, ...]:
         if "CPUExecutionProvider" in available_providers:
             providers.append("CPUExecutionProvider")
         return tuple(providers)
-    if normalized_provider == "auto":
+    if provider == "auto":
         if "CUDAExecutionProvider" in available_providers:
             providers = ["CUDAExecutionProvider"]
             if "CPUExecutionProvider" in available_providers:
@@ -370,6 +369,39 @@ def _resolve_execution_providers(provider: str) -> tuple[str, ...]:
         if available_providers:
             return tuple(sorted(available_providers))
         raise RuntimeError("onnxruntime reported no available execution providers")
+    raise ValueError(
+        f"Unsupported VAD provider {provider!r}; expected one of {SUPPORTED_VAD_PROVIDERS}"
+    )
+
+
+def _normalize_vad_mode(mode: str) -> VADMode:
+    normalized_mode = mode.lower()
+    if normalized_mode == "none":
+        return "none"
+    if normalized_mode == "light":
+        return "light"
+    if normalized_mode == "aggressive":
+        return "aggressive"
+    raise ValueError(f"Unsupported VAD mode {mode!r}; expected one of {SUPPORTED_VAD_MODES}")
+
+
+def _normalize_vad_backend(backend: str) -> VADBackend:
+    normalized_backend = backend.lower()
+    if normalized_backend == "silero_vad_v6_onnx":
+        return "silero_vad_v6_onnx"
+    raise ValueError(
+        f"Unsupported VAD backend {backend!r}; expected one of {SUPPORTED_VAD_BACKENDS}"
+    )
+
+
+def _normalize_vad_provider(provider: str) -> VADProvider:
+    normalized_provider = provider.lower()
+    if normalized_provider == "auto":
+        return "auto"
+    if normalized_provider == "cpu":
+        return "cpu"
+    if normalized_provider == "cuda":
+        return "cuda"
     raise ValueError(
         f"Unsupported VAD provider {provider!r}; expected one of {SUPPORTED_VAD_PROVIDERS}"
     )

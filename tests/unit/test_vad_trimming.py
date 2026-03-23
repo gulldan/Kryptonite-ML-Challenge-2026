@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
 import pytest
+import soundfile as sf
 
 import kryptonite.data.vad as vad_module
 from kryptonite.config import NormalizationConfig
