@@ -68,7 +68,9 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     )
     metadata_root.joinpath("trials_dev_keys.txt").write_text(
         "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
+        "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
         "0 ffsvc22_dev_000001.wav ffsvc22_dev_000003.wav\n"
+        "0 ffsvc22_dev_000002.wav ffsvc22_dev_000004.wav\n"
     )
     for filename in (
         "ffsvc22_dev_000001.wav",
@@ -87,13 +89,14 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     )
 
     speaker_split = json.loads(Path(artifacts.speaker_split_file).read_text())
+    speaker_split_summary = json.loads(Path(artifacts.speaker_split_summary_file).read_text())
     manifest_inventory = json.loads(Path(artifacts.manifest_inventory_file).read_text())
     train_manifest_lines = Path(artifacts.train_manifest_file).read_text().splitlines()
     dev_manifest_lines = Path(artifacts.dev_manifest_file).read_text().splitlines()
     split_trial_lines = Path(artifacts.split_trials_file).read_text().splitlines()
 
     assert artifacts.utterance_count == 4
-    assert artifacts.official_trial_count == 2
+    assert artifacts.official_trial_count == 4
     assert len(speaker_split["train_speakers"]) == 1
     assert len(speaker_split["dev_speakers"]) == 1
     assert len(train_manifest_lines) == 2
@@ -116,6 +119,14 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
         "official_dev_trials.jsonl"
     )
     assert manifest_inventory["auxiliary_files"][0]["path"].endswith("speaker_splits.json")
+    assert manifest_inventory["auxiliary_files"][1]["path"].endswith("speaker_split_summary.json")
+    assert speaker_split_summary["requested_dev_speaker_count"] == 1
+    assert speaker_split_summary["manifest_summary"]["is_valid"] is True
+    assert speaker_split_summary["trial_coverage"]["is_valid"] is True
+    assert speaker_split_summary["trial_coverage"]["positive_trial_count"] == 1
+    assert speaker_split_summary["trial_coverage"]["negative_trial_count"] == 0
+    assert speaker_split_summary["trial_coverage"]["negative_trial_requirement_enabled"] is False
+    assert speaker_split_summary["trial_coverage"]["missing_dev_speakers"] == []
 
 
 def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: Path) -> None:
@@ -250,6 +261,60 @@ def test_prepare_ffsvc2022_surrogate_omits_quarantined_duplicates_from_split_tri
             "right_audio": "ffsvc22_dev_063782.wav",
         }
     ]
+
+
+def test_prepare_ffsvc2022_surrogate_requires_positive_and_negative_strict_dev_trials(
+    tmp_path: Path,
+) -> None:
+    dataset_root = tmp_path / "datasets" / "ffsvc2022-surrogate"
+    metadata_root = dataset_root / "metadata"
+    audio_root = dataset_root / "raw" / "dev"
+    manifests_root = tmp_path / "artifacts" / "manifests"
+    metadata_root.mkdir(parents=True)
+    audio_root.mkdir(parents=True)
+    manifests_root.mkdir(parents=True)
+
+    metadata_root.joinpath("dev_meta_list.txt").write_text(
+        "Original_Name FFSVC2022_Name\n"
+        "F0101_101I1M_1_0001_normal ffsvc22_dev_000001\n"
+        "S0101_101I3M_1_0002_normal ffsvc22_dev_000002\n"
+        "T0202_202I1M_1_0003_fast ffsvc22_dev_000003\n"
+        "F0202_202I3M_1_0004_slow ffsvc22_dev_000004\n"
+        "M0303_303I1M_1_0005_fast ffsvc22_dev_000005\n"
+        "F0303_303I3M_1_0006_slow ffsvc22_dev_000006\n"
+        "S0404_404I1M_1_0007_fast ffsvc22_dev_000007\n"
+        "T0404_404I3M_1_0008_slow ffsvc22_dev_000008\n"
+    )
+    metadata_root.joinpath("trials_dev_keys.txt").write_text(
+        "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
+        "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
+        "1 ffsvc22_dev_000005.wav ffsvc22_dev_000006.wav\n"
+        "1 ffsvc22_dev_000007.wav ffsvc22_dev_000008.wav\n"
+    )
+    for filename in (
+        "ffsvc22_dev_000001.wav",
+        "ffsvc22_dev_000002.wav",
+        "ffsvc22_dev_000003.wav",
+        "ffsvc22_dev_000004.wav",
+        "ffsvc22_dev_000005.wav",
+        "ffsvc22_dev_000006.wav",
+        "ffsvc22_dev_000007.wav",
+        "ffsvc22_dev_000008.wav",
+    ):
+        _write_wav(audio_root / filename)
+
+    try:
+        prepare_ffsvc2022_surrogate(
+            project_root=str(tmp_path),
+            dataset_root="datasets",
+            manifests_root="artifacts/manifests",
+            dev_speaker_count=2,
+            seed=7,
+        )
+    except ValueError as exc:
+        assert "missing negative dev-only trials" in str(exc)
+    else:
+        raise AssertionError("Expected strict-dev validation to reject one-sided trials.")
 
 
 def test_build_speaker_splits_requires_non_trivial_holdout() -> None:

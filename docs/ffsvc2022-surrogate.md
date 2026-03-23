@@ -111,6 +111,7 @@ The prepared bundle now writes, under `artifacts/manifests/ffsvc2022-surrogate/`
 - `all/train/dev/quarantine` manifests in both `.jsonl` and `.csv`
 - `official_dev_trials` and `speaker_disjoint_dev_trials` in both `.jsonl` and `.csv`
 - `speaker_splits.json`
+- `speaker_split_summary.json`
 - `manifest_inventory.json` with relative artifact paths, row counts, speaker counts, and
   SHA-256 checksums for the generated manifest/list files
 
@@ -118,11 +119,22 @@ Each active manifest row also carries the discovered WAV duration, sample rate, 
 so downstream EDA and preprocessing do not have to re-derive that metadata just to understand the
 bundle shape.
 
+`speaker_split_summary.json` is the explicit readiness gate for `KRYP-017`:
+
+- it restates the deterministic train/dev speaker assignment
+- it proves the active manifests remain speaker-disjoint
+- it checks that `speaker_disjoint_dev_trials.jsonl` is non-empty, touches every held-out dev
+  speaker, and, for the real multi-speaker holdout, contains both positive and negative labels
+
+If any of those invariants fail, `scripts/prepare_ffsvc2022_surrogate.py` now exits with an error
+instead of silently leaving a weak strict-dev split behind.
+
 ## Recommended Next Steps
 
 After acquisition:
 
 1. reuse the unified manifest contract for the next real Dataton dataset adapter
-2. derive speaker-disjoint train/dev splits from the official dev metadata
-3. reuse official trial files where possible for verification scoring
+2. canonicalize or regenerate the official dev trial file so every row resolves against the active
+   manifests
+3. reuse the strict-dev split summary as a readiness gate before threshold tuning runs
 4. treat this bundle as the engineering stand-in until the Dataton data lands
