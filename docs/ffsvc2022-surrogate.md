@@ -85,8 +85,8 @@ The policy is intentionally `quarantine`, not silent deletion:
   examples
 - `quarantine_manifest.jsonl` preserves the dropped rows together with the duplicate group id,
   canonical utterance id, and reason, so the upstream bundle issue remains auditable
-- `speaker_disjoint_dev_trials.jsonl` is derived from the active rows only, so a quarantined entry
-  cannot leak back into held-out evaluation if split parameters change
+- `speaker_disjoint_dev_trials.jsonl` is generated from the active held-out `dev` rows only, so a
+  quarantined entry cannot leak back into threshold tuning if split parameters change
 
 Residual risk:
 
@@ -110,6 +110,7 @@ The prepared bundle now writes, under `artifacts/manifests/ffsvc2022-surrogate/`
 
 - `all/train/dev/quarantine` manifests in both `.jsonl` and `.csv`
 - `official_dev_trials` and `speaker_disjoint_dev_trials` in both `.jsonl` and `.csv`
+- `speaker_disjoint_dev_trials_summary.json`
 - `speaker_splits.json`
 - `speaker_split_summary.json`
 - `manifest_inventory.json` with relative artifact paths, row counts, speaker counts, and
@@ -125,6 +126,25 @@ bundle shape.
 - it proves the active manifests remain speaker-disjoint
 - it checks that `speaker_disjoint_dev_trials.jsonl` is non-empty, touches every held-out dev
   speaker, and, for the real multi-speaker holdout, contains both positive and negative labels
+- it embeds the balanced verification-trial summary so downstream tuning can see per-bucket counts
+  for duration bucket, domain relation, and channel mismatch
+
+`speaker_disjoint_dev_trials.jsonl` is now a generated balanced verification bundle rather than a
+plain dev-only copy of the official FFSVC trials:
+
+- positives and negatives are sampled deterministically from the held-out `dev` manifest
+- balancing happens per label across duration bucket (`short`, `medium`, `long`), domain relation
+  (`same_domain`, `cross_domain`), and channel relation (`same_channel`, `cross_channel`)
+- the row payload includes the derived stratum metadata (`duration_bucket`, `domain_relation`,
+  `channel_relation`, `channel_mismatch`) plus left/right speaker/domain/channel fields for audit
+- `speaker_disjoint_dev_trials_summary.json` records bucket counts, missing strata, speaker/audio
+  coverage, duplicate-pair checks, and label-balance sanity checks
+
+The sampler is configurable from the CLI:
+
+```bash
+uv run python scripts/prepare_ffsvc2022_surrogate.py --trials-per-bucket 128
+```
 
 If any of those invariants fail, `scripts/prepare_ffsvc2022_surrogate.py` now exits with an error
 instead of silently leaving a weak strict-dev split behind.

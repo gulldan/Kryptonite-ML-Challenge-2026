@@ -65,18 +65,24 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
         "S0101_101I3M_1_0002_normal ffsvc22_dev_000002\n"
         "T0202_202I1M_1_0003_fast ffsvc22_dev_000003\n"
         "F0202_202I3M_1_0004_slow ffsvc22_dev_000004\n"
+        "S0303_303I1M_1_0005_fast ffsvc22_dev_000005\n"
+        "T0303_303I3M_1_0006_slow ffsvc22_dev_000006\n"
     )
     metadata_root.joinpath("trials_dev_keys.txt").write_text(
         "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
         "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
+        "1 ffsvc22_dev_000005.wav ffsvc22_dev_000006.wav\n"
         "0 ffsvc22_dev_000001.wav ffsvc22_dev_000003.wav\n"
         "0 ffsvc22_dev_000002.wav ffsvc22_dev_000004.wav\n"
+        "0 ffsvc22_dev_000004.wav ffsvc22_dev_000005.wav\n"
     )
     for filename in (
         "ffsvc22_dev_000001.wav",
         "ffsvc22_dev_000002.wav",
         "ffsvc22_dev_000003.wav",
         "ffsvc22_dev_000004.wav",
+        "ffsvc22_dev_000005.wav",
+        "ffsvc22_dev_000006.wav",
     ):
         _write_wav(audio_root / filename)
 
@@ -84,25 +90,29 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
         project_root=str(tmp_path),
         dataset_root="datasets",
         manifests_root="artifacts/manifests",
-        dev_speaker_count=1,
+        dev_speaker_count=2,
         seed=7,
+        trial_target_per_bucket=1,
     )
 
     speaker_split = json.loads(Path(artifacts.speaker_split_file).read_text())
     speaker_split_summary = json.loads(Path(artifacts.speaker_split_summary_file).read_text())
+    split_trial_summary = json.loads(Path(artifacts.split_trial_summary_file).read_text())
     manifest_inventory = json.loads(Path(artifacts.manifest_inventory_file).read_text())
     train_manifest_lines = Path(artifacts.train_manifest_file).read_text().splitlines()
     dev_manifest_lines = Path(artifacts.dev_manifest_file).read_text().splitlines()
     split_trial_lines = Path(artifacts.split_trials_file).read_text().splitlines()
 
-    assert artifacts.utterance_count == 4
-    assert artifacts.official_trial_count == 4
+    assert artifacts.utterance_count == 6
+    assert artifacts.official_trial_count == 6
     assert len(speaker_split["train_speakers"]) == 1
-    assert len(speaker_split["dev_speakers"]) == 1
+    assert len(speaker_split["dev_speakers"]) == 2
     assert len(train_manifest_lines) == 2
-    assert len(dev_manifest_lines) == 2
-    assert len(split_trial_lines) == 1
+    assert len(dev_manifest_lines) == 4
+    assert len(split_trial_lines) == artifacts.split_trial_count
+    assert artifacts.split_trial_count == split_trial_summary["trial_count"]
     train_entry = json.loads(train_manifest_lines[0])
+    split_trial_entry = json.loads(split_trial_lines[0])
     assert train_entry["schema_version"] == "kryptonite.manifest.v1"
     assert train_entry["record_type"] == "utterance"
     assert train_entry["source_dataset"] == "ffsvc2022"
@@ -110,22 +120,33 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     assert train_entry["sample_rate_hz"] == 8000
     assert train_entry["num_channels"] == 1
     assert ":" in train_entry["session_id"]
+    assert split_trial_entry["duration_bucket"] == "short"
+    assert "channel_relation" in split_trial_entry
+    assert "domain_relation" in split_trial_entry
     assert manifest_inventory["dataset"] == "ffsvc2022-surrogate"
     assert manifest_inventory["manifest_tables"][0]["jsonl_path"].endswith("all_manifest.jsonl")
     assert manifest_inventory["manifest_tables"][0]["csv_path"].endswith("all_manifest.csv")
-    assert manifest_inventory["manifest_tables"][0]["speaker_count"] == 2
-    assert manifest_inventory["manifest_tables"][0]["row_count"] == 4
-    assert manifest_inventory["auxiliary_tables"][0]["jsonl_path"].endswith(
-        "official_dev_trials.jsonl"
-    )
-    assert manifest_inventory["auxiliary_files"][0]["path"].endswith("speaker_splits.json")
-    assert manifest_inventory["auxiliary_files"][1]["path"].endswith("speaker_split_summary.json")
-    assert speaker_split_summary["requested_dev_speaker_count"] == 1
+    assert manifest_inventory["manifest_tables"][0]["speaker_count"] == 3
+    assert manifest_inventory["manifest_tables"][0]["row_count"] == 6
+    assert {
+        table["jsonl_path"].split("/")[-1] for table in manifest_inventory["auxiliary_tables"]
+    } == {"official_dev_trials.jsonl", "speaker_disjoint_dev_trials.jsonl"}
+    assert {file["path"].split("/")[-1] for file in manifest_inventory["auxiliary_files"]} == {
+        "speaker_splits.json",
+        "speaker_disjoint_dev_trials_summary.json",
+        "speaker_split_summary.json",
+    }
+    assert speaker_split_summary["requested_dev_speaker_count"] == 2
+    assert speaker_split_summary["trial_target_per_bucket"] == 1
     assert speaker_split_summary["manifest_summary"]["is_valid"] is True
     assert speaker_split_summary["trial_coverage"]["is_valid"] is True
-    assert speaker_split_summary["trial_coverage"]["positive_trial_count"] == 1
-    assert speaker_split_summary["trial_coverage"]["negative_trial_count"] == 0
-    assert speaker_split_summary["trial_coverage"]["negative_trial_requirement_enabled"] is False
+    assert speaker_split_summary["trial_coverage"]["positive_trial_count"] > 0
+    assert speaker_split_summary["trial_coverage"]["negative_trial_count"] > 0
+    assert speaker_split_summary["trial_coverage"]["negative_trial_requirement_enabled"] is True
+    assert speaker_split_summary["trial_balance"]["is_valid"] is True
+    assert split_trial_summary["label_counts"]["positive"] > 0
+    assert split_trial_summary["label_counts"]["negative"] > 0
+    assert split_trial_summary["is_valid"] is True
     assert speaker_split_summary["trial_coverage"]["missing_dev_speakers"] == []
 
 
@@ -146,13 +167,18 @@ def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: 
         "S0449_449PAD5M_1_0233_normal ffsvc22_dev_063782\n"
         "F0202_202I1M_1_0001_normal ffsvc22_dev_000001\n"
         "F0202_202I3M_1_0002_normal ffsvc22_dev_000002\n"
+        "F0303_303I1M_1_0003_normal ffsvc22_dev_000003\n"
+        "F0303_303I3M_1_0004_normal ffsvc22_dev_000004\n"
     )
     metadata_root.joinpath("trials_dev_keys.txt").write_text(
         "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
+        "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
     )
     for filename in (
         "ffsvc22_dev_000001.wav",
         "ffsvc22_dev_000002.wav",
+        "ffsvc22_dev_000003.wav",
+        "ffsvc22_dev_000004.wav",
         "ffsvc22_dev_002177.wav",
         "ffsvc22_dev_043388.wav",
         "ffsvc22_dev_063743.wav",
@@ -164,8 +190,9 @@ def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: 
         project_root=str(tmp_path),
         dataset_root="datasets",
         manifests_root="artifacts/manifests",
-        dev_speaker_count=1,
+        dev_speaker_count=2,
         seed=0,
+        trial_target_per_bucket=1,
     )
 
     all_entries = _read_jsonl(Path(artifacts.all_manifest_file))
@@ -173,22 +200,26 @@ def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: 
     dev_entries = _read_jsonl(Path(artifacts.dev_manifest_file))
     quarantine_entries = _read_jsonl(Path(artifacts.quarantine_manifest_file))
 
-    assert artifacts.source_utterance_count == 6
-    assert artifacts.utterance_count == 4
+    assert artifacts.source_utterance_count == 8
+    assert artifacts.utterance_count == 6
     assert artifacts.quarantined_utterance_count == 2
     assert {entry["utterance_id"] for entry in all_entries} == {
         "ffsvc22_dev_000001",
         "ffsvc22_dev_000002",
+        "ffsvc22_dev_000003",
+        "ffsvc22_dev_000004",
         "ffsvc22_dev_043388",
         "ffsvc22_dev_063782",
     }
     assert {entry["utterance_id"] for entry in train_entries} == {
-        "ffsvc22_dev_043388",
-        "ffsvc22_dev_063782",
+        "ffsvc22_dev_000003",
+        "ffsvc22_dev_000004",
     }
     assert {entry["utterance_id"] for entry in dev_entries} == {
         "ffsvc22_dev_000001",
         "ffsvc22_dev_000002",
+        "ffsvc22_dev_043388",
+        "ffsvc22_dev_063782",
     }
     assert {entry["utterance_id"] for entry in quarantine_entries} == {
         "ffsvc22_dev_002177",
@@ -227,14 +258,19 @@ def test_prepare_ffsvc2022_surrogate_omits_quarantined_duplicates_from_split_tri
         "S0449_449PAD5M_1_0233_normal ffsvc22_dev_063782\n"
         "F0202_202I1M_1_0001_normal ffsvc22_dev_000001\n"
         "F0202_202I3M_1_0002_normal ffsvc22_dev_000002\n"
+        "F0303_303I1M_1_0003_normal ffsvc22_dev_000003\n"
+        "F0303_303I3M_1_0004_normal ffsvc22_dev_000004\n"
     )
     metadata_root.joinpath("trials_dev_keys.txt").write_text(
         "1 ffsvc22_dev_043388.wav ffsvc22_dev_063782.wav\n"
         "1 ffsvc22_dev_002177.wav ffsvc22_dev_063782.wav\n"
+        "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
     )
     for filename in (
         "ffsvc22_dev_000001.wav",
         "ffsvc22_dev_000002.wav",
+        "ffsvc22_dev_000003.wav",
+        "ffsvc22_dev_000004.wav",
         "ffsvc22_dev_002177.wav",
         "ffsvc22_dev_043388.wav",
         "ffsvc22_dev_063743.wav",
@@ -246,24 +282,23 @@ def test_prepare_ffsvc2022_surrogate_omits_quarantined_duplicates_from_split_tri
         project_root=str(tmp_path),
         dataset_root="datasets",
         manifests_root="artifacts/manifests",
-        dev_speaker_count=1,
-        seed=1,
+        dev_speaker_count=2,
+        seed=0,
+        trial_target_per_bucket=1,
     )
 
     split_trials = _read_jsonl(Path(artifacts.split_trials_file))
 
-    assert artifacts.official_trial_count == 2
-    assert artifacts.split_trial_count == 1
-    assert split_trials == [
-        {
-            "label": 1,
-            "left_audio": "ffsvc22_dev_043388.wav",
-            "right_audio": "ffsvc22_dev_063782.wav",
-        }
-    ]
+    assert artifacts.official_trial_count == 3
+    assert artifacts.split_trial_count > 0
+    assert not {
+        audio_name
+        for trial in split_trials
+        for audio_name in (trial["left_audio"], trial["right_audio"])
+    } & {"ffsvc22_dev_002177.wav", "ffsvc22_dev_063743.wav"}
 
 
-def test_prepare_ffsvc2022_surrogate_requires_positive_and_negative_strict_dev_trials(
+def test_prepare_ffsvc2022_surrogate_requires_multiple_dev_speakers_for_balanced_trials(
     tmp_path: Path,
 ) -> None:
     dataset_root = tmp_path / "datasets" / "ffsvc2022-surrogate"
@@ -280,16 +315,13 @@ def test_prepare_ffsvc2022_surrogate_requires_positive_and_negative_strict_dev_t
         "S0101_101I3M_1_0002_normal ffsvc22_dev_000002\n"
         "T0202_202I1M_1_0003_fast ffsvc22_dev_000003\n"
         "F0202_202I3M_1_0004_slow ffsvc22_dev_000004\n"
-        "M0303_303I1M_1_0005_fast ffsvc22_dev_000005\n"
-        "F0303_303I3M_1_0006_slow ffsvc22_dev_000006\n"
-        "S0404_404I1M_1_0007_fast ffsvc22_dev_000007\n"
-        "T0404_404I3M_1_0008_slow ffsvc22_dev_000008\n"
+        "S0303_303I1M_1_0005_fast ffsvc22_dev_000005\n"
+        "T0303_303I3M_1_0006_slow ffsvc22_dev_000006\n"
     )
     metadata_root.joinpath("trials_dev_keys.txt").write_text(
         "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
         "1 ffsvc22_dev_000003.wav ffsvc22_dev_000004.wav\n"
         "1 ffsvc22_dev_000005.wav ffsvc22_dev_000006.wav\n"
-        "1 ffsvc22_dev_000007.wav ffsvc22_dev_000008.wav\n"
     )
     for filename in (
         "ffsvc22_dev_000001.wav",
@@ -298,8 +330,6 @@ def test_prepare_ffsvc2022_surrogate_requires_positive_and_negative_strict_dev_t
         "ffsvc22_dev_000004.wav",
         "ffsvc22_dev_000005.wav",
         "ffsvc22_dev_000006.wav",
-        "ffsvc22_dev_000007.wav",
-        "ffsvc22_dev_000008.wav",
     ):
         _write_wav(audio_root / filename)
 
@@ -308,13 +338,16 @@ def test_prepare_ffsvc2022_surrogate_requires_positive_and_negative_strict_dev_t
             project_root=str(tmp_path),
             dataset_root="datasets",
             manifests_root="artifacts/manifests",
-            dev_speaker_count=2,
+            dev_speaker_count=1,
             seed=7,
+            trial_target_per_bucket=1,
         )
     except ValueError as exc:
-        assert "missing negative dev-only trials" in str(exc)
+        assert "at least two held-out speakers" in str(exc)
     else:
-        raise AssertionError("Expected strict-dev validation to reject one-sided trials.")
+        raise AssertionError(
+            "Expected balanced verification-trial generation to reject one-speaker dev split."
+        )
 
 
 def test_build_speaker_splits_requires_non_trivial_holdout() -> None:
