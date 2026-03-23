@@ -77,6 +77,7 @@ This repository should evolve as a monorepo with clear boundaries.
 - Keep orchestration in `apps/` and reusable logic in `src/`
 - Keep config separate from code
 - Prefer explicit module boundaries over script sprawl
+- Keep source files below `600` lines of code; when a file approaches that limit, split it by responsibility into smaller modules or a package
 
 ### Data and ML boundaries
 
