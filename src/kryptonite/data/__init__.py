@@ -1,5 +1,13 @@
 """Dataset manifests, validation, loading, and preprocessing."""
 
+from .audio_loader import (
+    AudioLoadRequest,
+    LoadedAudio,
+    LoadedManifestAudio,
+    iter_manifest_audio,
+    load_audio,
+    load_manifest_audio,
+)
 from .inventory import (
     DatasetInventoryPlan,
     DatasetInventoryReport,
@@ -27,9 +35,12 @@ from .validation import (
 )
 
 __all__ = [
+    "AudioLoadRequest",
     "DatasetInventoryPlan",
     "DatasetInventoryReport",
     "DatasetInventorySource",
+    "LoadedAudio",
+    "LoadedManifestAudio",
     "MANIFEST_RECORD_TYPE",
     "MANIFEST_SCHEMA_VERSION",
     "ManifestRow",
@@ -41,7 +52,10 @@ __all__ = [
     "WrittenDatasetInventoryReport",
     "build_dataset_inventory_report",
     "build_manifest_validation_report",
+    "iter_manifest_audio",
     "load_dataset_inventory_plan",
+    "load_audio",
+    "load_manifest_audio",
     "normalize_manifest_entry",
     "render_dataset_inventory_markdown",
     "validate_manifest_entry",

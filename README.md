@@ -70,6 +70,7 @@ See [docs/training-environment.md](./docs/training-environment.md) for environme
 See [docs/tracking.md](./docs/tracking.md) for local run tracking and artifact logging.
 See [docs/unified-metadata-schema.md](./docs/unified-metadata-schema.md) for the versioned manifest-row contract and validation workflow.
 See [docs/audio-normalization.md](./docs/audio-normalization.md) for the 16 kHz mono normalization policy and reproducible CLI flow.
+See [docs/audio-loader.md](./docs/audio-loader.md) for the shared WAV/FLAC/MP3 loading contract used by preprocessing and feature work.
 
 ## Naming Conventions
 

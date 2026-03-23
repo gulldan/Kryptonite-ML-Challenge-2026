@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import numpy as np
+import pytest
+import soundfile as sf
+
+from kryptonite.config import NormalizationConfig
+from kryptonite.data import AudioLoadRequest, iter_manifest_audio, load_audio, load_manifest_audio
+from kryptonite.data.schema import ManifestValidationError
+
+
+def test_load_audio_applies_resampling_and_mono_fold_down(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "stereo.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_tone_audio(audio_path, format_name="WAV", sample_rate_hz=8_000, channels=2)
+
+    request = AudioLoadRequest.from_config(
+        NormalizationConfig(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            output_format="wav",
+            output_pcm_bits_per_sample=16,
+            peak_headroom_db=1.0,
+            dc_offset_threshold=0.01,
+            clipped_sample_threshold=0.999,
+        )
+    )
+    loaded = load_audio(audio_path, project_root=tmp_path, request=request)
+
+    assert loaded.source_format == "WAV"
+    assert loaded.source_sample_rate_hz == 8_000
+    assert loaded.sample_rate_hz == 16_000
+    assert loaded.source_num_channels == 2
+    assert loaded.num_channels == 1
+    assert loaded.resampled is True
+    assert loaded.downmixed is True
+    assert loaded.waveform.shape == (1, 16_000)
+    assert loaded.duration_seconds == pytest.approx(1.0, abs=1e-6)
+
+
+def test_load_audio_reads_flac_window_without_loading_full_duration(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "long.flac"
+    audio_path.parent.mkdir(parents=True)
+    _write_tone_audio(audio_path, format_name="FLAC", sample_rate_hz=16_000, duration_seconds=4.0)
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            start_seconds=1.25,
+            duration_seconds=0.5,
+        ),
+    )
+
+    assert loaded.source_format == "FLAC"
+    assert loaded.resampled is False
+    assert loaded.downmixed is False
+    assert loaded.frame_count == 8_000
+    assert loaded.duration_seconds == pytest.approx(0.5, abs=1e-6)
+    assert loaded.source_duration_seconds == pytest.approx(4.0, abs=1e-6)
+
+
+def test_load_audio_supports_mp3_inputs(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "sample.mp3"
+    audio_path.parent.mkdir(parents=True)
+    _write_tone_audio(audio_path, format_name="MP3", sample_rate_hz=16_000)
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest(target_sample_rate_hz=16_000, target_channels=1),
+    )
+
+    assert loaded.source_format == "MP3"
+    assert loaded.sample_rate_hz == 16_000
+    assert loaded.num_channels == 1
+    assert loaded.frame_count == 16_000
+    assert float(np.abs(loaded.waveform).max()) > 0.0
+
+
+def test_manifest_audio_loading_uses_manifest_contract_and_line_numbers(tmp_path: Path) -> None:
+    audio_root = tmp_path / "datasets" / "demo"
+    manifest_root = tmp_path / "artifacts" / "manifests" / "demo"
+    audio_root.mkdir(parents=True)
+    manifest_root.mkdir(parents=True)
+
+    wav_path = audio_root / "speaker-a.wav"
+    flac_path = audio_root / "speaker-b.flac"
+    _write_tone_audio(wav_path, format_name="WAV", sample_rate_hz=16_000)
+    _write_tone_audio(flac_path, format_name="FLAC", sample_rate_hz=16_000)
+
+    rows = [
+        {
+            "schema_version": "kryptonite.manifest.v1",
+            "record_type": "utterance",
+            "dataset": "demo",
+            "source_dataset": "demo",
+            "speaker_id": "speaker-a",
+            "utterance_id": "utt-a",
+            "audio_path": "datasets/demo/speaker-a.wav",
+        },
+        {
+            "schema_version": "kryptonite.manifest.v1",
+            "record_type": "utterance",
+            "dataset": "demo",
+            "source_dataset": "demo",
+            "speaker_id": "speaker-b",
+            "utterance_id": "utt-b",
+            "audio_path": "datasets/demo/speaker-b.flac",
+        },
+    ]
+    manifest_path = manifest_root / "train_manifest.jsonl"
+    manifest_path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+
+    loaded_rows = list(
+        iter_manifest_audio(
+            "artifacts/manifests/demo/train_manifest.jsonl",
+            project_root=tmp_path,
+            request=AudioLoadRequest(target_sample_rate_hz=16_000, target_channels=1),
+        )
+    )
+
+    assert [loaded.line_number for loaded in loaded_rows] == [1, 2]
+    assert {loaded.row.utterance_id for loaded in loaded_rows} == {"utt-a", "utt-b"}
+    assert all(
+        loaded.manifest_path == "artifacts/manifests/demo/train_manifest.jsonl"
+        for loaded in loaded_rows
+    )
+
+    direct = load_manifest_audio(rows[0], project_root=tmp_path)
+    assert direct.row.audio_path == "datasets/demo/speaker-a.wav"
+    assert direct.audio.source_format == "WAV"
+
+
+def test_load_audio_rejects_offsets_past_end_of_file(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "short.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_tone_audio(audio_path, format_name="WAV", sample_rate_hz=16_000)
+
+    with pytest.raises(ValueError, match="past EOF"):
+        load_audio(
+            audio_path,
+            project_root=tmp_path,
+            request=AudioLoadRequest(start_seconds=2.0),
+        )
+
+
+def test_load_manifest_audio_rejects_rows_without_audio_path(tmp_path: Path) -> None:
+    with pytest.raises(ManifestValidationError, match="audio_path"):
+        load_manifest_audio(
+            {
+                "schema_version": "kryptonite.manifest.v1",
+                "record_type": "utterance",
+                "dataset": "demo",
+                "source_dataset": "demo",
+                "speaker_id": "speaker-a",
+            },
+            project_root=tmp_path,
+        )
+
+
+def _write_tone_audio(
+    path: Path,
+    *,
+    format_name: str,
+    sample_rate_hz: int,
+    channels: int = 1,
+    duration_seconds: float = 1.0,
+) -> None:
+    frame_count = int(sample_rate_hz * duration_seconds)
+    time = np.arange(frame_count, dtype=np.float32) / np.float32(sample_rate_hz)
+    base = (0.3 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
+    if channels == 1:
+        waveform = base
+    else:
+        waveform = np.stack(
+            [
+                base,
+                (0.15 * np.sin(2.0 * np.pi * 330.0 * time)).astype(np.float32, copy=False),
+            ],
+            axis=1,
+        )
+    sf.write(path, waveform, sample_rate_hz, format=format_name)
