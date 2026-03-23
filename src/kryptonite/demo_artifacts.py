@@ -15,6 +15,8 @@ from onnx import TensorProto, checker, helper
 from kryptonite.config import ProjectConfig
 from kryptonite.deployment import resolve_project_path
 
+from .data.schema import ManifestRow
+
 DEFAULT_SAMPLE_RATE = 16_000
 DEFAULT_DURATION_SECONDS = 1.0
 
@@ -108,14 +110,21 @@ def generate_demo_artifacts(
 
         relative_dataset_path = _relative_to_project(dataset_path, project_root)
         relative_subset_path = _relative_to_project(subset_path, project_root)
-        manifest_entry: dict[str, object] = {
-            "speaker_id": clip.speaker_id,
-            "role": clip.role,
-            "audio_path": relative_dataset_path,
-            "demo_subset_path": relative_subset_path,
-            "sample_rate_hz": sample_rate,
-            "duration_seconds": duration_seconds,
-        }
+        manifest_entry = ManifestRow(
+            dataset="demo-speaker-recognition",
+            source_dataset="demo-speaker-recognition",
+            speaker_id=clip.speaker_id,
+            utterance_id=f"{clip.speaker_id}:{Path(clip.clip_name).stem}",
+            session_id=f"{clip.speaker_id}:demo",
+            split="demo",
+            role=clip.role,
+            device="synthetic-tone",
+            channel="mono",
+            audio_path=relative_dataset_path,
+            duration_seconds=duration_seconds,
+            sample_rate_hz=sample_rate,
+            num_channels=1,
+        ).to_dict(extra_fields={"demo_subset_path": relative_subset_path})
         manifest_entries.append(manifest_entry)
         subset_entries[clip.role].append(
             {

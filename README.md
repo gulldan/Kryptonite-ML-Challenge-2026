@@ -18,6 +18,7 @@ Repository-wide contributor rules live in [AGENTS.md](./AGENTS.md). Local rules 
 uv sync --dev --group train --group tracking
 uv run python scripts/training_env_smoke.py
 uv run python scripts/dataset_leakage_report.py
+uv run python scripts/validate_manifests.py
 uv run ruff format .
 uv run ruff check .
 uvx ty check
@@ -65,6 +66,7 @@ See [docs/ffsvc2022-surrogate.md](./docs/ffsvc2022-surrogate.md) for the current
 See [docs/gpu-server-data-sync.md](./docs/gpu-server-data-sync.md) for gpu-server dataset/manifests sync and readiness auditing.
 See [docs/training-environment.md](./docs/training-environment.md) for environment groups and setup commands.
 See [docs/tracking.md](./docs/tracking.md) for local run tracking and artifact logging.
+See [docs/unified-metadata-schema.md](./docs/unified-metadata-schema.md) for the versioned manifest-row contract and validation workflow.
 
 ## Naming Conventions
 

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from kryptonite.data.schema import normalize_manifest_entry
 from kryptonite.deployment import resolve_project_path
 
 KNOWN_DATA_SPLITS: tuple[str, ...] = ("train", "dev", "demo")
@@ -390,7 +391,8 @@ def _build_audit_record(
     project_root: Path,
     manifests_root: Path,
 ) -> AuditRecord:
-    audio_path = _coerce_str(entry.get("audio_path"))
+    normalized_entry = normalize_manifest_entry(entry)
+    audio_path = _coerce_str(normalized_entry.get("audio_path"))
     resolved_audio_path = (
         resolve_project_path(str(project_root), audio_path) if audio_path is not None else None
     )
@@ -404,37 +406,37 @@ def _build_audit_record(
         except OSError:
             file_size_bytes = None
 
-    speaker_id = _coerce_str(entry.get("speaker_id"))
+    speaker_id = _coerce_str(normalized_entry.get("speaker_id"))
     utterance_id = (
-        _coerce_str(entry.get("utterance_id"))
-        or _coerce_str(entry.get("original_name"))
-        or _coerce_str(entry.get("recording_id"))
+        _coerce_str(normalized_entry.get("utterance_id"))
+        or _coerce_str(normalized_entry.get("original_name"))
+        or _coerce_str(normalized_entry.get("recording_id"))
     )
     manifest_relative_path = _relative_to_project(manifest_path, project_root)
     return AuditRecord(
         manifest_path=manifest_relative_path,
         line_number=line_number,
         dataset_name=_infer_dataset_name(
-            entry=entry,
+            entry=normalized_entry,
             audio_path=audio_path,
             manifest_path=manifest_path,
             manifests_root=manifests_root,
         ),
-        split_name=_infer_split_name(entry=entry, manifest_path=manifest_path),
+        split_name=_infer_split_name(entry=normalized_entry, manifest_path=manifest_path),
         speaker_id=speaker_id,
-        session_key=_infer_session_key(entry=entry, speaker_id=speaker_id),
+        session_key=_infer_session_key(entry=normalized_entry, speaker_id=speaker_id),
         utterance_id=utterance_id,
         audio_path=audio_path,
         audio_basename=PurePosixPath(audio_path).name if audio_path is not None else None,
         identity_key=_build_identity_key(
             audio_path=audio_path,
-            entry=entry,
+            entry=normalized_entry,
             manifest_path=manifest_path,
             line_number=line_number,
         ),
         audio_exists=audio_exists,
         file_size_bytes=file_size_bytes,
-        duration_seconds=_coerce_float(entry.get("duration_seconds")),
+        duration_seconds=_coerce_float(normalized_entry.get("duration_seconds")),
     )
 
 
@@ -1195,12 +1197,18 @@ def _infer_split_name(*, entry: dict[str, Any], manifest_path: Path) -> str:
 
 
 def _infer_session_key(*, entry: dict[str, Any], speaker_id: str | None) -> str | None:
-    session_value = _coerce_str(entry.get("session_id")) or _coerce_str(entry.get("session_index"))
-    if session_value is None:
+    session_id = _coerce_str(entry.get("session_id"))
+    if session_id is not None:
+        if speaker_id is not None and ":" not in session_id:
+            return f"{speaker_id}:{session_id}"
+        return session_id
+
+    session_index = _coerce_str(entry.get("session_index"))
+    if session_index is None:
         return None
     if speaker_id is not None:
-        return f"{speaker_id}:{session_value}"
-    return session_value
+        return f"{speaker_id}:{session_index}"
+    return session_index
 
 
 def _build_identity_key(

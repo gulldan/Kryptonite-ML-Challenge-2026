@@ -96,12 +96,21 @@ Residual risk:
   find new duplicate-content clusters, the quarantine list must be extended before using those rows
   in training or evaluation
 
+## Manifest Contract
+
+`scripts/prepare_ffsvc2022_surrogate.py` now emits versioned `kryptonite.manifest.v1` rows for the
+active and quarantine manifests. The canonical fields are documented in
+`docs/unified-metadata-schema.md`, and the manifests can be checked explicitly with:
+
+```bash
+uv run python scripts/validate_manifests.py
+```
+
 ## Recommended Next Steps
 
 After acquisition:
 
-1. build a parser for `dev_meta_list.txt`
-2. generate unified manifests under `artifacts/manifests/ffsvc2022-surrogate/`
-3. derive speaker-disjoint train/dev splits from the official dev metadata
-4. reuse official trial files where possible for verification scoring
-5. treat this bundle as the engineering stand-in until the Dataton data lands
+1. reuse the unified manifest contract for the next real Dataton dataset adapter
+2. derive speaker-disjoint train/dev splits from the official dev metadata
+3. reuse official trial files where possible for verification scoring
+4. treat this bundle as the engineering stand-in until the Dataton data lands

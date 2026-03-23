@@ -97,6 +97,11 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     assert len(train_manifest_lines) == 2
     assert len(dev_manifest_lines) == 2
     assert len(split_trial_lines) == 1
+    train_entry = json.loads(train_manifest_lines[0])
+    assert train_entry["schema_version"] == "kryptonite.manifest.v1"
+    assert train_entry["record_type"] == "utterance"
+    assert train_entry["source_dataset"] == "ffsvc2022"
+    assert ":" in train_entry["session_id"]
 
 
 def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: Path) -> None:
@@ -168,6 +173,7 @@ def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: 
         "duplicate_audio_content"
     }
     assert {entry["duplicate_policy"] for entry in quarantine_entries} == {"quarantine"}
+    assert {entry["schema_version"] for entry in quarantine_entries} == {"kryptonite.manifest.v1"}
     assert {
         (entry["utterance_id"], entry["duplicate_canonical_utterance_id"])
         for entry in quarantine_entries
