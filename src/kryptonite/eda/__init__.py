@@ -1,5 +1,11 @@
 """Reproducible dataset profiling, auditing, and leakage checks."""
 
+from .data_issues_backlog import (
+    DataIssuesBacklogReport,
+    build_data_issues_backlog_report,
+    render_data_issues_backlog_markdown,
+    write_data_issues_backlog_report,
+)
 from .dataset_audio_quality import (
     DatasetAudioQualityReport,
     build_dataset_audio_quality_report,
@@ -21,15 +27,19 @@ from .dataset_profile import (
 
 __all__ = [
     "DatasetAudioQualityReport",
+    "DataIssuesBacklogReport",
     "DatasetLeakageReport",
     "DatasetProfileReport",
     "build_dataset_audio_quality_report",
+    "build_data_issues_backlog_report",
     "build_dataset_leakage_report",
     "build_dataset_profile_report",
     "render_dataset_audio_quality_markdown",
+    "render_data_issues_backlog_markdown",
     "render_dataset_leakage_markdown",
     "render_dataset_profile_markdown",
     "write_dataset_audio_quality_report",
+    "write_data_issues_backlog_report",
     "write_dataset_leakage_report",
     "write_dataset_profile_report",
 ]
