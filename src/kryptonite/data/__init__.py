@@ -1,5 +1,15 @@
 """Dataset manifests, validation, loading, and preprocessing."""
 
+from .inventory import (
+    DatasetInventoryPlan,
+    DatasetInventoryReport,
+    DatasetInventorySource,
+    WrittenDatasetInventoryReport,
+    build_dataset_inventory_report,
+    load_dataset_inventory_plan,
+    render_dataset_inventory_markdown,
+    write_dataset_inventory_report,
+)
 from .schema import (
     MANIFEST_RECORD_TYPE,
     MANIFEST_SCHEMA_VERSION,
@@ -17,6 +27,9 @@ from .validation import (
 )
 
 __all__ = [
+    "DatasetInventoryPlan",
+    "DatasetInventoryReport",
+    "DatasetInventorySource",
     "MANIFEST_RECORD_TYPE",
     "MANIFEST_SCHEMA_VERSION",
     "ManifestRow",
@@ -25,7 +38,12 @@ __all__ = [
     "ManifestValidationIssue",
     "ManifestValidationReport",
     "SkippedManifest",
+    "WrittenDatasetInventoryReport",
+    "build_dataset_inventory_report",
     "build_manifest_validation_report",
+    "load_dataset_inventory_plan",
     "normalize_manifest_entry",
+    "render_dataset_inventory_markdown",
     "validate_manifest_entry",
+    "write_dataset_inventory_report",
 ]

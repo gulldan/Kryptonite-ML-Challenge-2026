@@ -17,6 +17,7 @@ Repository-wide contributor rules live in [AGENTS.md](./AGENTS.md). Local rules 
 ```bash
 uv sync --dev --group train --group tracking
 uv run python scripts/training_env_smoke.py
+uv run python scripts/dataset_inventory_report.py
 uv run python scripts/dataset_leakage_report.py
 uv run python scripts/validate_manifests.py
 uv run ruff format .
@@ -62,6 +63,7 @@ See [docs/configuration.md](./docs/configuration.md) for config overrides and se
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
 See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
+See [docs/dataset-inventory.md](./docs/dataset-inventory.md) for the repository-level policy on approved, conditional, and blocked data resources.
 See [docs/ffsvc2022-surrogate.md](./docs/ffsvc2022-surrogate.md) for the current server-only surrogate dataset strategy.
 See [docs/gpu-server-data-sync.md](./docs/gpu-server-data-sync.md) for gpu-server dataset/manifests sync and readiness auditing.
 See [docs/training-environment.md](./docs/training-environment.md) for environment groups and setup commands.
