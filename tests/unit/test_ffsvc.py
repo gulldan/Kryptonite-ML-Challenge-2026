@@ -99,6 +99,139 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     assert len(split_trial_lines) == 1
 
 
+def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: Path) -> None:
+    dataset_root = tmp_path / "datasets" / "ffsvc2022-surrogate"
+    metadata_root = dataset_root / "metadata"
+    audio_root = dataset_root / "raw" / "dev"
+    manifests_root = tmp_path / "artifacts" / "manifests"
+    metadata_root.mkdir(parents=True)
+    audio_root.mkdir(parents=True)
+    manifests_root.mkdir(parents=True)
+
+    metadata_root.joinpath("dev_meta_list.txt").write_text(
+        "Original_Name FFSVC2022_Name\n"
+        "S0449_449I1M_1_0212_normal ffsvc22_dev_002177\n"
+        "S0449_449I1M_1_0211_normal ffsvc22_dev_043388\n"
+        "S0449_449PAD5M_1_0234_normal ffsvc22_dev_063743\n"
+        "S0449_449PAD5M_1_0233_normal ffsvc22_dev_063782\n"
+        "F0202_202I1M_1_0001_normal ffsvc22_dev_000001\n"
+        "F0202_202I3M_1_0002_normal ffsvc22_dev_000002\n"
+    )
+    metadata_root.joinpath("trials_dev_keys.txt").write_text(
+        "1 ffsvc22_dev_000001.wav ffsvc22_dev_000002.wav\n"
+    )
+    for filename in (
+        "ffsvc22_dev_000001.wav",
+        "ffsvc22_dev_000002.wav",
+        "ffsvc22_dev_002177.wav",
+        "ffsvc22_dev_043388.wav",
+        "ffsvc22_dev_063743.wav",
+        "ffsvc22_dev_063782.wav",
+    ):
+        audio_root.joinpath(filename).write_bytes(b"RIFFtest")
+
+    artifacts = prepare_ffsvc2022_surrogate(
+        project_root=str(tmp_path),
+        dataset_root="datasets",
+        manifests_root="artifacts/manifests",
+        dev_speaker_count=1,
+        seed=0,
+    )
+
+    all_entries = _read_jsonl(Path(artifacts.all_manifest_file))
+    train_entries = _read_jsonl(Path(artifacts.train_manifest_file))
+    dev_entries = _read_jsonl(Path(artifacts.dev_manifest_file))
+    quarantine_entries = _read_jsonl(Path(artifacts.quarantine_manifest_file))
+
+    assert artifacts.source_utterance_count == 6
+    assert artifacts.utterance_count == 4
+    assert artifacts.quarantined_utterance_count == 2
+    assert {entry["utterance_id"] for entry in all_entries} == {
+        "ffsvc22_dev_000001",
+        "ffsvc22_dev_000002",
+        "ffsvc22_dev_043388",
+        "ffsvc22_dev_063782",
+    }
+    assert {entry["utterance_id"] for entry in train_entries} == {
+        "ffsvc22_dev_043388",
+        "ffsvc22_dev_063782",
+    }
+    assert {entry["utterance_id"] for entry in dev_entries} == {
+        "ffsvc22_dev_000001",
+        "ffsvc22_dev_000002",
+    }
+    assert {entry["utterance_id"] for entry in quarantine_entries} == {
+        "ffsvc22_dev_002177",
+        "ffsvc22_dev_063743",
+    }
+    assert {entry["quality_issue_code"] for entry in quarantine_entries} == {
+        "duplicate_audio_content"
+    }
+    assert {entry["duplicate_policy"] for entry in quarantine_entries} == {"quarantine"}
+    assert {
+        (entry["utterance_id"], entry["duplicate_canonical_utterance_id"])
+        for entry in quarantine_entries
+    } == {
+        ("ffsvc22_dev_002177", "ffsvc22_dev_043388"),
+        ("ffsvc22_dev_063743", "ffsvc22_dev_063782"),
+    }
+
+
+def test_prepare_ffsvc2022_surrogate_omits_quarantined_duplicates_from_split_trials(
+    tmp_path: Path,
+) -> None:
+    dataset_root = tmp_path / "datasets" / "ffsvc2022-surrogate"
+    metadata_root = dataset_root / "metadata"
+    audio_root = dataset_root / "raw" / "dev"
+    manifests_root = tmp_path / "artifacts" / "manifests"
+    metadata_root.mkdir(parents=True)
+    audio_root.mkdir(parents=True)
+    manifests_root.mkdir(parents=True)
+
+    metadata_root.joinpath("dev_meta_list.txt").write_text(
+        "Original_Name FFSVC2022_Name\n"
+        "S0449_449I1M_1_0212_normal ffsvc22_dev_002177\n"
+        "S0449_449I1M_1_0211_normal ffsvc22_dev_043388\n"
+        "S0449_449PAD5M_1_0234_normal ffsvc22_dev_063743\n"
+        "S0449_449PAD5M_1_0233_normal ffsvc22_dev_063782\n"
+        "F0202_202I1M_1_0001_normal ffsvc22_dev_000001\n"
+        "F0202_202I3M_1_0002_normal ffsvc22_dev_000002\n"
+    )
+    metadata_root.joinpath("trials_dev_keys.txt").write_text(
+        "1 ffsvc22_dev_043388.wav ffsvc22_dev_063782.wav\n"
+        "1 ffsvc22_dev_002177.wav ffsvc22_dev_063782.wav\n"
+    )
+    for filename in (
+        "ffsvc22_dev_000001.wav",
+        "ffsvc22_dev_000002.wav",
+        "ffsvc22_dev_002177.wav",
+        "ffsvc22_dev_043388.wav",
+        "ffsvc22_dev_063743.wav",
+        "ffsvc22_dev_063782.wav",
+    ):
+        audio_root.joinpath(filename).write_bytes(b"RIFFtest")
+
+    artifacts = prepare_ffsvc2022_surrogate(
+        project_root=str(tmp_path),
+        dataset_root="datasets",
+        manifests_root="artifacts/manifests",
+        dev_speaker_count=1,
+        seed=1,
+    )
+
+    split_trials = _read_jsonl(Path(artifacts.split_trials_file))
+
+    assert artifacts.official_trial_count == 2
+    assert artifacts.split_trial_count == 1
+    assert split_trials == [
+        {
+            "label": 1,
+            "left_audio": "ffsvc22_dev_043388.wav",
+            "right_audio": "ffsvc22_dev_063782.wav",
+        }
+    ]
+
+
 def test_build_speaker_splits_requires_non_trivial_holdout() -> None:
     utterances = [
         parse_ffsvc_utterance(
@@ -117,3 +250,7 @@ def test_build_speaker_splits_requires_non_trivial_holdout() -> None:
         assert "dev_speaker_count" in str(exc)
     else:
         raise AssertionError("Expected build_speaker_splits to reject full holdout.")
+
+
+def _read_jsonl(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]

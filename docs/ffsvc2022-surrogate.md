@@ -70,6 +70,32 @@ The dataset root is:
 /mnt/storage/Kryptonite-ML-Challenge-2026/datasets/ffsvc2022-surrogate
 ```
 
+## Duplicate Cleanup Policy
+
+`scripts/prepare_ffsvc2022_surrogate.py` now applies a deterministic quarantine policy for the
+two confirmed byte-identical upstream duplicate groups found during `KVA-561`:
+
+- `ffsvc22_dev_002177` is quarantined and `ffsvc22_dev_043388` is kept as the canonical row
+- `ffsvc22_dev_063743` is quarantined and `ffsvc22_dev_063782` is kept as the canonical row
+
+The policy is intentionally `quarantine`, not silent deletion:
+
+- active `all_manifest.jsonl`, `train_manifest.jsonl`, and `dev_manifest.jsonl` exclude the
+  quarantined rows, so downstream baseline and training jobs do not sample them as independent
+  examples
+- `quarantine_manifest.jsonl` preserves the dropped rows together with the duplicate group id,
+  canonical utterance id, and reason, so the upstream bundle issue remains auditable
+- `speaker_disjoint_dev_trials.jsonl` is derived from the active rows only, so a quarantined entry
+  cannot leak back into held-out evaluation if split parameters change
+
+Residual risk:
+
+- the raw surrogate bundle on disk is unchanged; only the generated manifests apply the cleanup
+  policy
+- the current policy covers the confirmed byte-identical duplicate groups only; if later audits
+  find new duplicate-content clusters, the quarantine list must be extended before using those rows
+  in training or evaluation
+
 ## Recommended Next Steps
 
 After acquisition:
