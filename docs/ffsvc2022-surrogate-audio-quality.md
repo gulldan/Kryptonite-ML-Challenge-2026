@@ -151,4 +151,4 @@ The current surrogate strongly argues for the following defaults in upcoming pip
 
 - Silence is estimated on `100 ms` windows using a `-45 dBFS` RMS threshold.
 - The current report is waveform-derived for WAV inputs; if future manifests introduce other formats, non-WAV rows will need a compatible analyzer.
-- `audioop` is used for efficient PCM statistics in Python 3.12; it is deprecated upstream for Python 3.13+, so this implementation should be revisited before a Python upgrade.
+- The current implementation computes PCM statistics in-repo and keeps the quality report independent from external DSP/runtime packages.
