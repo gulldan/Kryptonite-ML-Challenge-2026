@@ -83,6 +83,8 @@ class VADConfig:
     mode: str
     backend: str = "silero_vad_v6_onnx"
     provider: str = "auto"
+    min_output_duration_seconds: float | None = 1.0
+    min_retained_ratio: float | None = 0.4
 
 
 @dataclass(slots=True)
@@ -182,6 +184,8 @@ def load_project_config(
                     "mode": "none",
                     "backend": "silero_vad_v6_onnx",
                     "provider": "auto",
+                    "min_output_duration_seconds": 1.0,
+                    "min_retained_ratio": 0.4,
                 },
             )
         ),

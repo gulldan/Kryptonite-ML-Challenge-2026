@@ -59,6 +59,9 @@ datasets, the request can be constructed manually.
   leading/trailing silence; they keep
   interior pauses so downstream chunking and augmentation still see realistic
   pause structure
+- loader-time trimming now has explicit guard rails through
+  `vad_min_output_duration_seconds` and `vad_min_retained_ratio`, so a detected
+  boundary can be rejected when it would shrink the clip too far
 - manifest loading validates rows through `ManifestRow.from_mapping(...)`, so
   missing canonical fields fail before the model pipeline consumes corrupted
   metadata

@@ -141,11 +141,13 @@
     },
     "vad": {
       "type": "object",
-      "required": ["mode", "backend", "provider"],
+      "required": ["mode", "backend", "provider", "min_output_duration_seconds", "min_retained_ratio"],
       "properties": {
         "mode": { "type": "string", "enum": ["none", "light", "aggressive"] },
         "backend": { "type": "string", "enum": ["silero_vad_v6_onnx"] },
-        "provider": { "type": "string", "enum": ["auto", "cpu", "cuda"] }
+        "provider": { "type": "string", "enum": ["auto", "cpu", "cuda"] },
+        "min_output_duration_seconds": { "type": ["number", "null"], "minimum": 0.0 },
+        "min_retained_ratio": { "type": ["number", "null"], "minimum": 0.0, "maximum": 1.0 }
       },
       "additionalProperties": false
     },

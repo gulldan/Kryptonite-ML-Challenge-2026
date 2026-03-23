@@ -65,6 +65,8 @@ def main() -> None:
                 "modes": list(report.modes),
                 "backend": report.backend,
                 "provider": report.provider,
+                "min_output_duration_seconds": report.min_output_duration_seconds,
+                "min_retained_ratio": report.min_retained_ratio,
                 "summaries": [summary.to_dict() for summary in report.summaries],
             },
             indent=2,

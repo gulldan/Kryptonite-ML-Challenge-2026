@@ -33,6 +33,8 @@ The active mode lives in `configs/base.toml`:
 mode = "none"
 backend = "silero_vad_v6_onnx"
 provider = "auto"
+min_output_duration_seconds = 1.0
+min_retained_ratio = 0.4
 ```
 
 Supported values:
@@ -50,6 +52,13 @@ Supported providers:
 - `auto`
 - `cpu`
 - `cuda`
+
+Guard rails:
+
+- `min_output_duration_seconds`: revert boundary trim if it would leave too
+  little audio after VAD
+- `min_retained_ratio`: revert boundary trim if it would keep too small a share
+  of the original clip
 
 Override it per run when needed:
 
@@ -82,6 +91,8 @@ The returned `LoadedAudio` metadata now records:
 - `vad_mode`
 - `vad_backend`
 - `vad_provider`
+- `vad_min_output_duration_seconds`
+- `vad_min_retained_ratio`
 - `trim_applied`
 - `trim_reason`
 - `trim_start_seconds`
@@ -91,6 +102,9 @@ The returned `LoadedAudio` metadata now records:
 
 If the VAD does not find reliable speech boundaries, the loader keeps the
 original waveform and reports why instead of silently returning an empty slice.
+The same fallback also applies when a detected boundary would violate the trim
+guards, for example by shrinking a clip below the configured minimum output
+duration.
 
 ## Dev Comparison Report
 
@@ -119,5 +133,7 @@ most.
 - only leading/trailing trimming is applied; interior pauses stay untouched
 - the repo currently keeps `light` and `aggressive` as preset parameter bundles
   around the same Silero V6 ONNX backend
+- trimming is still boundary-only; guard rails prevent over-trimming but do not
+  make a claim that the remaining segment is optimal for downstream SV metrics
 - `provider = "auto"` falls back to CPU when `CUDAExecutionProvider` is not
   available in the active `onnxruntime` build

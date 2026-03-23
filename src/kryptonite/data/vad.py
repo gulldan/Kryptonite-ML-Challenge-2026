@@ -16,6 +16,8 @@ VADProvider = Literal["auto", "cpu", "cuda"]
 SUPPORTED_VAD_MODES: tuple[VADMode, ...] = ("none", "light", "aggressive")
 SUPPORTED_VAD_BACKENDS: tuple[VADBackend, ...] = ("silero_vad_v6_onnx",)
 SUPPORTED_VAD_PROVIDERS: tuple[VADProvider, ...] = ("auto", "cpu", "cuda")
+DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS = 1.0
+DEFAULT_VAD_MIN_RETAINED_RATIO = 0.4
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +30,8 @@ class VADSettings:
     min_silence_duration_ms: int
     speech_pad_ms: int
     max_speech_duration_s: float
+    min_output_duration_seconds: float
+    min_retained_ratio: float
 
     def __post_init__(self) -> None:
         if self.mode not in SUPPORTED_VAD_MODES:
@@ -51,6 +55,10 @@ class VADSettings:
                 raise ValueError(f"{name} must be non-negative")
         if self.max_speech_duration_s <= 0.0:
             raise ValueError("max_speech_duration_s must be positive")
+        if self.min_output_duration_seconds < 0.0:
+            raise ValueError("min_output_duration_seconds must be non-negative")
+        if not 0.0 <= self.min_retained_ratio <= 1.0:
+            raise ValueError("min_retained_ratio must be within [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,10 +165,22 @@ def resolve_vad_settings(
     *,
     backend: str = "silero_vad_v6_onnx",
     provider: str = "auto",
+    min_output_duration_seconds: float | None = None,
+    min_retained_ratio: float | None = None,
 ) -> VADSettings:
     normalized_mode = _normalize_vad_mode(mode)
     normalized_backend = _normalize_vad_backend(backend)
     normalized_provider = _normalize_vad_provider(provider)
+    active_min_output_duration_seconds = (
+        DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS
+        if min_output_duration_seconds is None
+        else float(min_output_duration_seconds)
+    )
+    active_min_retained_ratio = (
+        DEFAULT_VAD_MIN_RETAINED_RATIO
+        if min_retained_ratio is None
+        else float(min_retained_ratio)
+    )
     if normalized_mode == "none":
         return VADSettings(
             mode="none",
@@ -171,6 +191,8 @@ def resolve_vad_settings(
             min_silence_duration_ms=100,
             speech_pad_ms=30,
             max_speech_duration_s=60.0,
+            min_output_duration_seconds=active_min_output_duration_seconds,
+            min_retained_ratio=active_min_retained_ratio,
         )
     if normalized_mode == "light":
         return VADSettings(
@@ -182,6 +204,8 @@ def resolve_vad_settings(
             min_silence_duration_ms=150,
             speech_pad_ms=120,
             max_speech_duration_s=60.0,
+            min_output_duration_seconds=active_min_output_duration_seconds,
+            min_retained_ratio=active_min_retained_ratio,
         )
     if normalized_mode == "aggressive":
         return VADSettings(
@@ -193,6 +217,8 @@ def resolve_vad_settings(
             min_silence_duration_ms=80,
             speech_pad_ms=45,
             max_speech_duration_s=60.0,
+            min_output_duration_seconds=active_min_output_duration_seconds,
+            min_retained_ratio=active_min_retained_ratio,
         )
     raise ValueError(f"Unsupported VAD mode {mode!r}; expected one of {SUPPORTED_VAD_MODES}")
 
@@ -204,8 +230,16 @@ def apply_vad_policy(
     mode: str,
     backend: str = "silero_vad_v6_onnx",
     provider: str = "auto",
+    min_output_duration_seconds: float | None = None,
+    min_retained_ratio: float | None = None,
 ) -> tuple[np.ndarray, TrimDecision]:
-    settings = resolve_vad_settings(mode, backend=backend, provider=provider)
+    settings = resolve_vad_settings(
+        mode,
+        backend=backend,
+        provider=provider,
+        min_output_duration_seconds=min_output_duration_seconds,
+        min_retained_ratio=min_retained_ratio,
+    )
     if waveform.ndim != 2:
         raise ValueError("waveform must be channel-first with shape (channels, frames)")
 
@@ -278,13 +312,35 @@ def apply_vad_policy(
         return waveform, decision
 
     trimmed = waveform[:, start_frame:end_frame]
+    output_frame_count = int(trimmed.shape[-1])
+    output_duration_seconds = float(output_frame_count) / float(sample_rate_hz)
+    retained_ratio = float(output_frame_count) / float(total_frames)
+    guard_reasons: list[str] = []
+    if output_duration_seconds < settings.min_output_duration_seconds:
+        guard_reasons.append("min_output_duration")
+    if retained_ratio < settings.min_retained_ratio:
+        guard_reasons.append("min_retained_ratio")
+    if guard_reasons:
+        decision = TrimDecision(
+            mode=settings.mode,
+            applied=False,
+            speech_detected=True,
+            reason=_build_trim_guard_reason(guard_reasons),
+            original_frame_count=total_frames,
+            output_frame_count=total_frames,
+            start_frame=0,
+            end_frame=total_frames,
+            leading_trim_frames=0,
+            trailing_trim_frames=0,
+        )
+        return waveform, decision
     decision = TrimDecision(
         mode=settings.mode,
         applied=True,
         speech_detected=True,
         reason="trimmed",
         original_frame_count=total_frames,
-        output_frame_count=int(trimmed.shape[-1]),
+        output_frame_count=output_frame_count,
         start_frame=start_frame,
         end_frame=end_frame,
         leading_trim_frames=start_frame,
@@ -405,6 +461,14 @@ def _normalize_vad_provider(provider: str) -> VADProvider:
     raise ValueError(
         f"Unsupported VAD provider {provider!r}; expected one of {SUPPORTED_VAD_PROVIDERS}"
     )
+
+
+def _build_trim_guard_reason(guard_reasons: list[str]) -> str:
+    if guard_reasons == ["min_output_duration"]:
+        return "guard_min_output_duration"
+    if guard_reasons == ["min_retained_ratio"]:
+        return "guard_min_retained_ratio"
+    return "guard_min_output_duration_and_retained_ratio"
 
 
 def _import_torch() -> Any:

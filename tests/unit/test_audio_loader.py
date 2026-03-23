@@ -157,7 +157,7 @@ def test_load_audio_can_trim_leading_and_trailing_silence(
 ) -> None:
     _patch_vad_segments(
         monkeypatch,
-        light=[{"start": 4_000, "end": 12_000}],
+        light=[{"start": 4_000, "end": 36_000}],
     )
     audio_path = tmp_path / "datasets" / "demo" / "trim-me.wav"
     audio_path.parent.mkdir(parents=True)
@@ -178,6 +178,8 @@ def test_load_audio_can_trim_leading_and_trailing_silence(
     loaded = load_audio(audio_path, project_root=tmp_path, request=request)
 
     assert loaded.vad_mode == "light"
+    assert loaded.vad_min_output_duration_seconds == 1.0
+    assert loaded.vad_min_retained_ratio == 0.4
     assert loaded.trim_applied is True
     assert loaded.trim_reason == "trimmed"
     assert loaded.vad_speech_detected is True
@@ -192,8 +194,8 @@ def test_aggressive_vad_trims_more_than_light(
 ) -> None:
     _patch_vad_segments(
         monkeypatch,
-        light=[{"start": 4_000, "end": 12_000}],
-        aggressive=[{"start": 5_500, "end": 10_500}],
+        light=[{"start": 4_000, "end": 36_000}],
+        aggressive=[{"start": 5_500, "end": 34_500}],
     )
     audio_path = tmp_path / "datasets" / "demo" / "trim-hard.wav"
     audio_path.parent.mkdir(parents=True)
@@ -250,6 +252,60 @@ def test_load_audio_keeps_silence_only_waveform_when_no_speech_is_detected(
     assert loaded.duration_seconds == pytest.approx(1.0, abs=1e-6)
 
 
+def test_load_audio_reverts_trim_that_violates_min_output_duration(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(monkeypatch, aggressive=[{"start": 16_000, "end": 24_000}])
+    audio_path = tmp_path / "datasets" / "demo" / "guard-short.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_trim_candidate_audio(audio_path)
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            vad_mode="aggressive",
+            vad_min_output_duration_seconds=1.0,
+            vad_min_retained_ratio=0.0,
+        ),
+    )
+
+    assert loaded.trim_applied is False
+    assert loaded.trim_reason == "guard_min_output_duration"
+    assert loaded.vad_speech_detected is True
+    assert loaded.duration_seconds == pytest.approx(2.6, abs=1e-6)
+
+
+def test_load_audio_reverts_trim_that_violates_min_retained_ratio(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(monkeypatch, aggressive=[{"start": 4_800, "end": 19_200}])
+    audio_path = tmp_path / "datasets" / "demo" / "guard-ratio.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_trim_candidate_audio(audio_path)
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            vad_mode="aggressive",
+            vad_min_output_duration_seconds=0.0,
+            vad_min_retained_ratio=0.6,
+        ),
+    )
+
+    assert loaded.trim_applied is False
+    assert loaded.trim_reason == "guard_min_retained_ratio"
+    assert loaded.vad_speech_detected is True
+    assert loaded.duration_seconds == pytest.approx(2.6, abs=1e-6)
+
+
 def test_load_manifest_audio_rejects_rows_without_audio_path(tmp_path: Path) -> None:
     with pytest.raises(ManifestValidationError, match="audio_path"):
         load_manifest_audio(
@@ -291,7 +347,7 @@ def _write_tone_audio(
 def _write_trim_candidate_audio(path: Path) -> None:
     sample_rate_hz = 16_000
     silence = np.zeros(4_800, dtype=np.float32)
-    time = np.arange(8_000, dtype=np.float32) / np.float32(sample_rate_hz)
+    time = np.arange(32_000, dtype=np.float32) / np.float32(sample_rate_hz)
     speech = (0.25 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
     waveform = np.concatenate([silence, speech, silence])
     sf.write(path, waveform, sample_rate_hz, format="WAV")
