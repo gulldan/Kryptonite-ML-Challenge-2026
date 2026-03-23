@@ -588,6 +588,9 @@ wheels = [
 name = "kryptonite-ml-challenge-2026"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "numpy" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -612,6 +615,7 @@ train = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "numpy", specifier = ">=2.4.3" }]
 
 [package.metadata.requires-dev]
 dev = [

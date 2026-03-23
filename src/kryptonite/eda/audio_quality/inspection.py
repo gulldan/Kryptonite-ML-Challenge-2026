@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import math
-import sys
 import wave
-from array import array
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+
+import numpy as np
 
 from .constants import SILENCE_CHUNK_MS, SILENCE_THRESHOLD_DBFS
 from .models import AudioQualityInspection
 
-_NATIVE_LITTLE_ENDIAN = sys.byteorder == "little"
 
 @dataclass(frozen=True, slots=True)
 class PCMChunkStats:
@@ -23,6 +21,17 @@ class PCMChunkStats:
     peak_amplitude: int
     is_silent: bool
     is_clipped: bool
+
+
+@dataclass(frozen=True, slots=True)
+class PCMInspectionStats:
+    sample_count: int
+    sum_of_squares: float
+    signed_sum: float
+    peak_amplitude: int
+    chunk_count: int
+    silent_chunk_count: int
+    clipped_chunk_count: int
 
 
 def inspect_audio_file(
@@ -67,34 +76,14 @@ def inspect_audio_file(
             frame_count = handle.getnframes()
 
             chunk_frames = max(1, round(sample_rate_hz * SILENCE_CHUNK_MS / 1000))
-            peak_max = 0
-            total_samples = 0
-            total_sum_of_squares = 0.0
-            total_signed_sum = 0.0
-            chunk_count = 0
-            silent_chunks = 0
-            clipped_chunks = 0
             max_amplitude = maximum_possible_amplitude(sample_width_bytes)
-
-            while True:
-                frames = handle.readframes(chunk_frames)
-                if not frames:
-                    break
-                chunk_stats = analyze_pcm_chunk(
-                    frames=frames,
-                    sample_width_bytes=sample_width_bytes,
-                    max_possible_amplitude=max_amplitude,
-                )
-                if chunk_stats is None:
-                    continue
-
-                chunk_count += 1
-                peak_max = max(peak_max, chunk_stats.peak_amplitude)
-                total_samples += chunk_stats.sample_count
-                total_sum_of_squares += chunk_stats.sum_of_squares
-                total_signed_sum += chunk_stats.signed_sum
-                silent_chunks += int(chunk_stats.is_silent)
-                clipped_chunks += int(chunk_stats.is_clipped)
+            frames = handle.readframes(frame_count)
+            inspection_stats = analyze_pcm_signal(
+                frames=frames,
+                sample_width_bytes=sample_width_bytes,
+                chunk_sample_count=max(1, chunk_frames * max(1, channels)),
+                max_possible_amplitude=max_amplitude,
+            )
     except (OSError, ValueError, wave.Error) as exc:
         inspection = _empty_inspection(
             exists=True,
@@ -106,18 +95,28 @@ def inspect_audio_file(
         return inspection
 
     duration_seconds = frame_count / sample_rate_hz if sample_rate_hz > 0 else None
-    if total_samples > 0:
-        rms_amplitude = math.sqrt(total_sum_of_squares / total_samples)
-        dc_offset_ratio = abs(total_signed_sum / total_samples) / max_amplitude
+    if inspection_stats.sample_count > 0:
+        rms_amplitude = math.sqrt(inspection_stats.sum_of_squares / inspection_stats.sample_count)
+        dc_offset_ratio = (
+            abs(inspection_stats.signed_sum / inspection_stats.sample_count) / max_amplitude
+        )
         rms_dbfs = amplitude_to_dbfs(rms_amplitude, max_amplitude)
-        peak_dbfs = amplitude_to_dbfs(float(peak_max), max_amplitude)
+        peak_dbfs = amplitude_to_dbfs(float(inspection_stats.peak_amplitude), max_amplitude)
     else:
         dc_offset_ratio = None
         rms_dbfs = None
         peak_dbfs = None
 
-    silence_ratio = silent_chunks / chunk_count if chunk_count > 0 else None
-    clipped_chunk_ratio = clipped_chunks / chunk_count if chunk_count > 0 else None
+    silence_ratio = (
+        inspection_stats.silent_chunk_count / inspection_stats.chunk_count
+        if inspection_stats.chunk_count > 0
+        else None
+    )
+    clipped_chunk_ratio = (
+        inspection_stats.clipped_chunk_count / inspection_stats.chunk_count
+        if inspection_stats.chunk_count > 0
+        else None
+    )
     inspection = AudioQualityInspection(
         exists=True,
         file_size_bytes=size_bytes,
@@ -136,71 +135,168 @@ def inspect_audio_file(
     return inspection
 
 
+def analyze_pcm_signal(
+    *,
+    frames: bytes,
+    sample_width_bytes: int,
+    chunk_sample_count: int,
+    max_possible_amplitude: int,
+) -> PCMInspectionStats:
+    samples = pcm_samples(frames=frames, sample_width_bytes=sample_width_bytes)
+    sample_count = int(samples.size)
+    if sample_count == 0:
+        return PCMInspectionStats(
+            sample_count=0,
+            sum_of_squares=0.0,
+            signed_sum=0.0,
+            peak_amplitude=0,
+            chunk_count=0,
+            silent_chunk_count=0,
+            clipped_chunk_count=0,
+        )
+
+    if sample_width_bytes == 4:
+        return _analyze_pcm_signal_fallback(
+            samples=samples,
+            chunk_sample_count=chunk_sample_count,
+            max_possible_amplitude=max_possible_amplitude,
+        )
+
+    samples64 = samples.astype(np.int64, copy=False)
+    chunk_starts = np.arange(0, sample_count, chunk_sample_count, dtype=np.int64)
+    chunk_lengths = np.diff(np.append(chunk_starts, sample_count))
+    chunk_sums = np.add.reduceat(samples64, chunk_starts)
+    chunk_sum_of_squares = np.add.reduceat(samples64 * samples64, chunk_starts)
+    chunk_peaks = np.maximum.reduceat(np.abs(samples64), chunk_starts)
+    chunk_rms = np.fromiter(
+        (
+            math.isqrt(int(sum_of_squares // chunk_length))
+            for sum_of_squares, chunk_length in zip(
+                chunk_sum_of_squares.tolist(),
+                chunk_lengths.tolist(),
+                strict=True,
+            )
+        ),
+        dtype=np.int64,
+        count=int(chunk_starts.size),
+    )
+    chunk_averages = np.floor_divide(chunk_sums, chunk_lengths)
+    chunk_rms_threshold = _silence_threshold_amplitude(max_possible_amplitude)
+    silent_chunks = (chunk_rms == 0) | (chunk_rms.astype(np.float64) <= chunk_rms_threshold)
+    clipped_chunks = chunk_peaks >= (max_possible_amplitude - 1)
+
+    return PCMInspectionStats(
+        sample_count=sample_count,
+        sum_of_squares=float(np.dot(chunk_rms * chunk_rms, chunk_lengths)),
+        signed_sum=float(np.dot(chunk_averages, chunk_lengths)),
+        peak_amplitude=int(chunk_peaks.max()),
+        chunk_count=int(chunk_starts.size),
+        silent_chunk_count=int(silent_chunks.sum()),
+        clipped_chunk_count=int(clipped_chunks.sum()),
+    )
+
+
 def analyze_pcm_chunk(
     *,
     frames: bytes,
     sample_width_bytes: int,
     max_possible_amplitude: int,
 ) -> PCMChunkStats | None:
-    samples = pcm_samples(frames=frames, sample_width_bytes=sample_width_bytes)
-    sample_count = len(samples)
-    if sample_count == 0:
+    signal_stats = analyze_pcm_signal(
+        frames=frames,
+        sample_width_bytes=sample_width_bytes,
+        chunk_sample_count=max(1, int(len(frames) / sample_width_bytes)),
+        max_possible_amplitude=max_possible_amplitude,
+    )
+    if signal_stats.sample_count == 0:
         return None
 
-    sample_sum = sum(samples)
-    sum_of_squares = int(math.sumprod(samples, samples))
-    peak_amplitude = max(abs(min(samples)), abs(max(samples)))
-    # Match the legacy audioop contract: chunk RMS/avg were quantized to integers.
-    rms_amplitude = math.isqrt(sum_of_squares // sample_count)
-    average_amplitude = sample_sum // sample_count
-    chunk_rms_dbfs = amplitude_to_dbfs(float(rms_amplitude), max_possible_amplitude)
-    is_silent = rms_amplitude == 0 or (
-        chunk_rms_dbfs is not None and chunk_rms_dbfs <= SILENCE_THRESHOLD_DBFS
-    )
-    is_clipped = peak_amplitude >= max_possible_amplitude - 1
     return PCMChunkStats(
-        sample_count=sample_count,
-        sum_of_squares=float(rms_amplitude * rms_amplitude * sample_count),
-        signed_sum=float(average_amplitude * sample_count),
-        peak_amplitude=peak_amplitude,
-        is_silent=is_silent,
-        is_clipped=is_clipped,
+        sample_count=signal_stats.sample_count,
+        sum_of_squares=signal_stats.sum_of_squares,
+        signed_sum=signal_stats.signed_sum,
+        peak_amplitude=signal_stats.peak_amplitude,
+        is_silent=signal_stats.silent_chunk_count > 0,
+        is_clipped=signal_stats.clipped_chunk_count > 0,
     )
 
 
-def pcm_samples(*, frames: bytes, sample_width_bytes: int) -> Sequence[int]:
+def pcm_samples(*, frames: bytes, sample_width_bytes: int) -> np.ndarray:
     if sample_width_bytes == 1:
-        return [value - 128 for value in frames]
-    if sample_width_bytes == 2 and _NATIVE_LITTLE_ENDIAN:
-        return memoryview(frames).cast("h")
-    if sample_width_bytes == 4 and _NATIVE_LITTLE_ENDIAN:
-        return memoryview(frames).cast("i")
+        return np.frombuffer(frames, dtype=np.uint8).astype(np.int16) - 128
     if sample_width_bytes == 2:
-        samples = array("h")
-        samples.frombytes(frames)
-        samples.byteswap()
-        return samples
+        return np.frombuffer(frames, dtype="<i2")
     if sample_width_bytes == 4:
-        samples = array("i")
-        samples.frombytes(frames)
-        samples.byteswap()
-        return samples
+        return np.frombuffer(frames, dtype="<i4")
     if sample_width_bytes == 3:
         return _decode_pcm_24bit_le(frames)
     raise ValueError(f"Unsupported PCM sample width: {sample_width_bytes}")
 
 
-def _decode_pcm_24bit_le(frames: bytes) -> list[int]:
-    samples: list[int] = []
-    for index in range(0, len(frames), 3):
-        chunk = frames[index : index + 3]
-        if len(chunk) < 3:
+def _decode_pcm_24bit_le(frames: bytes) -> np.ndarray:
+    raw = np.frombuffer(frames, dtype=np.uint8)
+    usable_bytes = raw.size - (raw.size % 3)
+    if usable_bytes == 0:
+        return np.empty(0, dtype=np.int32)
+
+    triplets = raw[:usable_bytes].reshape(-1, 3).astype(np.int32)
+    values = triplets[:, 0] | (triplets[:, 1] << 8) | (triplets[:, 2] << 16)
+    sign_mask = 1 << 23
+    return (values ^ sign_mask) - sign_mask
+
+
+def _analyze_pcm_signal_fallback(
+    *,
+    samples: np.ndarray,
+    chunk_sample_count: int,
+    max_possible_amplitude: int,
+) -> PCMInspectionStats:
+    peak_amplitude = 0
+    total_sum_of_squares = 0.0
+    total_signed_sum = 0.0
+    chunk_count = 0
+    silent_chunk_count = 0
+    clipped_chunk_count = 0
+    sample_count = int(samples.size)
+
+    for start in range(0, sample_count, chunk_sample_count):
+        stop = min(start + chunk_sample_count, sample_count)
+        chunk_samples = samples[start:stop]
+        if chunk_samples.size == 0:
             continue
-        value = chunk[0] | (chunk[1] << 8) | (chunk[2] << 16)
-        if value & 0x800000:
-            value -= 1 << 24
-        samples.append(value)
-    return samples
+
+        sample_values = [int(value) for value in chunk_samples.tolist()]
+        signed_sum = sum(sample_values)
+        sum_of_squares = int(math.sumprod(sample_values, sample_values))
+        chunk_size = len(sample_values)
+        chunk_peak = max(abs(min(sample_values)), abs(max(sample_values)))
+        chunk_rms = math.isqrt(sum_of_squares // chunk_size)
+        chunk_average = signed_sum // chunk_size
+        chunk_rms_dbfs = amplitude_to_dbfs(float(chunk_rms), max_possible_amplitude)
+
+        peak_amplitude = max(peak_amplitude, chunk_peak)
+        total_sum_of_squares += float(chunk_rms * chunk_rms * chunk_size)
+        total_signed_sum += float(chunk_average * chunk_size)
+        chunk_count += 1
+        silent_chunk_count += int(
+            chunk_rms == 0
+            or (chunk_rms_dbfs is not None and chunk_rms_dbfs <= SILENCE_THRESHOLD_DBFS)
+        )
+        clipped_chunk_count += int(chunk_peak >= max_possible_amplitude - 1)
+
+    return PCMInspectionStats(
+        sample_count=sample_count,
+        sum_of_squares=total_sum_of_squares,
+        signed_sum=total_signed_sum,
+        peak_amplitude=peak_amplitude,
+        chunk_count=chunk_count,
+        silent_chunk_count=silent_chunk_count,
+        clipped_chunk_count=clipped_chunk_count,
+    )
+
+
+def _silence_threshold_amplitude(max_possible_amplitude: int) -> float:
+    return max_possible_amplitude * (10.0 ** (SILENCE_THRESHOLD_DBFS / 20.0))
 
 
 def amplitude_to_dbfs(value: float, max_possible_amplitude: int) -> float | None:
