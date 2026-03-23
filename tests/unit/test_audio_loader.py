@@ -269,6 +269,7 @@ def test_load_audio_reverts_trim_that_violates_min_output_duration(
             target_channels=1,
             vad_mode="aggressive",
             vad_min_output_duration_seconds=1.0,
+            vad_min_retained_ratio=0.0,
         ),
     )
 
