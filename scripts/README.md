@@ -6,6 +6,7 @@ Scripts should be thin wrappers around reusable code in `src/kryptonite/`, not a
 
 Current entrypoints include:
 
+- `scripts/dataset_inventory_report.py` for the repository-level dataset-source policy report and local materialization audit
 - `scripts/dataset_leakage_report.py` for reproducible duplicate/leakage/split-integrity audits from manifests
 - `scripts/data_issues_backlog_report.py` for turning profile/leakage/audio-quality EDA into an actionable cleanup backlog
 - `scripts/acquire_ffsvc2022_surrogate.py` for server-only FFSVC 2022 surrogate data acquisition
