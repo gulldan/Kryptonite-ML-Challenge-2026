@@ -7,10 +7,31 @@ from array import array
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+import pytest
+
+from kryptonite.eda.audio_quality.inspection import (
+    analyze_pcm_chunk,
+    maximum_possible_amplitude,
+    pcm_samples,
+)
 from kryptonite.eda.dataset_audio_quality import (
     build_dataset_audio_quality_report,
     write_dataset_audio_quality_report,
 )
+
+
+def _encode_pcm_24bit_le(samples: Sequence[int]) -> bytes:
+    encoded = bytearray()
+    for sample in samples:
+        value = sample if sample >= 0 else (1 << 24) + sample
+        encoded.extend(
+            (
+                value & 0xFF,
+                (value >> 8) & 0xFF,
+                (value >> 16) & 0xFF,
+            )
+        )
+    return bytes(encoded)
 
 
 def test_build_dataset_audio_quality_report_surfaces_waveform_flags(tmp_path: Path) -> None:
@@ -137,6 +158,78 @@ def test_build_dataset_audio_quality_report_tracks_missing_audio_with_manifest_f
         "Expected dataset coverage is incomplete. Missing splits: train, dev.",
         "1 rows point to missing audio files.",
     ]
+
+
+@pytest.mark.parametrize(
+    ("sample_width_bytes", "frames", "expected"),
+    [
+        (1, bytes([0, 128, 255]), [-128, 0, 127]),
+        (2, array("h", [-32_768, -123, 0, 123, 32_767]).tobytes(), [-32_768, -123, 0, 123, 32_767]),
+        (
+            3,
+            _encode_pcm_24bit_le([-8_388_608, -456_789, 0, 456_789, 8_388_607]),
+            [-8_388_608, -456_789, 0, 456_789, 8_388_607],
+        ),
+        (
+            4,
+            array("i", [-123_456_789, -1, 0, 1, 123_456_789]).tobytes(),
+            [-123_456_789, -1, 0, 1, 123_456_789],
+        ),
+    ],
+)
+def test_pcm_samples_decodes_supported_widths(
+    sample_width_bytes: int,
+    frames: bytes,
+    expected: list[int],
+) -> None:
+    assert list(pcm_samples(frames=frames, sample_width_bytes=sample_width_bytes)) == expected
+
+
+def test_analyze_pcm_chunk_tracks_silence_and_clipping_flags() -> None:
+    silent_frames = array("h", [0, 0, 0, 0]).tobytes()
+    clipped_frames = array("h", [32_767, -32_767, 32_767, -32_767]).tobytes()
+    max_amplitude = maximum_possible_amplitude(2)
+
+    silent = analyze_pcm_chunk(
+        frames=silent_frames,
+        sample_width_bytes=2,
+        max_possible_amplitude=max_amplitude,
+    )
+    clipped = analyze_pcm_chunk(
+        frames=clipped_frames,
+        sample_width_bytes=2,
+        max_possible_amplitude=max_amplitude,
+    )
+
+    assert silent is not None
+    assert silent.sample_count == 4
+    assert silent.sum_of_squares == 0.0
+    assert silent.signed_sum == 0.0
+    assert silent.peak_amplitude == 0
+    assert silent.is_silent is True
+    assert silent.is_clipped is False
+
+    assert clipped is not None
+    assert clipped.sample_count == 4
+    assert clipped.peak_amplitude == 32_767
+    assert clipped.is_silent is False
+    assert clipped.is_clipped is True
+
+
+def test_analyze_pcm_chunk_preserves_legacy_integer_rms_and_average_semantics() -> None:
+    frames = array("h", [-1, -2]).tobytes()
+
+    stats = analyze_pcm_chunk(
+        frames=frames,
+        sample_width_bytes=2,
+        max_possible_amplitude=maximum_possible_amplitude(2),
+    )
+
+    assert stats is not None
+    assert stats.sample_count == 2
+    assert stats.sum_of_squares == 2.0
+    assert stats.signed_sum == -4.0
+    assert stats.peak_amplitude == 2
 
 
 def _write_jsonl(path: Path, rows: Sequence[Mapping[str, object]]) -> None:

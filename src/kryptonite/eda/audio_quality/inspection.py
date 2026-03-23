@@ -147,19 +147,21 @@ def analyze_pcm_chunk(
     if sample_count == 0:
         return None
 
-    sum_of_squares = math.sumprod(samples, samples)
-    signed_sum = float(sum(samples))
+    sample_sum = sum(samples)
+    sum_of_squares = int(math.sumprod(samples, samples))
     peak_amplitude = max(abs(min(samples)), abs(max(samples)))
-    rms_amplitude = math.sqrt(sum_of_squares / sample_count)
-    chunk_rms_dbfs = amplitude_to_dbfs(rms_amplitude, max_possible_amplitude)
+    # Match the legacy audioop contract: chunk RMS/avg were quantized to integers.
+    rms_amplitude = math.isqrt(sum_of_squares // sample_count)
+    average_amplitude = sample_sum // sample_count
+    chunk_rms_dbfs = amplitude_to_dbfs(float(rms_amplitude), max_possible_amplitude)
     is_silent = rms_amplitude == 0 or (
         chunk_rms_dbfs is not None and chunk_rms_dbfs <= SILENCE_THRESHOLD_DBFS
     )
     is_clipped = peak_amplitude >= max_possible_amplitude - 1
     return PCMChunkStats(
         sample_count=sample_count,
-        sum_of_squares=float(sum_of_squares),
-        signed_sum=signed_sum,
+        sum_of_squares=float(rms_amplitude * rms_amplitude * sample_count),
+        signed_sum=float(average_amplitude * sample_count),
         peak_amplitude=peak_amplitude,
         is_silent=is_silent,
         is_clipped=is_clipped,
