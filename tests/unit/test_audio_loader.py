@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
+import kryptonite.data.vad as vad_module
 from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.data import AudioLoadRequest, iter_manifest_audio, load_audio, load_manifest_audio
 from kryptonite.data.schema import ManifestValidationError
@@ -150,7 +151,14 @@ def test_load_audio_rejects_offsets_past_end_of_file(tmp_path: Path) -> None:
         )
 
 
-def test_load_audio_can_trim_leading_and_trailing_silence(tmp_path: Path) -> None:
+def test_load_audio_can_trim_leading_and_trailing_silence(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(
+        monkeypatch,
+        light=[{"start": 4_000, "end": 12_000}],
+    )
     audio_path = tmp_path / "datasets" / "demo" / "trim-me.wav"
     audio_path.parent.mkdir(parents=True)
     _write_trim_candidate_audio(audio_path)
@@ -178,7 +186,15 @@ def test_load_audio_can_trim_leading_and_trailing_silence(tmp_path: Path) -> Non
     assert loaded.trimmed_trailing_seconds > 0.0
 
 
-def test_aggressive_vad_trims_more_than_light(tmp_path: Path) -> None:
+def test_aggressive_vad_trims_more_than_light(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(
+        monkeypatch,
+        light=[{"start": 4_000, "end": 12_000}],
+        aggressive=[{"start": 5_500, "end": 10_500}],
+    )
     audio_path = tmp_path / "datasets" / "demo" / "trim-hard.wav"
     audio_path.parent.mkdir(parents=True)
     _write_trim_candidate_audio(audio_path)
@@ -208,7 +224,11 @@ def test_aggressive_vad_trims_more_than_light(tmp_path: Path) -> None:
     assert aggressive.trimmed_trailing_seconds >= light.trimmed_trailing_seconds
 
 
-def test_load_audio_keeps_silence_only_waveform_when_no_speech_is_detected(tmp_path: Path) -> None:
+def test_load_audio_keeps_silence_only_waveform_when_no_speech_is_detected(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(monkeypatch, aggressive=[])
     audio_path = tmp_path / "datasets" / "demo" / "silence.wav"
     audio_path.parent.mkdir(parents=True)
     waveform = np.zeros(16_000, dtype=np.float32)
@@ -275,3 +295,28 @@ def _write_trim_candidate_audio(path: Path) -> None:
     speech = (0.25 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
     waveform = np.concatenate([silence, speech, silence])
     sf.write(path, waveform, sample_rate_hz, format="WAV")
+
+
+def _patch_vad_segments(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    light: list[dict[str, int]] | None = None,
+    aggressive: list[dict[str, int]] | None = None,
+) -> None:
+    def fake_detect(
+        waveform: np.ndarray,
+        *,
+        sample_rate_hz: int,
+        settings: vad_module.VADSettings,
+    ) -> list[dict[str, int]]:
+        assert sample_rate_hz == 16_000
+        assert waveform.ndim == 2
+        assert settings.backend == "silero_vad_v6_onnx"
+        assert settings.provider == "auto"
+        if settings.mode == "light":
+            return list(light or [])
+        if settings.mode == "aggressive":
+            return list(aggressive or [])
+        return []
+
+    monkeypatch.setattr(vad_module, "_detect_speech_segments", fake_detect)

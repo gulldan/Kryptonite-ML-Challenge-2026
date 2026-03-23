@@ -52,6 +52,7 @@ def main() -> None:
         project_root=config.paths.project_root,
         manifest_path=args.manifest,
         normalization=config.normalization,
+        vad=config.vad,
         limit=args.limit,
     )
     written = write_vad_trimming_report(report=report, output_root=args.output_dir)
@@ -62,6 +63,8 @@ def main() -> None:
                 "manifest_path": report.manifest_path,
                 "row_count": report.row_count,
                 "modes": list(report.modes),
+                "backend": report.backend,
+                "provider": report.provider,
                 "summaries": [summary.to_dict() for summary in report.summaries],
             },
             indent=2,

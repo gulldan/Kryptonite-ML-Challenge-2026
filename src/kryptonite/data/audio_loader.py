@@ -14,7 +14,12 @@ from kryptonite.deployment import resolve_project_path
 
 from .audio_io import AudioFileInfo, inspect_audio_file, read_audio_file, resample_waveform
 from .schema import ManifestRow
-from .vad import SUPPORTED_VAD_MODES, apply_vad_policy
+from .vad import (
+    SUPPORTED_VAD_BACKENDS,
+    SUPPORTED_VAD_MODES,
+    SUPPORTED_VAD_PROVIDERS,
+    apply_vad_policy,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +29,8 @@ class AudioLoadRequest:
     start_seconds: float = 0.0
     duration_seconds: float | None = None
     vad_mode: str = "none"
+    vad_backend: str = "silero_vad_v6_onnx"
+    vad_provider: str = "auto"
 
     def __post_init__(self) -> None:
         if self.target_sample_rate_hz is not None and self.target_sample_rate_hz <= 0:
@@ -36,6 +43,10 @@ class AudioLoadRequest:
             raise ValueError("duration_seconds must be positive when provided")
         if self.vad_mode.lower() not in SUPPORTED_VAD_MODES:
             raise ValueError(f"vad_mode must be one of {SUPPORTED_VAD_MODES}")
+        if self.vad_backend.lower() not in SUPPORTED_VAD_BACKENDS:
+            raise ValueError(f"vad_backend must be one of {SUPPORTED_VAD_BACKENDS}")
+        if self.vad_provider.lower() not in SUPPORTED_VAD_PROVIDERS:
+            raise ValueError(f"vad_provider must be one of {SUPPORTED_VAD_PROVIDERS}")
 
     @classmethod
     def from_config(
@@ -52,6 +63,8 @@ class AudioLoadRequest:
             start_seconds=start_seconds,
             duration_seconds=duration_seconds,
             vad_mode="none" if vad is None else vad.mode,
+            vad_backend="silero_vad_v6_onnx" if vad is None else vad.backend,
+            vad_provider="auto" if vad is None else vad.provider,
         )
 
 
@@ -75,6 +88,8 @@ class LoadedAudio:
     resampled: bool
     downmixed: bool
     vad_mode: str
+    vad_backend: str
+    vad_provider: str
     vad_speech_detected: bool
     trim_applied: bool
     trim_reason: str
@@ -146,6 +161,8 @@ def load_audio(
         waveform,
         sample_rate_hz=sample_rate_hz,
         mode=active_request.vad_mode,
+        backend=active_request.vad_backend,
+        provider=active_request.vad_provider,
     )
     frame_count = int(waveform.shape[-1])
     num_channels = int(waveform.shape[0])
@@ -168,6 +185,8 @@ def load_audio(
         resampled=resampled,
         downmixed=downmixed,
         vad_mode=active_request.vad_mode.lower(),
+        vad_backend=active_request.vad_backend.lower(),
+        vad_provider=active_request.vad_provider.lower(),
         vad_speech_detected=trim_decision.speech_detected,
         trim_applied=trim_decision.applied,
         trim_reason=trim_decision.reason,

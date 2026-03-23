@@ -81,6 +81,8 @@ class NormalizationConfig:
 @dataclass(slots=True)
 class VADConfig:
     mode: str
+    backend: str = "silero_vad_v6_onnx"
+    provider: str = "auto"
 
 
 @dataclass(slots=True)
@@ -178,6 +180,8 @@ def load_project_config(
                 "vad",
                 {
                     "mode": "none",
+                    "backend": "silero_vad_v6_onnx",
+                    "provider": "auto",
                 },
             )
         ),

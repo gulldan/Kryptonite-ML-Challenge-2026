@@ -53,6 +53,8 @@ clipped_sample_threshold = 0.999
 
 [vad]
 mode = "none"
+backend = "silero_vad_v6_onnx"
+provider = "auto"
 
 [secrets]
 wandb_api_key = "WANDB_API_KEY"

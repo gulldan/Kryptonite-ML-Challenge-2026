@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from kryptonite.config import NormalizationConfig
+from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.data import AudioLoadRequest, iter_manifest_audio
 from kryptonite.data.vad import SUPPORTED_VAD_MODES, apply_vad_policy
 from kryptonite.deployment import resolve_project_path
@@ -120,6 +120,8 @@ class VADComparisonReport:
     project_root: str
     manifest_path: str
     modes: tuple[str, ...]
+    backend: str
+    provider: str
     limit: int | None
     records: list[VADComparisonRecord]
     summaries: list[VADModeSummary]
@@ -134,6 +136,8 @@ class VADComparisonReport:
             "project_root": self.project_root,
             "manifest_path": self.manifest_path,
             "modes": list(self.modes),
+            "backend": self.backend,
+            "provider": self.provider,
             "limit": self.limit,
             "row_count": self.row_count,
             "summaries": [summary.to_dict() for summary in self.summaries],
@@ -168,11 +172,14 @@ def build_vad_trimming_report(
     project_root: Path | str,
     manifest_path: Path | str,
     normalization: NormalizationConfig,
+    vad: VADConfig | None = None,
     modes: tuple[str, ...] = SUPPORTED_VAD_MODES,
     limit: int | None = None,
 ) -> VADComparisonReport:
     normalized_modes = _normalize_modes(modes)
     request = AudioLoadRequest.from_config(normalization)
+    backend = "silero_vad_v6_onnx" if vad is None else vad.backend
+    provider = "auto" if vad is None else vad.provider
     records: list[VADComparisonRecord] = []
     for index, loaded in enumerate(
         iter_manifest_audio(
@@ -202,6 +209,8 @@ def build_vad_trimming_report(
                 loaded.audio.waveform,
                 sample_rate_hz=loaded.audio.sample_rate_hz,
                 mode=mode,
+                backend=backend,
+                provider=provider,
             )
             observations[mode] = VADModeObservation(
                 mode=mode,
@@ -243,6 +252,8 @@ def build_vad_trimming_report(
         project_root=str(resolve_project_path(str(project_root), ".")),
         manifest_path=str(manifest_location),
         modes=normalized_modes,
+        backend=backend,
+        provider=provider,
         limit=limit,
         records=records,
         summaries=summaries,
@@ -284,6 +295,8 @@ def render_vad_trimming_markdown(report: VADComparisonReport) -> str:
         f"- manifest: `{report.manifest_path}`",
         f"- rows analyzed: `{report.row_count}`",
         f"- modes: `{', '.join(report.modes)}`",
+        f"- backend: `{report.backend}`",
+        f"- provider: `{report.provider}`",
     ]
     if report.limit is not None:
         lines.append(f"- limit: `{report.limit}`")

@@ -97,12 +97,24 @@ Use them through `scripts/normalize_audio_dataset.py`, and override only when a 
 The base config also includes a `vad` section for loader-time silence trimming:
 
 - `mode`
+- `backend`
+- `provider`
 
 Supported values are:
 
 - `none`
 - `light`
 - `aggressive`
+
+The only supported backend right now is:
+
+- `silero_vad_v6_onnx`
+
+Provider values are:
+
+- `auto`
+- `cpu`
+- `cuda`
 
 The base profile keeps `mode = "none"` so raw waveform behavior stays stable by
 default. Use config overrides for ablations or production-oriented comparisons:
