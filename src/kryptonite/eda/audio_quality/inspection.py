@@ -6,6 +6,7 @@ import math
 import sys
 import wave
 from array import array
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,8 +14,6 @@ from .constants import SILENCE_CHUNK_MS, SILENCE_THRESHOLD_DBFS
 from .models import AudioQualityInspection
 
 _NATIVE_LITTLE_ENDIAN = sys.byteorder == "little"
-_ARRAY_TYPECODE_BY_SAMPLE_WIDTH = {2: "h", 4: "i"}
-
 
 @dataclass(frozen=True, slots=True)
 class PCMChunkStats:
@@ -143,7 +142,7 @@ def analyze_pcm_chunk(
     sample_width_bytes: int,
     max_possible_amplitude: int,
 ) -> PCMChunkStats | None:
-    samples = list(iter_pcm_samples(frames=frames, sample_width_bytes=sample_width_bytes))
+    samples = pcm_samples(frames=frames, sample_width_bytes=sample_width_bytes)
     sample_count = len(samples)
     if sample_count == 0:
         return None
@@ -167,16 +166,23 @@ def analyze_pcm_chunk(
     )
 
 
-def iter_pcm_samples(*, frames: bytes, sample_width_bytes: int) -> list[int]:
+def pcm_samples(*, frames: bytes, sample_width_bytes: int) -> Sequence[int]:
     if sample_width_bytes == 1:
         return [value - 128 for value in frames]
-    if sample_width_bytes in _ARRAY_TYPECODE_BY_SAMPLE_WIDTH:
-        typecode = _ARRAY_TYPECODE_BY_SAMPLE_WIDTH[sample_width_bytes]
-        samples = array(typecode)
+    if sample_width_bytes == 2 and _NATIVE_LITTLE_ENDIAN:
+        return memoryview(frames).cast("h")
+    if sample_width_bytes == 4 and _NATIVE_LITTLE_ENDIAN:
+        return memoryview(frames).cast("i")
+    if sample_width_bytes == 2:
+        samples = array("h")
         samples.frombytes(frames)
-        if not _NATIVE_LITTLE_ENDIAN:
-            samples.byteswap()
-        return samples.tolist()
+        samples.byteswap()
+        return samples
+    if sample_width_bytes == 4:
+        samples = array("i")
+        samples.frombytes(frames)
+        samples.byteswap()
+        return samples
     if sample_width_bytes == 3:
         return _decode_pcm_24bit_le(frames)
     raise ValueError(f"Unsupported PCM sample width: {sample_width_bytes}")
