@@ -103,6 +103,32 @@ class ManifestQualityRecord:
     clipped_chunk_ratio: float | None
     quality_flags: tuple[str, ...]
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "identity_key": self.identity_key,
+            "audio_path": self.audio_path,
+            "audio_exists": self.audio_exists,
+            "audio_error": self.audio_error,
+            "dataset_name": self.dataset_name,
+            "split_name": self.split_name,
+            "speaker_id": self.speaker_id,
+            "session_key": self.session_key,
+            "role": self.role,
+            "source_label": self.source_label,
+            "condition_label": self.condition_label,
+            "sample_rate_hz": self.sample_rate_hz,
+            "channels": self.channels,
+            "audio_format": self.audio_format,
+            "duration_seconds": self.duration_seconds,
+            "file_size_bytes": self.file_size_bytes,
+            "rms_dbfs": self.rms_dbfs,
+            "peak_dbfs": self.peak_dbfs,
+            "silence_ratio": self.silence_ratio,
+            "dc_offset_ratio": self.dc_offset_ratio,
+            "clipped_chunk_ratio": self.clipped_chunk_ratio,
+            "quality_flags": list(self.quality_flags),
+        }
+
 
 @dataclass(slots=True)
 class QualitySummary:
@@ -259,10 +285,15 @@ class DatasetAudioQualityReport:
     patterns: list[AudioQualityPattern]
     examples: list[FlaggedExample]
     warnings: list[str]
+    records: list[ManifestQualityRecord] = field(default_factory=list, repr=False)
 
     @property
     def manifest_count(self) -> int:
         return len(self.manifest_profiles)
+
+    @property
+    def flagged_record_count(self) -> int:
+        return sum(1 for record in self.records if record.quality_flags)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -273,6 +304,7 @@ class DatasetAudioQualityReport:
             "raw_entry_count": self.raw_entry_count,
             "duplicate_entry_count": self.duplicate_entry_count,
             "invalid_line_count": self.invalid_line_count,
+            "flagged_record_count": self.flagged_record_count,
             "warnings": list(self.warnings),
             "total_summary": self.total_summary.to_dict(),
             "split_summaries": [summary.to_dict() for summary in self.split_summaries],
@@ -290,12 +322,16 @@ class WrittenDatasetAudioQualityReport:
     output_root: str
     json_path: str
     markdown_path: str
+    rows_path: str
+    flagged_rows_path: str
 
     def to_dict(self) -> dict[str, str]:
         return {
             "output_root": self.output_root,
             "json_path": self.json_path,
             "markdown_path": self.markdown_path,
+            "rows_path": self.rows_path,
+            "flagged_rows_path": self.flagged_rows_path,
         }
 
 

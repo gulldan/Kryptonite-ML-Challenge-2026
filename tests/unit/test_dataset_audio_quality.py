@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import pytest
+import soundfile as sf
 
 from kryptonite.eda.audio_quality.inspection import (
     analyze_pcm_chunk,
@@ -103,11 +104,14 @@ def test_build_dataset_audio_quality_report_surfaces_waveform_flags(tmp_path: Pa
 
     payload = json.loads(Path(written.json_path).read_text())
     markdown = Path(written.markdown_path).read_text()
+    rows_payload = _read_jsonl(Path(written.rows_path))
+    flagged_rows_payload = _read_jsonl(Path(written.flagged_rows_path))
     split_counts = {summary.name: summary.summary.entry_count for summary in report.split_summaries}
 
     assert report.raw_entry_count == 6
     assert report.duplicate_entry_count == 3
     assert report.total_summary.entry_count == 3
+    assert report.flagged_record_count == 2
     assert report.total_summary.waveform_metrics_count == 3
     assert split_counts == {"train": 2, "dev": 1}
     assert report.total_summary.flag_counts["low_loudness"] == 1
@@ -123,6 +127,12 @@ def test_build_dataset_audio_quality_report_surfaces_waveform_flags(tmp_path: Pa
     assert "Dataset Audio Quality Report" in markdown
     assert "Key Patterns" in markdown
     assert payload["total_summary"]["flag_counts"]["high_silence_ratio"] == 1
+    assert len(rows_payload) == 3
+    assert len(flagged_rows_payload) == 2
+    assert {row["audio_path"] for row in flagged_rows_payload} == {
+        "datasets/ffsvc2022-surrogate/raw/dev/ffsvc22_dev_000002.wav",
+        "datasets/ffsvc2022-surrogate/raw/dev/ffsvc22_dev_000003.wav",
+    }
 
 
 def test_build_dataset_audio_quality_report_tracks_missing_audio_with_manifest_fallback(
@@ -158,6 +168,87 @@ def test_build_dataset_audio_quality_report_tracks_missing_audio_with_manifest_f
         "Expected dataset coverage is incomplete. Missing splits: train, dev.",
         "1 rows point to missing audio files.",
     ]
+
+
+def test_build_dataset_audio_quality_report_handles_zero_signal_flac_and_mp3_inputs(
+    tmp_path: Path,
+) -> None:
+    manifests_root = tmp_path / "artifacts" / "manifests" / "demo"
+    audio_root = tmp_path / "datasets" / "demo"
+    manifests_root.mkdir(parents=True)
+    audio_root.mkdir(parents=True)
+
+    zero_signal_audio = audio_root / "zero.flac"
+    tone_audio = audio_root / "tone.mp3"
+    _write_float_audio(zero_signal_audio, format_name="FLAC", sample_rate=16_000, amplitude=0.0)
+    _write_float_audio(tone_audio, format_name="MP3", sample_rate=16_000, amplitude=0.25)
+
+    rows = [
+        {
+            "audio_path": "datasets/demo/zero.flac",
+            "dataset": "demo",
+            "speaker_id": "speaker-zero",
+            "split": "train",
+            "utterance_id": "utt-zero",
+        },
+        {
+            "audio_path": "datasets/demo/tone.mp3",
+            "dataset": "demo",
+            "speaker_id": "speaker-tone",
+            "split": "dev",
+            "utterance_id": "utt-tone",
+        },
+    ]
+    _write_jsonl(manifests_root / "train_manifest.jsonl", [rows[0]])
+    _write_jsonl(manifests_root / "dev_manifest.jsonl", [rows[1]])
+    _write_jsonl(manifests_root / "all_manifest.jsonl", rows)
+
+    report = build_dataset_audio_quality_report(
+        project_root=tmp_path,
+        manifests_root="artifacts/manifests",
+    )
+
+    assert report.total_summary.entry_count == 2
+    assert report.total_summary.waveform_metrics_count == 2
+    assert report.total_summary.flag_counts["zero_signal"] == 1
+    assert report.total_summary.audio_format_counts["flac"] == 1
+    assert report.total_summary.audio_format_counts["mp3"] == 1
+    assert "zero_signal_rows" in {pattern.code for pattern in report.patterns}
+
+
+def test_build_dataset_audio_quality_report_marks_broken_headers_as_audio_read_error(
+    tmp_path: Path,
+) -> None:
+    manifests_root = tmp_path / "artifacts" / "manifests" / "demo"
+    audio_root = tmp_path / "datasets" / "demo"
+    manifests_root.mkdir(parents=True)
+    audio_root.mkdir(parents=True)
+
+    broken_audio = audio_root / "broken.wav"
+    broken_audio.write_bytes(b"not-a-real-wave-header")
+    _write_jsonl(
+        manifests_root / "train_manifest.jsonl",
+        [
+            {
+                "audio_path": "datasets/demo/broken.wav",
+                "dataset": "demo",
+                "speaker_id": "speaker-broken",
+                "split": "train",
+                "utterance_id": "utt-broken",
+            }
+        ],
+    )
+
+    report = build_dataset_audio_quality_report(
+        project_root=tmp_path,
+        manifests_root="artifacts/manifests",
+    )
+
+    assert report.total_summary.entry_count == 1
+    assert report.total_summary.waveform_metrics_count == 0
+    assert report.total_summary.audio_inspection_error_count == 1
+    assert report.total_summary.flag_counts["audio_read_error"] == 1
+    assert "1 audio files could not be fully inspected." in report.warnings
 
 
 @pytest.mark.parametrize(
@@ -236,6 +327,10 @@ def _write_jsonl(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
     path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
 
 
+def _read_jsonl(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
 def _write_tone_wav(
     path: Path,
     *,
@@ -262,6 +357,23 @@ def _write_problematic_wav(
     silent_frames = int(sample_rate * silent_prefix_seconds)
     samples = [0] * silent_frames + [32_767] * (frame_count - silent_frames)
     _write_wav_samples(path, sample_rate=sample_rate, channels=1, samples=samples)
+
+
+def _write_float_audio(
+    path: Path,
+    *,
+    format_name: str,
+    sample_rate: int,
+    amplitude: float,
+    duration_seconds: float = 1.0,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame_count = int(sample_rate * duration_seconds)
+    samples = [
+        amplitude * math.sin(2.0 * math.pi * 220.0 * index / sample_rate)
+        for index in range(frame_count)
+    ]
+    sf.write(path, samples, sample_rate, format=format_name)
 
 
 def _write_wav_samples(

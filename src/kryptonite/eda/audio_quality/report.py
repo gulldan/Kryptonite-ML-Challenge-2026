@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,7 +11,6 @@ from .constants import (
     KNOWN_DATA_SPLITS,
     LONG_DURATION_SECONDS,
     LOW_LOUDNESS_DBFS,
-    MAX_EXAMPLES,
     MODERATE_SILENCE_RATIO,
     SILENCE_CHUNK_MS,
     SILENCE_THRESHOLD_DBFS,
@@ -37,11 +35,10 @@ from .manifests import (
 from .models import (
     AudioQualityPattern,
     DatasetAudioQualityReport,
-    FlaggedExample,
     NamedSummary,
     QualitySummary,
-    WrittenDatasetAudioQualityReport,
 )
+from .selection import select_examples
 
 
 def build_dataset_audio_quality_report(
@@ -85,6 +82,10 @@ def build_dataset_audio_quality_report(
         patterns=build_patterns(total_summary),
         examples=select_examples(list(unique_records.values())),
         warnings=[],
+        records=sorted(
+            unique_records.values(),
+            key=lambda record: (record.audio_path or record.identity_key, record.identity_key),
+        ),
     )
     report.warnings = build_warnings(report)
     return report
@@ -359,8 +360,8 @@ def render_dataset_audio_quality_markdown(report: DatasetAudioQualityReport) -> 
                 f"{SILENCE_THRESHOLD_DBFS:.0f} dBFS RMS threshold."
             ),
             (
-                "- Loudness, peak, DC offset, and clipping signals are waveform-derived for "
-                "WAV files; non-WAV files fall back to manifest/header metadata only."
+                "- Loudness, peak, DC offset, clipping, and silence metrics are derived from "
+                "decoded WAV/FLAC/MP3 waveforms via the shared audio I/O layer."
             ),
             (
                 "- JSONL files whose name contains `trial` or `quarantine` are excluded "
@@ -369,25 +370,6 @@ def render_dataset_audio_quality_markdown(report: DatasetAudioQualityReport) -> 
         ]
     )
     return "\n".join(lines).rstrip() + "\n"
-
-
-def write_dataset_audio_quality_report(
-    *,
-    report: DatasetAudioQualityReport,
-    output_root: Path | str,
-) -> WrittenDatasetAudioQualityReport:
-    output_root_path = resolve_project_path(report.project_root, str(output_root))
-    output_root_path.mkdir(parents=True, exist_ok=True)
-
-    json_path = output_root_path / "dataset_audio_quality.json"
-    markdown_path = output_root_path / "dataset_audio_quality.md"
-    json_path.write_text(json.dumps(report.to_dict(), indent=2, sort_keys=True) + "\n")
-    markdown_path.write_text(render_dataset_audio_quality_markdown(report))
-    return WrittenDatasetAudioQualityReport(
-        output_root=str(output_root_path),
-        json_path=str(json_path),
-        markdown_path=str(markdown_path),
-    )
 
 
 def build_named_summaries(records, *, key) -> list[NamedSummary]:
@@ -466,6 +448,22 @@ def build_patterns(summary: QualitySummary) -> list[AudioQualityPattern]:
             )
         )
 
+    zero_signal_count = summary.flag_counts.get("zero_signal", 0)
+    if zero_signal_count:
+        patterns.append(
+            AudioQualityPattern(
+                code="zero_signal_rows",
+                summary=(
+                    f"{zero_signal_count} rows decode to an all-zero waveform and carry no usable "
+                    "speaker signal."
+                ),
+                implication=(
+                    "Those rows should be quarantined or explicitly excluded before training and "
+                    "verification benchmarking."
+                ),
+            )
+        )
+
     clipping_count = summary.flag_counts.get("clipping_risk", 0)
     if clipping_count:
         patterns.append(
@@ -521,48 +519,6 @@ def build_patterns(summary: QualitySummary) -> list[AudioQualityPattern]:
     return patterns
 
 
-def select_examples(records) -> list[FlaggedExample]:
-    flagged_records = [record for record in records if record.quality_flags]
-    flagged_records.sort(
-        key=lambda record: (-example_score(record), record.audio_path or record.identity_key)
-    )
-    return [
-        FlaggedExample(
-            audio_path=record.audio_path or record.identity_key,
-            split_name=record.split_name,
-            dataset_name=record.dataset_name,
-            source_label=record.source_label,
-            condition_label=record.condition_label,
-            duration_seconds=record.duration_seconds,
-            rms_dbfs=record.rms_dbfs,
-            peak_dbfs=record.peak_dbfs,
-            silence_ratio=record.silence_ratio,
-            flags=record.quality_flags,
-        )
-        for record in flagged_records[:MAX_EXAMPLES]
-    ]
-
-
-def example_score(record) -> int:
-    priority = {
-        "missing_audio_file": 100,
-        "audio_read_error": 90,
-        "clipping_risk": 80,
-        "high_silence_ratio": 75,
-        "very_low_loudness": 70,
-        "non_16k_sample_rate": 60,
-        "non_mono_audio": 55,
-        "dc_offset_risk": 50,
-        "moderate_silence_ratio": 40,
-        "low_loudness": 35,
-        "long_duration": 20,
-        "short_duration": 15,
-        "unsupported_signal_analysis": 10,
-        "missing_audio_path": 5,
-    }
-    return sum(priority.get(flag, 1) for flag in record.quality_flags)
-
-
 def build_warnings(report: DatasetAudioQualityReport) -> list[str]:
     warnings: list[str] = []
     if not Path(report.manifests_root).exists():
@@ -595,14 +551,6 @@ def build_warnings(report: DatasetAudioQualityReport) -> list[str]:
         warnings.append(
             f"{report.total_summary.audio_inspection_error_count} audio files could not "
             "be fully inspected."
-        )
-    unresolved_waveform_count = (
-        report.total_summary.resolved_audio_count - report.total_summary.waveform_metrics_count
-    )
-    if unresolved_waveform_count > 0:
-        warnings.append(
-            f"{unresolved_waveform_count} resolved audio files do not expose waveform-derived "
-            "quality metrics (for example, non-WAV inputs)."
         )
     if report.invalid_line_count:
         warnings.append(f"{report.invalid_line_count} invalid JSONL lines were skipped.")

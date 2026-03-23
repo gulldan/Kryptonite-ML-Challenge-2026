@@ -230,8 +230,6 @@ def build_quality_flags(
 
     if inspection.error is not None:
         flags.append("audio_read_error")
-    elif inspection.exists and inspection.rms_dbfs is None and inspection.audio_format != "wav":
-        flags.append("unsupported_signal_analysis")
 
     if sample_rate_hz is not None and sample_rate_hz != TARGET_SAMPLE_RATE_HZ:
         flags.append("non_16k_sample_rate")
@@ -241,6 +239,8 @@ def build_quality_flags(
         flags.append("short_duration")
     if duration_seconds is not None and duration_seconds > LONG_DURATION_SECONDS:
         flags.append("long_duration")
+    if inspection.exists and inspection.error is None and inspection.peak_dbfs is None:
+        flags.append("zero_signal")
     if inspection.rms_dbfs is not None:
         if inspection.rms_dbfs <= VERY_LOW_LOUDNESS_DBFS:
             flags.append("very_low_loudness")
@@ -357,9 +357,10 @@ def summarize_records(records: list[ManifestQualityRecord]) -> QualitySummary:
             sessions.add(record.session_key)
         if record.duration_seconds is not None:
             durations.append(record.duration_seconds)
+        if record.audio_exists and record.audio_error is None:
+            waveform_metrics_count += 1
         if record.rms_dbfs is not None:
             loudness_values.append(record.rms_dbfs)
-            waveform_metrics_count += 1
         if record.peak_dbfs is not None:
             peak_values.append(record.peak_dbfs)
         if record.silence_ratio is not None:

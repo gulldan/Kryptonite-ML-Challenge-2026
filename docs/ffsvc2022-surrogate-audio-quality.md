@@ -29,6 +29,8 @@ Artifacts:
 
 - `artifacts/eda/dataset-audio-quality/dataset_audio_quality.json`
 - `artifacts/eda/dataset-audio-quality/dataset_audio_quality.md`
+- `artifacts/eda/dataset-audio-quality/dataset_audio_quality_rows.jsonl`
+- `artifacts/eda/dataset-audio-quality/dataset_audio_quality_flagged_rows.jsonl`
 
 ## What Was Analyzed
 
@@ -150,5 +152,5 @@ The current surrogate strongly argues for the following defaults in upcoming pip
 ## Limits
 
 - Silence is estimated on `100 ms` windows using a `-45 dBFS` RMS threshold.
-- The current report is waveform-derived for WAV inputs; if future manifests introduce other formats, non-WAV rows will need a compatible analyzer.
-- The current implementation computes PCM statistics in-repo and keeps the quality report independent from external DSP/runtime packages.
+- The current report derives metrics through the shared audio decoder stack, so decode failures are surfaced as `audio_read_error` rows instead of being silently skipped.
+- Near-clipping is treated as a quality-risk heuristic (`>= -0.1 dBFS` peak), not as proof that the original recording hit hard digital clipping at capture time.

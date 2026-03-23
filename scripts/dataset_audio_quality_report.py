@@ -51,6 +51,7 @@ def main() -> None:
                 "manifest_count": report.manifest_count,
                 "raw_entry_count": report.raw_entry_count,
                 "deduplicated_entry_count": report.total_summary.entry_count,
+                "flagged_record_count": report.flagged_record_count,
                 "waveform_metrics_count": report.total_summary.waveform_metrics_count,
                 "flag_counts": report.total_summary.flag_counts,
                 "warnings": report.warnings,

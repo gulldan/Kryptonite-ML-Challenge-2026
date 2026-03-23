@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import math
-import wave
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
-from .constants import SILENCE_CHUNK_MS, SILENCE_THRESHOLD_DBFS
+from kryptonite.data.audio_io import inspect_audio_file as inspect_audio_header
+from kryptonite.data.audio_io import read_audio_file as decode_audio_file
+
+from .constants import CLIPPING_PEAK_DBFS, SILENCE_CHUNK_MS, SILENCE_THRESHOLD_DBFS
 from .models import AudioQualityInspection
 
 
@@ -32,6 +34,15 @@ class PCMInspectionStats:
     chunk_count: int
     silent_chunk_count: int
     clipped_chunk_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class WaveformInspectionStats:
+    rms_dbfs: float | None
+    peak_dbfs: float | None
+    silence_ratio: float | None
+    dc_offset_ratio: float | None
+    clipped_chunk_ratio: float | None
 
 
 def inspect_audio_file(
@@ -59,32 +70,9 @@ def inspect_audio_file(
         cache[path] = inspection
         return inspection
 
-    if path.suffix.lower() != ".wav":
-        inspection = _empty_inspection(
-            exists=True,
-            audio_format=audio_format,
-            file_size_bytes=size_bytes,
-        )
-        cache[path] = inspection
-        return inspection
-
     try:
-        with wave.open(str(path), "rb") as handle:
-            sample_rate_hz = handle.getframerate()
-            channels = handle.getnchannels()
-            sample_width_bytes = handle.getsampwidth()
-            frame_count = handle.getnframes()
-
-            chunk_frames = max(1, round(sample_rate_hz * SILENCE_CHUNK_MS / 1000))
-            max_amplitude = maximum_possible_amplitude(sample_width_bytes)
-            frames = handle.readframes(frame_count)
-            inspection_stats = analyze_pcm_signal(
-                frames=frames,
-                sample_width_bytes=sample_width_bytes,
-                chunk_sample_count=max(1, chunk_frames * max(1, channels)),
-                max_possible_amplitude=max_amplitude,
-            )
-    except (OSError, ValueError, wave.Error) as exc:
+        header_info = inspect_audio_header(path)
+    except Exception as exc:
         inspection = _empty_inspection(
             exists=True,
             audio_format=audio_format,
@@ -94,45 +82,124 @@ def inspect_audio_file(
         cache[path] = inspection
         return inspection
 
-    duration_seconds = frame_count / sample_rate_hz if sample_rate_hz > 0 else None
-    if inspection_stats.sample_count > 0:
-        rms_amplitude = math.sqrt(inspection_stats.sum_of_squares / inspection_stats.sample_count)
-        dc_offset_ratio = (
-            abs(inspection_stats.signed_sum / inspection_stats.sample_count) / max_amplitude
+    audio_format = header_info.format.lower()
+    sample_width_bytes = _sample_width_bytes_from_subtype(header_info.subtype)
+    try:
+        waveform, _ = decode_audio_file(path)
+    except Exception as exc:
+        inspection = AudioQualityInspection(
+            exists=True,
+            file_size_bytes=size_bytes,
+            duration_seconds=header_info.duration_seconds,
+            sample_rate_hz=header_info.sample_rate_hz,
+            channels=header_info.num_channels,
+            audio_format=audio_format,
+            sample_width_bytes=sample_width_bytes,
+            rms_dbfs=None,
+            peak_dbfs=None,
+            silence_ratio=None,
+            dc_offset_ratio=None,
+            clipped_chunk_ratio=None,
+            error=f"{type(exc).__name__}: {exc}",
         )
-        rms_dbfs = amplitude_to_dbfs(rms_amplitude, max_amplitude)
-        peak_dbfs = amplitude_to_dbfs(float(inspection_stats.peak_amplitude), max_amplitude)
-    else:
-        dc_offset_ratio = None
-        rms_dbfs = None
-        peak_dbfs = None
+        cache[path] = inspection
+        return inspection
 
-    silence_ratio = (
-        inspection_stats.silent_chunk_count / inspection_stats.chunk_count
-        if inspection_stats.chunk_count > 0
-        else None
-    )
-    clipped_chunk_ratio = (
-        inspection_stats.clipped_chunk_count / inspection_stats.chunk_count
-        if inspection_stats.chunk_count > 0
-        else None
+    if waveform.ndim != 2 or int(waveform.shape[-1]) == 0:
+        inspection = AudioQualityInspection(
+            exists=True,
+            file_size_bytes=size_bytes,
+            duration_seconds=header_info.duration_seconds,
+            sample_rate_hz=header_info.sample_rate_hz,
+            channels=header_info.num_channels,
+            audio_format=audio_format,
+            sample_width_bytes=sample_width_bytes,
+            rms_dbfs=None,
+            peak_dbfs=None,
+            silence_ratio=None,
+            dc_offset_ratio=None,
+            clipped_chunk_ratio=None,
+            error="ValueError: decoded audio signal is empty",
+        )
+        cache[path] = inspection
+        return inspection
+
+    if not np.isfinite(waveform).all():
+        inspection = AudioQualityInspection(
+            exists=True,
+            file_size_bytes=size_bytes,
+            duration_seconds=header_info.duration_seconds,
+            sample_rate_hz=header_info.sample_rate_hz,
+            channels=header_info.num_channels,
+            audio_format=audio_format,
+            sample_width_bytes=sample_width_bytes,
+            rms_dbfs=None,
+            peak_dbfs=None,
+            silence_ratio=None,
+            dc_offset_ratio=None,
+            clipped_chunk_ratio=None,
+            error="ValueError: decoded audio signal contains non-finite values",
+        )
+        cache[path] = inspection
+        return inspection
+
+    waveform_stats = inspect_decoded_waveform(
+        waveform=waveform,
+        sample_rate_hz=header_info.sample_rate_hz,
     )
     inspection = AudioQualityInspection(
         exists=True,
         file_size_bytes=size_bytes,
-        duration_seconds=duration_seconds,
-        sample_rate_hz=sample_rate_hz,
-        channels=channels,
+        duration_seconds=header_info.duration_seconds,
+        sample_rate_hz=header_info.sample_rate_hz,
+        channels=header_info.num_channels,
         audio_format=audio_format,
         sample_width_bytes=sample_width_bytes,
-        rms_dbfs=rms_dbfs,
-        peak_dbfs=peak_dbfs,
-        silence_ratio=silence_ratio,
-        dc_offset_ratio=dc_offset_ratio,
-        clipped_chunk_ratio=clipped_chunk_ratio,
+        rms_dbfs=waveform_stats.rms_dbfs,
+        peak_dbfs=waveform_stats.peak_dbfs,
+        silence_ratio=waveform_stats.silence_ratio,
+        dc_offset_ratio=waveform_stats.dc_offset_ratio,
+        clipped_chunk_ratio=waveform_stats.clipped_chunk_ratio,
     )
     cache[path] = inspection
     return inspection
+
+
+def inspect_decoded_waveform(
+    *,
+    waveform: np.ndarray,
+    sample_rate_hz: int,
+) -> WaveformInspectionStats:
+    waveform64 = waveform.astype(np.float64, copy=False)
+    rms_amplitude = float(np.sqrt(np.mean(np.square(waveform64))))
+    peak_amplitude_value = float(np.abs(waveform64).max(initial=0.0))
+    dc_offset_ratio = float(np.abs(waveform64.mean(axis=-1)).max(initial=0.0))
+
+    chunk_frames = max(1, round(sample_rate_hz * SILENCE_CHUNK_MS / 1000))
+    silence_threshold = _silence_threshold_amplitude(1)
+    clipping_threshold = 10.0 ** (CLIPPING_PEAK_DBFS / 20.0)
+
+    chunk_count = 0
+    silent_chunk_count = 0
+    clipped_chunk_count = 0
+    for start in range(0, int(waveform64.shape[-1]), chunk_frames):
+        stop = min(start + chunk_frames, int(waveform64.shape[-1]))
+        chunk = waveform64[:, start:stop]
+        if chunk.size == 0:
+            continue
+        chunk_count += 1
+        chunk_rms = float(np.sqrt(np.mean(np.square(chunk))))
+        chunk_peak = float(np.abs(chunk).max(initial=0.0))
+        silent_chunk_count += int(chunk_rms == 0.0 or chunk_rms <= silence_threshold)
+        clipped_chunk_count += int(chunk_peak >= clipping_threshold)
+
+    return WaveformInspectionStats(
+        rms_dbfs=amplitude_to_dbfs(rms_amplitude, 1),
+        peak_dbfs=amplitude_to_dbfs(peak_amplitude_value, 1),
+        silence_ratio=silent_chunk_count / chunk_count if chunk_count > 0 else None,
+        dc_offset_ratio=dc_offset_ratio,
+        clipped_chunk_ratio=clipped_chunk_count / chunk_count if chunk_count > 0 else None,
+    )
 
 
 def analyze_pcm_signal(
@@ -314,6 +381,23 @@ def audio_format_from_path(path: str | None) -> str | None:
         return None
     suffix = Path(path).suffix.lower()
     return suffix.removeprefix(".") or None
+
+
+def _sample_width_bytes_from_subtype(subtype: str | None) -> int | None:
+    if subtype is None:
+        return None
+    normalized = subtype.upper()
+    if normalized.startswith("PCM_"):
+        suffix = normalized.removeprefix("PCM_")
+        if suffix.isdigit():
+            bits_per_sample = int(suffix)
+            if bits_per_sample > 0 and bits_per_sample % 8 == 0:
+                return bits_per_sample // 8
+    if normalized in {"FLOAT", "PCM_FLOAT"}:
+        return 4
+    if normalized == "DOUBLE":
+        return 8
+    return None
 
 
 def _empty_inspection(
