@@ -35,7 +35,12 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert metadata_file.is_file()
     assert len(manifest_file.read_text().splitlines()) == 6
 
+    first_manifest_row = json.loads(manifest_file.read_text().splitlines()[0])
     subset_payload = json.loads(subset_file.read_text())
+    assert first_manifest_row["schema_version"] == "kryptonite.manifest.v1"
+    assert first_manifest_row["record_type"] == "utterance"
+    assert first_manifest_row["split"] == "demo"
+    assert first_manifest_row["num_channels"] == 1
     assert len(subset_payload["enrollment"]) == 4
     assert len(subset_payload["test"]) == 2
 

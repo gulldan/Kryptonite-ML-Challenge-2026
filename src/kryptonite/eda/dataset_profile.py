@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from kryptonite.data.schema import normalize_manifest_entry
 from kryptonite.deployment import resolve_project_path
 
 DURATION_BUCKETS: tuple[tuple[str, float, float | None], ...] = (
@@ -564,7 +565,8 @@ def _build_manifest_record(
     manifests_root: Path,
     audio_cache: dict[Path, AudioInspection],
 ) -> ManifestRecord:
-    audio_path = _coerce_str(entry.get("audio_path"))
+    normalized_entry = normalize_manifest_entry(entry)
+    audio_path = _coerce_str(normalized_entry.get("audio_path"))
     resolved_audio_path = (
         resolve_project_path(str(project_root), audio_path) if audio_path is not None else None
     )
@@ -581,7 +583,7 @@ def _build_manifest_record(
         )
     )
 
-    manifest_duration = _coerce_float(entry.get("duration_seconds"))
+    manifest_duration = _coerce_float(normalized_entry.get("duration_seconds"))
     duration_seconds: float | None
     duration_source: str
     if inspection.duration_seconds is not None:
@@ -594,23 +596,29 @@ def _build_manifest_record(
         duration_seconds = None
         duration_source = "missing"
 
-    sample_rate_hz = inspection.sample_rate_hz or _coerce_int(entry.get("sample_rate_hz"))
-    channels = inspection.channels or _coerce_int(entry.get("channels"))
+    sample_rate_hz = inspection.sample_rate_hz or _coerce_int(
+        normalized_entry.get("sample_rate_hz")
+    )
+    channels = (
+        inspection.channels
+        or _coerce_int(normalized_entry.get("num_channels"))
+        or _coerce_int(normalized_entry.get("channels"))
+    )
     dataset_name = _infer_dataset_name(
-        entry=entry,
+        entry=normalized_entry,
         audio_path=audio_path,
         manifest_path=manifest_path,
         manifests_root=manifests_root,
     )
-    split_name = _infer_split_name(entry=entry, manifest_path=manifest_path)
-    speaker_id = _coerce_str(entry.get("speaker_id"))
-    session_key = _infer_session_key(entry=entry, speaker_id=speaker_id)
-    role = _coerce_str(entry.get("role"))
-    source_label = _infer_source_label(entry=entry, dataset_name=dataset_name)
+    split_name = _infer_split_name(entry=normalized_entry, manifest_path=manifest_path)
+    speaker_id = _coerce_str(normalized_entry.get("speaker_id"))
+    session_key = _infer_session_key(entry=normalized_entry, speaker_id=speaker_id)
+    role = _coerce_str(normalized_entry.get("role"))
+    source_label = _infer_source_label(entry=normalized_entry, dataset_name=dataset_name)
     audio_format = inspection.audio_format or _audio_format_from_path(audio_path)
     identity_key = _build_identity_key(
         audio_path=audio_path,
-        entry=entry,
+        entry=normalized_entry,
         manifest_path=manifest_path,
         line_number=line_number,
     )
@@ -744,12 +752,18 @@ def _infer_split_name(*, entry: dict[str, Any], manifest_path: Path) -> str:
 
 
 def _infer_session_key(*, entry: dict[str, Any], speaker_id: str | None) -> str | None:
-    session_value = _coerce_str(entry.get("session_id")) or _coerce_str(entry.get("session_index"))
-    if session_value is None:
+    session_id = _coerce_str(entry.get("session_id"))
+    if session_id is not None:
+        if speaker_id and ":" not in session_id:
+            return f"{speaker_id}:{session_id}"
+        return session_id
+
+    session_index = _coerce_str(entry.get("session_index"))
+    if session_index is None:
         return None
     if speaker_id:
-        return f"{speaker_id}:{session_value}"
-    return session_value
+        return f"{speaker_id}:{session_index}"
+    return session_index
 
 
 def _infer_source_label(*, entry: dict[str, Any], dataset_name: str) -> str | None:

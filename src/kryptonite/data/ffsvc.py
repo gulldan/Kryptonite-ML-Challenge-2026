@@ -11,6 +11,8 @@ from typing import Final
 
 from kryptonite.deployment import resolve_project_path
 
+from .schema import ManifestRow
+
 ORIGINAL_NAME_PATTERN = re.compile(
     r"^(?P<source_prefix>[A-Z])(?P<speaker_id>\d{4})_"
     r"(?P<condition_core>[A-Z0-9.\-]+)_"
@@ -246,19 +248,24 @@ def prepare_ffsvc2022_surrogate(
             )
         split = "dev" if utterance.speaker_id in dev_speakers else "train"
         source_entries.append(
-            {
-                "dataset": "ffsvc2022-surrogate",
-                "speaker_id": utterance.speaker_id,
-                "utterance_id": utterance.ffsvc_name,
-                "original_name": utterance.original_name,
-                "audio_path": _relative_to_project(audio_path, project_root),
-                "split": split,
-                "source_prefix": utterance.source_prefix,
-                "capture_condition": utterance.capture_condition,
-                "session_index": utterance.session_index,
-                "utterance_index": utterance.utterance_index,
-                "pace": utterance.pace,
-            }
+            ManifestRow(
+                dataset="ffsvc2022-surrogate",
+                source_dataset="ffsvc2022",
+                speaker_id=utterance.speaker_id,
+                utterance_id=utterance.ffsvc_name,
+                session_id=f"{utterance.speaker_id}:{utterance.session_index}",
+                split=split,
+                audio_path=_relative_to_project(audio_path, project_root),
+            ).to_dict(
+                extra_fields={
+                    "original_name": utterance.original_name,
+                    "source_prefix": utterance.source_prefix,
+                    "capture_condition": utterance.capture_condition,
+                    "session_index": utterance.session_index,
+                    "utterance_index": utterance.utterance_index,
+                    "pace": utterance.pace,
+                }
+            )
         )
 
     entries, quarantined_entries = split_quarantined_ffsvc_entries(source_entries)
