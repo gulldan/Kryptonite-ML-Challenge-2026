@@ -12,8 +12,17 @@ The current repository contract exposes three loader-level modes:
 - `light`: trim only confident leading/trailing silence with generous padding
 - `aggressive`: trim more tightly for ablation and production selection
 
-This implementation is intentionally simple: it is an energy-based VAD that
-preserves the interior of the utterance and only adjusts the outer boundaries.
+The implementation is now backed by the official Silero VAD v6 ONNX model. We
+use the official packaged ONNX asset and official timestamp post-processing, but
+keep provider selection explicit in our code instead of relying on the package's
+CPU-forced convenience loader.
+
+The runtime dependency is installed through the repository `train` environment
+group, so the expected setup command remains:
+
+```bash
+uv sync --dev --group train --group tracking
+```
 
 ## Config
 
@@ -22,6 +31,8 @@ The active mode lives in `configs/base.toml`:
 ```toml
 [vad]
 mode = "none"
+backend = "silero_vad_v6_onnx"
+provider = "auto"
 ```
 
 Supported values:
@@ -29,6 +40,16 @@ Supported values:
 - `none`
 - `light`
 - `aggressive`
+
+Supported backends:
+
+- `silero_vad_v6_onnx`
+
+Supported providers:
+
+- `auto`
+- `cpu`
+- `cuda`
 
 Override it per run when needed:
 
@@ -59,6 +80,8 @@ loaded = load_audio(
 The returned `LoadedAudio` metadata now records:
 
 - `vad_mode`
+- `vad_backend`
+- `vad_provider`
 - `trim_applied`
 - `trim_reason`
 - `trim_start_seconds`
@@ -93,7 +116,8 @@ most.
 
 ## Current Limits
 
-- the VAD is energy-based, not phoneme-aware or diarization-aware
-- only leading/trailing trimming is supported; interior pauses stay untouched
-- the presets are tuned for reproducible ablations, not for final challenge
-  hyperparameter search
+- only leading/trailing trimming is applied; interior pauses stay untouched
+- the repo currently keeps `light` and `aggressive` as preset parameter bundles
+  around the same Silero V6 ONNX backend
+- `provider = "auto"` falls back to CPU when `CUDAExecutionProvider` is not
+  available in the active `onnxruntime` build

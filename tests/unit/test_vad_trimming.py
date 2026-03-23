@@ -5,12 +5,18 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+import pytest
 
+import kryptonite.data.vad as vad_module
 from kryptonite.config import NormalizationConfig
 from kryptonite.eda.vad_trimming import build_vad_trimming_report
 
 
-def test_build_vad_trimming_report_compares_modes(tmp_path: Path) -> None:
+def test_build_vad_trimming_report_compares_modes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _patch_vad_segments(monkeypatch)
     audio_root = tmp_path / "datasets" / "demo"
     manifest_root = tmp_path / "artifacts" / "manifests" / "demo"
     audio_root.mkdir(parents=True)
@@ -49,6 +55,8 @@ def test_build_vad_trimming_report_compares_modes(tmp_path: Path) -> None:
     )
 
     assert report.row_count == 1
+    assert report.backend == "silero_vad_v6_onnx"
+    assert report.provider == "auto"
     summaries = {summary.mode: summary for summary in report.summaries}
     assert summaries["none"].trimmed_row_count == 0
     assert summaries["light"].trimmed_row_count == 1
@@ -67,3 +75,23 @@ def _write_trim_candidate_audio(path: Path) -> None:
     speech = (0.25 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
     waveform = np.concatenate([silence, speech, silence])
     sf.write(path, waveform, sample_rate_hz, format="WAV")
+
+
+def _patch_vad_segments(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_detect(
+        waveform: np.ndarray,
+        *,
+        sample_rate_hz: int,
+        settings: vad_module.VADSettings,
+    ) -> list[dict[str, int]]:
+        assert sample_rate_hz == 16_000
+        assert waveform.ndim == 2
+        assert settings.backend == "silero_vad_v6_onnx"
+        assert settings.provider == "auto"
+        if settings.mode == "light":
+            return [{"start": 4_000, "end": 12_000}]
+        if settings.mode == "aggressive":
+            return [{"start": 5_500, "end": 10_500}]
+        return []
+
+    monkeypatch.setattr(vad_module, "_detect_speech_segments", fake_detect)

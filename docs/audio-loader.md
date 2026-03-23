@@ -12,7 +12,7 @@ The loader now covers the current repository contract:
 - channel-first `float32` tensors in memory
 - optional explicit resampling
 - optional deterministic mono fold-down
-- optional loader-time `none/light/aggressive` VAD trimming
+- optional loader-time `none/light/aggressive` Silero VAD v6 ONNX trimming
 - windowed reads for long files through `start_seconds` and `duration_seconds`
 - direct loading from unified manifest rows or manifest JSONL files
 
@@ -55,7 +55,8 @@ datasets, the request can be constructed manually.
   long files can be inspected without decoding the full recording
 - mono fold-down is an arithmetic mean over channels; other channel-layout
   conversions are rejected explicitly
-- `light` and `aggressive` only trim leading/trailing silence; they keep
+- `light` and `aggressive` use the Silero VAD v6 ONNX backend and only trim
+  leading/trailing silence; they keep
   interior pauses so downstream chunking and augmentation still see realistic
   pause structure
 - manifest loading validates rows through `ManifestRow.from_mapping(...)`, so

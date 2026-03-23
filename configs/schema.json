@@ -141,9 +141,11 @@
     },
     "vad": {
       "type": "object",
-      "required": ["mode"],
+      "required": ["mode", "backend", "provider"],
       "properties": {
-        "mode": { "type": "string", "enum": ["none", "light", "aggressive"] }
+        "mode": { "type": "string", "enum": ["none", "light", "aggressive"] },
+        "backend": { "type": "string", "enum": ["silero_vad_v6_onnx"] },
+        "provider": { "type": "string", "enum": ["auto", "cpu", "cuda"] }
       },
       "additionalProperties": false
     },
