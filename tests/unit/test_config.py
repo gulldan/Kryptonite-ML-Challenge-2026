@@ -18,6 +18,8 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.vad.mode == "none"
     assert config.vad.backend == "silero_vad_v6_onnx"
     assert config.vad.provider == "auto"
+    assert config.vad.min_output_duration_seconds == 1.0
+    assert config.vad.min_retained_ratio == 0.4
     assert config.deployment.model_bundle_root == "artifacts/model-bundle"
     assert config.deployment.demo_subset_root == "artifacts/demo-subset"
     assert config.deployment.require_artifacts is False
@@ -38,6 +40,8 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "normalization.output_format=flac",
             "vad.mode=light",
             "vad.provider=cpu",
+            "vad.min_output_duration_seconds=1.25",
+            "vad.min_retained_ratio=0.5",
         ],
         env_file=env_file,
     )
@@ -49,6 +53,8 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.normalization.output_format == "flac"
     assert config.vad.mode == "light"
     assert config.vad.provider == "cpu"
+    assert config.vad.min_output_duration_seconds == 1.25
+    assert config.vad.min_retained_ratio == 0.5
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 

@@ -15,6 +15,8 @@ from kryptonite.deployment import resolve_project_path
 from .audio_io import AudioFileInfo, inspect_audio_file, read_audio_file, resample_waveform
 from .schema import ManifestRow
 from .vad import (
+    DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS,
+    DEFAULT_VAD_MIN_RETAINED_RATIO,
     SUPPORTED_VAD_BACKENDS,
     SUPPORTED_VAD_MODES,
     SUPPORTED_VAD_PROVIDERS,
@@ -31,6 +33,8 @@ class AudioLoadRequest:
     vad_mode: str = "none"
     vad_backend: str = "silero_vad_v6_onnx"
     vad_provider: str = "auto"
+    vad_min_output_duration_seconds: float | None = DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS
+    vad_min_retained_ratio: float | None = DEFAULT_VAD_MIN_RETAINED_RATIO
 
     def __post_init__(self) -> None:
         if self.target_sample_rate_hz is not None and self.target_sample_rate_hz <= 0:
@@ -47,6 +51,16 @@ class AudioLoadRequest:
             raise ValueError(f"vad_backend must be one of {SUPPORTED_VAD_BACKENDS}")
         if self.vad_provider.lower() not in SUPPORTED_VAD_PROVIDERS:
             raise ValueError(f"vad_provider must be one of {SUPPORTED_VAD_PROVIDERS}")
+        if (
+            self.vad_min_output_duration_seconds is not None
+            and self.vad_min_output_duration_seconds < 0.0
+        ):
+            raise ValueError("vad_min_output_duration_seconds must be non-negative when provided")
+        if (
+            self.vad_min_retained_ratio is not None
+            and not 0.0 <= self.vad_min_retained_ratio <= 1.0
+        ):
+            raise ValueError("vad_min_retained_ratio must be within [0.0, 1.0] when provided")
 
     @classmethod
     def from_config(
@@ -65,6 +79,14 @@ class AudioLoadRequest:
             vad_mode="none" if vad is None else vad.mode,
             vad_backend="silero_vad_v6_onnx" if vad is None else vad.backend,
             vad_provider="auto" if vad is None else vad.provider,
+            vad_min_output_duration_seconds=(
+                DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS
+                if vad is None
+                else vad.min_output_duration_seconds
+            ),
+            vad_min_retained_ratio=(
+                DEFAULT_VAD_MIN_RETAINED_RATIO if vad is None else vad.min_retained_ratio
+            ),
         )
 
 
@@ -90,6 +112,8 @@ class LoadedAudio:
     vad_mode: str
     vad_backend: str
     vad_provider: str
+    vad_min_output_duration_seconds: float | None
+    vad_min_retained_ratio: float | None
     vad_speech_detected: bool
     trim_applied: bool
     trim_reason: str
@@ -163,6 +187,8 @@ def load_audio(
         mode=active_request.vad_mode,
         backend=active_request.vad_backend,
         provider=active_request.vad_provider,
+        min_output_duration_seconds=active_request.vad_min_output_duration_seconds,
+        min_retained_ratio=active_request.vad_min_retained_ratio,
     )
     frame_count = int(waveform.shape[-1])
     num_channels = int(waveform.shape[0])
@@ -187,6 +213,8 @@ def load_audio(
         vad_mode=active_request.vad_mode.lower(),
         vad_backend=active_request.vad_backend.lower(),
         vad_provider=active_request.vad_provider.lower(),
+        vad_min_output_duration_seconds=active_request.vad_min_output_duration_seconds,
+        vad_min_retained_ratio=active_request.vad_min_retained_ratio,
         vad_speech_detected=trim_decision.speech_detected,
         trim_applied=trim_decision.applied,
         trim_reason=trim_decision.reason,

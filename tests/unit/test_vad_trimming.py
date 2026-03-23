@@ -8,7 +8,7 @@ import pytest
 import soundfile as sf
 
 import kryptonite.data.vad as vad_module
-from kryptonite.config import NormalizationConfig
+from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.eda.vad_trimming import build_vad_trimming_report
 
 
@@ -52,11 +52,18 @@ def test_build_vad_trimming_report_compares_modes(
             dc_offset_threshold=0.01,
             clipped_sample_threshold=0.999,
         ),
+        vad=VADConfig(
+            mode="light",
+            min_output_duration_seconds=1.0,
+            min_retained_ratio=0.4,
+        ),
     )
 
     assert report.row_count == 1
     assert report.backend == "silero_vad_v6_onnx"
     assert report.provider == "auto"
+    assert report.min_output_duration_seconds == 1.0
+    assert report.min_retained_ratio == 0.4
     summaries = {summary.mode: summary for summary in report.summaries}
     assert summaries["none"].trimmed_row_count == 0
     assert summaries["light"].trimmed_row_count == 1
@@ -71,7 +78,7 @@ def test_build_vad_trimming_report_compares_modes(
 def _write_trim_candidate_audio(path: Path) -> None:
     sample_rate_hz = 16_000
     silence = np.zeros(4_800, dtype=np.float32)
-    time = np.arange(8_000, dtype=np.float32) / np.float32(sample_rate_hz)
+    time = np.arange(32_000, dtype=np.float32) / np.float32(sample_rate_hz)
     speech = (0.25 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
     waveform = np.concatenate([silence, speech, silence])
     sf.write(path, waveform, sample_rate_hz, format="WAV")
@@ -89,9 +96,9 @@ def _patch_vad_segments(monkeypatch: pytest.MonkeyPatch) -> None:
         assert settings.backend == "silero_vad_v6_onnx"
         assert settings.provider == "auto"
         if settings.mode == "light":
-            return [{"start": 4_000, "end": 12_000}]
+            return [{"start": 4_000, "end": 36_000}]
         if settings.mode == "aggressive":
-            return [{"start": 5_500, "end": 10_500}]
+            return [{"start": 5_500, "end": 34_500}]
         return []
 
     monkeypatch.setattr(vad_module, "_detect_speech_segments", fake_detect)

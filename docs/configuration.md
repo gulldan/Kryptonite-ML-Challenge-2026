@@ -99,6 +99,8 @@ The base config also includes a `vad` section for loader-time silence trimming:
 - `mode`
 - `backend`
 - `provider`
+- `min_output_duration_seconds`
+- `min_retained_ratio`
 
 Supported values are:
 
@@ -115,6 +117,14 @@ Provider values are:
 - `auto`
 - `cpu`
 - `cuda`
+
+The trim guards keep loader-time boundary trimming from collapsing utterances
+too aggressively:
+
+- `min_output_duration_seconds` rejects a trim if the remaining clip would be
+  shorter than this value
+- `min_retained_ratio` rejects a trim if the remaining clip would keep less
+  than this fraction of the original duration
 
 The base profile keeps `mode = "none"` so raw waveform behavior stays stable by
 default. Use config overrides for ablations or production-oriented comparisons:

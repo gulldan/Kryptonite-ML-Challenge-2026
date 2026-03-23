@@ -8,7 +8,12 @@ from pathlib import Path
 
 from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.data import AudioLoadRequest, iter_manifest_audio
-from kryptonite.data.vad import SUPPORTED_VAD_MODES, apply_vad_policy
+from kryptonite.data.vad import (
+    DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS,
+    DEFAULT_VAD_MIN_RETAINED_RATIO,
+    SUPPORTED_VAD_MODES,
+    apply_vad_policy,
+)
 from kryptonite.deployment import resolve_project_path
 
 
@@ -122,6 +127,8 @@ class VADComparisonReport:
     modes: tuple[str, ...]
     backend: str
     provider: str
+    min_output_duration_seconds: float | None
+    min_retained_ratio: float | None
     limit: int | None
     records: list[VADComparisonRecord]
     summaries: list[VADModeSummary]
@@ -138,6 +145,8 @@ class VADComparisonReport:
             "modes": list(self.modes),
             "backend": self.backend,
             "provider": self.provider,
+            "min_output_duration_seconds": self.min_output_duration_seconds,
+            "min_retained_ratio": self.min_retained_ratio,
             "limit": self.limit,
             "row_count": self.row_count,
             "summaries": [summary.to_dict() for summary in self.summaries],
@@ -180,6 +189,12 @@ def build_vad_trimming_report(
     request = AudioLoadRequest.from_config(normalization)
     backend = "silero_vad_v6_onnx" if vad is None else vad.backend
     provider = "auto" if vad is None else vad.provider
+    min_output_duration_seconds = (
+        DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS if vad is None else vad.min_output_duration_seconds
+    )
+    min_retained_ratio = (
+        DEFAULT_VAD_MIN_RETAINED_RATIO if vad is None else vad.min_retained_ratio
+    )
     records: list[VADComparisonRecord] = []
     for index, loaded in enumerate(
         iter_manifest_audio(
@@ -211,6 +226,8 @@ def build_vad_trimming_report(
                 mode=mode,
                 backend=backend,
                 provider=provider,
+                min_output_duration_seconds=min_output_duration_seconds,
+                min_retained_ratio=min_retained_ratio,
             )
             observations[mode] = VADModeObservation(
                 mode=mode,
@@ -254,6 +271,8 @@ def build_vad_trimming_report(
         modes=normalized_modes,
         backend=backend,
         provider=provider,
+        min_output_duration_seconds=min_output_duration_seconds,
+        min_retained_ratio=min_retained_ratio,
         limit=limit,
         records=records,
         summaries=summaries,
@@ -297,6 +316,8 @@ def render_vad_trimming_markdown(report: VADComparisonReport) -> str:
         f"- modes: `{', '.join(report.modes)}`",
         f"- backend: `{report.backend}`",
         f"- provider: `{report.provider}`",
+        f"- min output duration seconds: `{report.min_output_duration_seconds}`",
+        f"- min retained ratio: `{report.min_retained_ratio}`",
     ]
     if report.limit is not None:
         lines.append(f"- limit: `{report.limit}`")
