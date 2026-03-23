@@ -118,6 +118,7 @@ def test_build_dataset_leakage_report_detects_duplicates_and_overlap(tmp_path: P
     _write_jsonl(manifests_root / "train_manifest.jsonl", train_rows)
     _write_jsonl(manifests_root / "dev_manifest.jsonl", dev_rows)
     _write_jsonl(manifests_root / "all_manifest.jsonl", [*train_rows, *dev_rows])
+    _write_jsonl(manifests_root / "quarantine_manifest.jsonl", [train_rows[0]])
     _write_jsonl(
         manifests_root / "speaker_disjoint_dev_trials.jsonl",
         [
@@ -142,6 +143,7 @@ def test_build_dataset_leakage_report_detects_duplicates_and_overlap(tmp_path: P
     payload = json.loads(Path(written.json_path).read_text())
     markdown = Path(written.markdown_path).read_text()
 
+    assert report.data_manifest_count == 3
     assert "cross_split_audio_overlap" in finding_codes
     assert "duplicate_audio_content" in finding_codes
     assert "speaker_overlap" in finding_codes

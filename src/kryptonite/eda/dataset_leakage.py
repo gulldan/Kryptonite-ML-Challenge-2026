@@ -185,6 +185,8 @@ def build_dataset_leakage_report(
                     for line_number, entry in enumerate(objects, start=1)
                 )
                 continue
+            if "quarantine" in manifest_name:
+                continue
 
             if "manifest" not in manifest_name and not any("audio_path" in row for row in objects):
                 continue

@@ -264,6 +264,14 @@ def build_dataset_profile_report(
                     )
                 )
                 continue
+            if "quarantine" in manifest_name:
+                ignored_manifests.append(
+                    IgnoredManifest(
+                        manifest_path=relative_manifest_path,
+                        reason="quarantine JSONL is excluded from active dataset profiling",
+                    )
+                )
+                continue
 
             objects, invalid_line_count = _load_jsonl_objects(manifest_path)
             if "manifest" not in manifest_name and not any("audio_path" in row for row in objects):
@@ -657,10 +665,8 @@ def _build_warnings(report: DatasetProfileReport) -> list[str]:
         )
     if report.total_summary.audio_inspection_error_count:
         warnings.append(
-            
-                f"{report.total_summary.audio_inspection_error_count} audio files could not "
-                "be fully inspected."
-            
+            f"{report.total_summary.audio_inspection_error_count} audio files could not "
+            "be fully inspected."
         )
     if report.invalid_line_count:
         warnings.append(f"{report.invalid_line_count} invalid JSONL lines were skipped.")

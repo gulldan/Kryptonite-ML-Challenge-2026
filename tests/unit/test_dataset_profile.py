@@ -71,6 +71,7 @@ def test_build_dataset_profile_report_deduplicates_overlapping_manifests(tmp_pat
     _write_jsonl(ffsvc_root / "train_manifest.jsonl", train_rows)
     _write_jsonl(ffsvc_root / "dev_manifest.jsonl", dev_rows)
     _write_jsonl(ffsvc_root / "all_manifest.jsonl", [*train_rows, *dev_rows])
+    _write_jsonl(ffsvc_root / "quarantine_manifest.jsonl", [train_rows[0]])
     _write_jsonl(manifests_root / "demo_manifest.jsonl", demo_rows)
     _write_jsonl(
         ffsvc_root / "official_dev_trials.jsonl",
@@ -94,7 +95,10 @@ def test_build_dataset_profile_report_deduplicates_overlapping_manifests(tmp_pat
     assert report.total_summary.unique_sessions == 3
     assert split_counts == {"train": 2, "dev": 1, "demo": 1}
     assert dataset_counts == {"ffsvc2022-surrogate": 3, "demo-speaker-recognition": 1}
-    assert report.ignored_manifests[0].manifest_path.endswith("official_dev_trials.jsonl")
+    assert {manifest.manifest_path for manifest in report.ignored_manifests} == {
+        "artifacts/manifests/ffsvc2022-surrogate/official_dev_trials.jsonl",
+        "artifacts/manifests/ffsvc2022-surrogate/quarantine_manifest.jsonl",
+    }
     assert report.warnings == ["3 overlapping rows were deduplicated across manifests."]
 
     written = write_dataset_profile_report(
