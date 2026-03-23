@@ -106,6 +106,18 @@ active and quarantine manifests. The canonical fields are documented in
 uv run python scripts/validate_manifests.py
 ```
 
+The prepared bundle now writes, under `artifacts/manifests/ffsvc2022-surrogate/`:
+
+- `all/train/dev/quarantine` manifests in both `.jsonl` and `.csv`
+- `official_dev_trials` and `speaker_disjoint_dev_trials` in both `.jsonl` and `.csv`
+- `speaker_splits.json`
+- `manifest_inventory.json` with relative artifact paths, row counts, speaker counts, and
+  SHA-256 checksums for the generated manifest/list files
+
+Each active manifest row also carries the discovered WAV duration, sample rate, and channel count,
+so downstream EDA and preprocessing do not have to re-derive that metadata just to understand the
+bundle shape.
+
 ## Recommended Next Steps
 
 After acquisition:

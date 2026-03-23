@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import wave
 from pathlib import Path
 
 from kryptonite.data.ffsvc import (
@@ -75,7 +76,7 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
         "ffsvc22_dev_000003.wav",
         "ffsvc22_dev_000004.wav",
     ):
-        audio_root.joinpath(filename).write_bytes(b"RIFFtest")
+        _write_wav(audio_root / filename)
 
     artifacts = prepare_ffsvc2022_surrogate(
         project_root=str(tmp_path),
@@ -86,6 +87,7 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     )
 
     speaker_split = json.loads(Path(artifacts.speaker_split_file).read_text())
+    manifest_inventory = json.loads(Path(artifacts.manifest_inventory_file).read_text())
     train_manifest_lines = Path(artifacts.train_manifest_file).read_text().splitlines()
     dev_manifest_lines = Path(artifacts.dev_manifest_file).read_text().splitlines()
     split_trial_lines = Path(artifacts.split_trials_file).read_text().splitlines()
@@ -101,7 +103,19 @@ def test_prepare_ffsvc2022_surrogate_writes_manifests_and_split_trials(tmp_path:
     assert train_entry["schema_version"] == "kryptonite.manifest.v1"
     assert train_entry["record_type"] == "utterance"
     assert train_entry["source_dataset"] == "ffsvc2022"
+    assert train_entry["duration_seconds"] == 0.25
+    assert train_entry["sample_rate_hz"] == 8000
+    assert train_entry["num_channels"] == 1
     assert ":" in train_entry["session_id"]
+    assert manifest_inventory["dataset"] == "ffsvc2022-surrogate"
+    assert manifest_inventory["manifest_tables"][0]["jsonl_path"].endswith("all_manifest.jsonl")
+    assert manifest_inventory["manifest_tables"][0]["csv_path"].endswith("all_manifest.csv")
+    assert manifest_inventory["manifest_tables"][0]["speaker_count"] == 2
+    assert manifest_inventory["manifest_tables"][0]["row_count"] == 4
+    assert manifest_inventory["auxiliary_tables"][0]["jsonl_path"].endswith(
+        "official_dev_trials.jsonl"
+    )
+    assert manifest_inventory["auxiliary_files"][0]["path"].endswith("speaker_splits.json")
 
 
 def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: Path) -> None:
@@ -133,7 +147,7 @@ def test_prepare_ffsvc2022_surrogate_quarantines_known_duplicate_rows(tmp_path: 
         "ffsvc22_dev_063743.wav",
         "ffsvc22_dev_063782.wav",
     ):
-        audio_root.joinpath(filename).write_bytes(b"RIFFtest")
+        _write_wav(audio_root / filename)
 
     artifacts = prepare_ffsvc2022_surrogate(
         project_root=str(tmp_path),
@@ -215,7 +229,7 @@ def test_prepare_ffsvc2022_surrogate_omits_quarantined_duplicates_from_split_tri
         "ffsvc22_dev_063743.wav",
         "ffsvc22_dev_063782.wav",
     ):
-        audio_root.joinpath(filename).write_bytes(b"RIFFtest")
+        _write_wav(audio_root / filename)
 
     artifacts = prepare_ffsvc2022_surrogate(
         project_root=str(tmp_path),
@@ -260,3 +274,12 @@ def test_build_speaker_splits_requires_non_trivial_holdout() -> None:
 
 def _read_jsonl(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def _write_wav(path: Path, *, sample_rate: int = 8000, duration_seconds: float = 0.25) -> None:
+    frame_count = int(sample_rate * duration_seconds)
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(b"\x00\x00" * frame_count)

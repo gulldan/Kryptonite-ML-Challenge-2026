@@ -11,6 +11,12 @@ from typing import Final
 
 from kryptonite.deployment import resolve_project_path
 
+from .manifest_artifacts import (
+    build_file_artifact,
+    inspect_wav_audio_file,
+    write_manifest_inventory,
+    write_tabular_artifact,
+)
 from .schema import ManifestRow
 
 ORIGINAL_NAME_PATTERN = re.compile(
@@ -63,6 +69,7 @@ class PreparedFfsvcArtifacts:
     official_trials_file: str
     split_trials_file: str
     speaker_split_file: str
+    manifest_inventory_file: str
     utterance_count: int
     source_utterance_count: int
     quarantined_utterance_count: int
@@ -81,6 +88,7 @@ class PreparedFfsvcArtifacts:
             "official_trials_file": self.official_trials_file,
             "split_trials_file": self.split_trials_file,
             "speaker_split_file": self.speaker_split_file,
+            "manifest_inventory_file": self.manifest_inventory_file,
             "utterance_count": self.utterance_count,
             "source_utterance_count": self.source_utterance_count,
             "quarantined_utterance_count": self.quarantined_utterance_count,
@@ -246,6 +254,7 @@ def prepare_ffsvc2022_surrogate(
             raise FileNotFoundError(
                 f"Audio file {audio_filename!r} is missing under extracted root {audio_root_path}"
             )
+        audio_metadata = inspect_wav_audio_file(audio_path)
         split = "dev" if utterance.speaker_id in dev_speakers else "train"
         source_entries.append(
             ManifestRow(
@@ -256,6 +265,9 @@ def prepare_ffsvc2022_surrogate(
                 session_id=f"{utterance.speaker_id}:{utterance.session_index}",
                 split=split,
                 audio_path=_relative_to_project(audio_path, project_root),
+                duration_seconds=audio_metadata.duration_seconds,
+                sample_rate_hz=audio_metadata.sample_rate_hz,
+                num_channels=audio_metadata.num_channels,
             ).to_dict(
                 extra_fields={
                     "original_name": utterance.original_name,
@@ -269,6 +281,8 @@ def prepare_ffsvc2022_surrogate(
         )
 
     entries, quarantined_entries = split_quarantined_ffsvc_entries(source_entries)
+    train_entries = [entry for entry in entries if entry["split"] == "train"]
+    dev_entries = [entry for entry in entries if entry["split"] == "dev"]
     split_by_filename: dict[str, str] = {
         Path(str(entry["audio_path"])).name: str(entry["split"]) for entry in entries
     }
@@ -280,11 +294,36 @@ def prepare_ffsvc2022_surrogate(
     official_trials = output_root / "official_dev_trials.jsonl"
     split_trials = output_root / "speaker_disjoint_dev_trials.jsonl"
     speaker_split = output_root / "speaker_splits.json"
+    manifest_inventory = output_root / "manifest_inventory.json"
 
-    _write_jsonl(all_manifest, entries)
-    _write_jsonl(train_manifest, [entry for entry in entries if entry["split"] == "train"])
-    _write_jsonl(dev_manifest, [entry for entry in entries if entry["split"] == "dev"])
-    _write_jsonl(quarantine_manifest, quarantined_entries)
+    all_manifest_artifact = write_tabular_artifact(
+        name="all_manifest",
+        kind="data_manifest",
+        rows=entries,
+        jsonl_path=all_manifest,
+        project_root=project_root,
+    )
+    train_manifest_artifact = write_tabular_artifact(
+        name="train_manifest",
+        kind="data_manifest",
+        rows=train_entries,
+        jsonl_path=train_manifest,
+        project_root=project_root,
+    )
+    dev_manifest_artifact = write_tabular_artifact(
+        name="dev_manifest",
+        kind="data_manifest",
+        rows=dev_entries,
+        jsonl_path=dev_manifest,
+        project_root=project_root,
+    )
+    quarantine_manifest_artifact = write_tabular_artifact(
+        name="quarantine_manifest",
+        kind="data_manifest",
+        rows=quarantined_entries,
+        jsonl_path=quarantine_manifest,
+        project_root=project_root,
+    )
 
     official_trial_entries: list[dict[str, object]] = [
         {
@@ -304,8 +343,22 @@ def prepare_ffsvc2022_surrogate(
         if split_by_filename.get(trial.left_filename) == "dev"
         and split_by_filename.get(trial.right_filename) == "dev"
     ]
-    _write_jsonl(official_trials, official_trial_entries)
-    _write_jsonl(split_trials, split_trial_entries)
+    official_trials_artifact = write_tabular_artifact(
+        name="official_dev_trials",
+        kind="trial_list",
+        rows=official_trial_entries,
+        jsonl_path=official_trials,
+        project_root=project_root,
+        field_order=("label", "left_audio", "right_audio"),
+    )
+    split_trials_artifact = write_tabular_artifact(
+        name="speaker_disjoint_dev_trials",
+        kind="trial_list",
+        rows=split_trial_entries,
+        jsonl_path=split_trials,
+        project_root=project_root,
+        field_order=("label", "left_audio", "right_audio"),
+    )
     speaker_split.write_text(
         json.dumps(
             {
@@ -318,6 +371,26 @@ def prepare_ffsvc2022_surrogate(
         )
         + "\n"
     )
+    write_manifest_inventory(
+        dataset="ffsvc2022-surrogate",
+        inventory_path=manifest_inventory,
+        project_root=project_root,
+        manifest_tables=(
+            all_manifest_artifact,
+            train_manifest_artifact,
+            dev_manifest_artifact,
+            quarantine_manifest_artifact,
+        ),
+        auxiliary_tables=(official_trials_artifact, split_trials_artifact),
+        auxiliary_files=(
+            build_file_artifact(
+                name="speaker_splits",
+                kind="metadata",
+                path=speaker_split,
+                project_root=project_root,
+            ),
+        ),
+    )
 
     return PreparedFfsvcArtifacts(
         manifests_root=str(output_root),
@@ -328,6 +401,7 @@ def prepare_ffsvc2022_surrogate(
         official_trials_file=str(official_trials),
         split_trials_file=str(split_trials),
         speaker_split_file=str(speaker_split),
+        manifest_inventory_file=str(manifest_inventory),
         utterance_count=len(entries),
         source_utterance_count=len(source_entries),
         quarantined_utterance_count=len(quarantined_entries),
@@ -415,10 +489,6 @@ def split_quarantined_ffsvc_entries(
             }
         )
     return active_entries, quarantined_entries
-
-
-def _write_jsonl(path: Path, entries: list[ManifestEntry]) -> None:
-    path.write_text("".join(json.dumps(entry, sort_keys=True) + "\n" for entry in entries))
 
 
 def _relative_to_project(path: Path, project_root: str) -> str:

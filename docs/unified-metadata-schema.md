@@ -77,3 +77,11 @@ The validator:
 - `scripts/generate_demo_artifacts.py`
 
 Both now emit `kryptonite.manifest.v1` rows.
+
+For reproducibility and handoff:
+
+- each generated manifest JSONL now gets a deterministic CSV sidecar next to it
+- manifest producers write `duration_seconds`, `sample_rate_hz`, and `num_channels` when that
+  audio metadata is known at generation time
+- each manifest bundle also writes a deterministic inventory JSON with relative paths, row counts,
+  speaker counts, and SHA-256 checksums for the generated manifest/list files

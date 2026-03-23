@@ -15,6 +15,11 @@ from onnx import TensorProto, checker, helper
 from kryptonite.config import ProjectConfig
 from kryptonite.deployment import resolve_project_path
 
+from .data.manifest_artifacts import (
+    build_file_artifact,
+    write_manifest_inventory,
+    write_tabular_artifact,
+)
 from .data.schema import ManifestRow
 
 DEFAULT_SAMPLE_RATE = 16_000
@@ -36,6 +41,7 @@ class GeneratedDemoArtifacts:
     demo_subset_root: str
     model_bundle_root: str
     manifest_file: str
+    manifest_inventory_file: str
     subset_file: str
     model_file: str
     metadata_file: str
@@ -48,6 +54,7 @@ class GeneratedDemoArtifacts:
             "demo_subset_root": self.demo_subset_root,
             "model_bundle_root": self.model_bundle_root,
             "manifest_file": self.manifest_file,
+            "manifest_inventory_file": self.manifest_inventory_file,
             "subset_file": self.subset_file,
             "model_file": self.model_file,
             "metadata_file": self.metadata_file,
@@ -79,6 +86,7 @@ def generate_demo_artifacts(
 
     dataset_demo_root = dataset_root / "demo-speaker-recognition"
     manifest_file = manifests_root / "demo_manifest.jsonl"
+    manifest_inventory = manifests_root / "demo_manifest_inventory.json"
     subset_file = demo_subset_root / "demo_subset.json"
     model_file = model_bundle_root / "model.onnx"
     metadata_file = model_bundle_root / "metadata.json"
@@ -133,8 +141,12 @@ def generate_demo_artifacts(
             }
         )
 
-    manifest_file.write_text(
-        "".join(json.dumps(entry, sort_keys=True) + "\n" for entry in manifest_entries)
+    manifest_artifact = write_tabular_artifact(
+        name="demo_manifest",
+        kind="data_manifest",
+        rows=manifest_entries,
+        jsonl_path=manifest_file,
+        project_root=project_root,
     )
     subset_file.write_text(json.dumps(subset_entries, indent=2, sort_keys=True))
 
@@ -155,6 +167,20 @@ def generate_demo_artifacts(
             sort_keys=True,
         )
     )
+    write_manifest_inventory(
+        dataset="demo-speaker-recognition",
+        inventory_path=manifest_inventory,
+        project_root=project_root,
+        manifest_tables=(manifest_artifact,),
+        auxiliary_files=(
+            build_file_artifact(
+                name="demo_subset",
+                kind="metadata",
+                path=subset_file,
+                project_root=project_root,
+            ),
+        ),
+    )
 
     return GeneratedDemoArtifacts(
         dataset_root=str(dataset_root),
@@ -162,6 +188,7 @@ def generate_demo_artifacts(
         demo_subset_root=str(demo_subset_root),
         model_bundle_root=str(model_bundle_root),
         manifest_file=str(manifest_file),
+        manifest_inventory_file=str(manifest_inventory),
         subset_file=str(subset_file),
         model_file=str(model_file),
         metadata_file=str(metadata_file),

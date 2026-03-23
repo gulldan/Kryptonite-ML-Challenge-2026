@@ -24,23 +24,33 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     generated = generate_demo_artifacts(config=config)
 
     manifest_file = Path(generated.manifest_file)
+    manifest_csv_file = manifest_file.with_suffix(".csv")
+    manifest_inventory_file = Path(generated.manifest_inventory_file)
     subset_file = Path(generated.subset_file)
     model_file = Path(generated.model_file)
     metadata_file = Path(generated.metadata_file)
 
     assert generated.clip_count == 6
     assert manifest_file.is_file()
+    assert manifest_csv_file.is_file()
+    assert manifest_inventory_file.is_file()
     assert subset_file.is_file()
     assert model_file.is_file()
     assert metadata_file.is_file()
     assert len(manifest_file.read_text().splitlines()) == 6
 
     first_manifest_row = json.loads(manifest_file.read_text().splitlines()[0])
+    manifest_inventory = json.loads(manifest_inventory_file.read_text())
     subset_payload = json.loads(subset_file.read_text())
     assert first_manifest_row["schema_version"] == "kryptonite.manifest.v1"
     assert first_manifest_row["record_type"] == "utterance"
     assert first_manifest_row["split"] == "demo"
     assert first_manifest_row["num_channels"] == 1
+    assert manifest_inventory["dataset"] == "demo-speaker-recognition"
+    assert manifest_inventory["manifest_tables"][0]["row_count"] == 6
+    assert manifest_inventory["manifest_tables"][0]["speaker_count"] == 2
+    assert manifest_inventory["manifest_tables"][0]["csv_path"].endswith("demo_manifest.csv")
+    assert manifest_inventory["auxiliary_files"][0]["path"].endswith("demo_subset.json")
     assert len(subset_payload["enrollment"]) == 4
     assert len(subset_payload["test"]) == 2
 
