@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from kryptonite.config import NormalizationConfig
+from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.data import AudioLoadRequest, iter_manifest_audio, load_audio, load_manifest_audio
 from kryptonite.data.schema import ManifestValidationError
 
@@ -150,6 +150,86 @@ def test_load_audio_rejects_offsets_past_end_of_file(tmp_path: Path) -> None:
         )
 
 
+def test_load_audio_can_trim_leading_and_trailing_silence(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "trim-me.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_trim_candidate_audio(audio_path)
+
+    request = AudioLoadRequest.from_config(
+        NormalizationConfig(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            output_format="wav",
+            output_pcm_bits_per_sample=16,
+            peak_headroom_db=1.0,
+            dc_offset_threshold=0.01,
+            clipped_sample_threshold=0.999,
+        ),
+        vad=VADConfig(mode="light"),
+    )
+    loaded = load_audio(audio_path, project_root=tmp_path, request=request)
+
+    assert loaded.vad_mode == "light"
+    assert loaded.trim_applied is True
+    assert loaded.trim_reason == "trimmed"
+    assert loaded.vad_speech_detected is True
+    assert loaded.duration_seconds < loaded.source_duration_seconds
+    assert loaded.trimmed_leading_seconds > 0.0
+    assert loaded.trimmed_trailing_seconds > 0.0
+
+
+def test_aggressive_vad_trims_more_than_light(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "trim-hard.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_trim_candidate_audio(audio_path)
+
+    base_config = NormalizationConfig(
+        target_sample_rate_hz=16_000,
+        target_channels=1,
+        output_format="wav",
+        output_pcm_bits_per_sample=16,
+        peak_headroom_db=1.0,
+        dc_offset_threshold=0.01,
+        clipped_sample_threshold=0.999,
+    )
+    light = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest.from_config(base_config, vad=VADConfig(mode="light")),
+    )
+    aggressive = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest.from_config(base_config, vad=VADConfig(mode="aggressive")),
+    )
+
+    assert aggressive.duration_seconds < light.duration_seconds
+    assert aggressive.trimmed_leading_seconds >= light.trimmed_leading_seconds
+    assert aggressive.trimmed_trailing_seconds >= light.trimmed_trailing_seconds
+
+
+def test_load_audio_keeps_silence_only_waveform_when_no_speech_is_detected(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "silence.wav"
+    audio_path.parent.mkdir(parents=True)
+    waveform = np.zeros(16_000, dtype=np.float32)
+    sf.write(audio_path, waveform, 16_000, format="WAV")
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest(
+            target_sample_rate_hz=16_000,
+            target_channels=1,
+            vad_mode="aggressive",
+        ),
+    )
+
+    assert loaded.trim_applied is False
+    assert loaded.trim_reason == "no_speech_detected"
+    assert loaded.vad_speech_detected is False
+    assert loaded.duration_seconds == pytest.approx(1.0, abs=1e-6)
+
+
 def test_load_manifest_audio_rejects_rows_without_audio_path(tmp_path: Path) -> None:
     with pytest.raises(ManifestValidationError, match="audio_path"):
         load_manifest_audio(
@@ -186,3 +266,12 @@ def _write_tone_audio(
             axis=1,
         )
     sf.write(path, waveform, sample_rate_hz, format=format_name)
+
+
+def _write_trim_candidate_audio(path: Path) -> None:
+    sample_rate_hz = 16_000
+    silence = np.zeros(4_800, dtype=np.float32)
+    time = np.arange(8_000, dtype=np.float32) / np.float32(sample_rate_hz)
+    speech = (0.25 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
+    waveform = np.concatenate([silence, speech, silence])
+    sf.write(path, waveform, sample_rate_hz, format="WAV")

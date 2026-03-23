@@ -11,6 +11,7 @@
     "export",
     "tracking",
     "normalization",
+    "vad",
     "secrets",
     "deployment"
   ],
@@ -135,6 +136,14 @@
         "peak_headroom_db": { "type": "number", "minimum": 0.0 },
         "dc_offset_threshold": { "type": "number", "minimum": 0.0 },
         "clipped_sample_threshold": { "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0 }
+      },
+      "additionalProperties": false
+    },
+    "vad": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["none", "light", "aggressive"] }
       },
       "additionalProperties": false
     },

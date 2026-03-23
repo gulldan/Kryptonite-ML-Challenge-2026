@@ -15,6 +15,7 @@ Current entrypoints include:
 - `scripts/generate_demo_artifacts.py` for reproducible mini-demo dataset/manifests/model bundle generation, including CSV sidecars and checksum inventory
 - `scripts/normalize_audio_dataset.py` for deterministic 16 kHz mono normalization, manifest rewriting, and quarantine reporting
 - `scripts/prepare_ffsvc2022_surrogate.py` for building manifests, quarantine lists, trials, speaker-disjoint splits, and checksum inventory from the surrogate bundle
+- `scripts/vad_trimming_report.py` for comparing `none`, `light`, and `aggressive` loader-time trimming on a manifest-backed dev split
 - `scripts/validate_manifests.py` for enforcing the versioned unified manifest schema on data manifests
 - `scripts/infer_smoke.py` for inference-runtime and API startup smoke validation
 - `scripts/repro_check.py` for reproducibility smoke validation

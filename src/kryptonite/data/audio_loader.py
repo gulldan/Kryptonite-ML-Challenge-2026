@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from kryptonite.config import NormalizationConfig
+from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.deployment import resolve_project_path
 
 from .audio_io import AudioFileInfo, inspect_audio_file, read_audio_file, resample_waveform
 from .schema import ManifestRow
+from .vad import SUPPORTED_VAD_MODES, apply_vad_policy
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class AudioLoadRequest:
     target_channels: int | None = None
     start_seconds: float = 0.0
     duration_seconds: float | None = None
+    vad_mode: str = "none"
 
     def __post_init__(self) -> None:
         if self.target_sample_rate_hz is not None and self.target_sample_rate_hz <= 0:
@@ -32,12 +34,15 @@ class AudioLoadRequest:
             raise ValueError("start_seconds must be non-negative")
         if self.duration_seconds is not None and self.duration_seconds <= 0.0:
             raise ValueError("duration_seconds must be positive when provided")
+        if self.vad_mode.lower() not in SUPPORTED_VAD_MODES:
+            raise ValueError(f"vad_mode must be one of {SUPPORTED_VAD_MODES}")
 
     @classmethod
     def from_config(
         cls,
         config: NormalizationConfig,
         *,
+        vad: VADConfig | None = None,
         start_seconds: float = 0.0,
         duration_seconds: float | None = None,
     ) -> AudioLoadRequest:
@@ -46,6 +51,7 @@ class AudioLoadRequest:
             target_channels=config.target_channels,
             start_seconds=start_seconds,
             duration_seconds=duration_seconds,
+            vad_mode="none" if vad is None else vad.mode,
         )
 
 
@@ -68,6 +74,14 @@ class LoadedAudio:
     requested_duration_seconds: float | None
     resampled: bool
     downmixed: bool
+    vad_mode: str
+    vad_speech_detected: bool
+    trim_applied: bool
+    trim_reason: str
+    trim_start_seconds: float
+    trim_end_seconds: float
+    trimmed_leading_seconds: float
+    trimmed_trailing_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +142,11 @@ def load_audio(
         sample_rate_hz = active_request.target_sample_rate_hz
         resampled = True
 
+    waveform, trim_decision = apply_vad_policy(
+        waveform,
+        sample_rate_hz=sample_rate_hz,
+        mode=active_request.vad_mode,
+    )
     frame_count = int(waveform.shape[-1])
     num_channels = int(waveform.shape[0])
     return LoadedAudio(
@@ -148,6 +167,20 @@ def load_audio(
         requested_duration_seconds=active_request.duration_seconds,
         resampled=resampled,
         downmixed=downmixed,
+        vad_mode=active_request.vad_mode.lower(),
+        vad_speech_detected=trim_decision.speech_detected,
+        trim_applied=trim_decision.applied,
+        trim_reason=trim_decision.reason,
+        trim_start_seconds=round(float(trim_decision.start_frame) / float(sample_rate_hz), 6),
+        trim_end_seconds=round(float(trim_decision.end_frame) / float(sample_rate_hz), 6),
+        trimmed_leading_seconds=round(
+            float(trim_decision.leading_trim_frames) / float(sample_rate_hz),
+            6,
+        ),
+        trimmed_trailing_seconds=round(
+            float(trim_decision.trailing_trim_frames) / float(sample_rate_hz),
+            6,
+        ),
     )
 
 

@@ -72,6 +72,7 @@ See [docs/unified-metadata-schema.md](./docs/unified-metadata-schema.md) for the
 See [docs/audio-quality-checks.md](./docs/audio-quality-checks.md) for the manifest-driven audio quality audit flow and flagged-row artifacts.
 See [docs/audio-normalization.md](./docs/audio-normalization.md) for the 16 kHz mono normalization policy and reproducible CLI flow.
 See [docs/audio-loader.md](./docs/audio-loader.md) for the shared WAV/FLAC/MP3 loading contract used by preprocessing and feature work.
+See [docs/audio-vad-trimming.md](./docs/audio-vad-trimming.md) for the optional `none/light/aggressive` trimming modes and the reproducible dev comparison report.
 
 ## Naming Conventions
 

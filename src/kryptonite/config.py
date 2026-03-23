@@ -79,6 +79,11 @@ class NormalizationConfig:
 
 
 @dataclass(slots=True)
+class VADConfig:
+    mode: str
+
+
+@dataclass(slots=True)
 class SecretRefs:
     wandb_api_key: str
     mlflow_tracking_token: str
@@ -102,6 +107,7 @@ class ProjectConfig:
     export: ExportConfig
     tracking: TrackingConfig
     normalization: NormalizationConfig
+    vad: VADConfig
     secrets: SecretRefs
     deployment: DeploymentConfig
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
@@ -116,6 +122,7 @@ class ProjectConfig:
             "export": asdict(self.export),
             "tracking": asdict(self.tracking),
             "normalization": asdict(self.normalization),
+            "vad": asdict(self.vad),
             "secrets": asdict(self.secrets),
             "deployment": asdict(self.deployment),
             "resolved_secrets": dict(self.resolved_secrets),
@@ -162,6 +169,15 @@ def load_project_config(
                     "peak_headroom_db": 1.0,
                     "dc_offset_threshold": 0.01,
                     "clipped_sample_threshold": 0.999,
+                },
+            )
+        ),
+        vad=VADConfig(
+            **optional_section(
+                data,
+                "vad",
+                {
+                    "mode": "none",
                 },
             )
         ),

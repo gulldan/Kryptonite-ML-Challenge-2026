@@ -15,6 +15,7 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.normalization.target_sample_rate_hz == 16000
     assert config.normalization.target_channels == 1
     assert config.normalization.output_format == "wav"
+    assert config.vad.mode == "none"
     assert config.deployment.model_bundle_root == "artifacts/model-bundle"
     assert config.deployment.demo_subset_root == "artifacts/demo-subset"
     assert config.deployment.require_artifacts is False
@@ -33,6 +34,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "backends.allow_tensorrt=true",
             "runtime.log_level=DEBUG",
             "normalization.output_format=flac",
+            "vad.mode=light",
         ],
         env_file=env_file,
     )
@@ -42,6 +44,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.runtime.log_level == "DEBUG"
     assert config.backends.allow_tensorrt is True
     assert config.normalization.output_format == "flac"
+    assert config.vad.mode == "light"
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 

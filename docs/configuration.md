@@ -91,3 +91,25 @@ The defaults currently define the canonical preprocessing bundle for this repo:
 - `1 dB` peak headroom
 
 Use them through `scripts/normalize_audio_dataset.py`, and override only when a specific experiment needs a different derived bundle.
+
+## VAD / Trimming
+
+The base config also includes a `vad` section for loader-time silence trimming:
+
+- `mode`
+
+Supported values are:
+
+- `none`
+- `light`
+- `aggressive`
+
+The base profile keeps `mode = "none"` so raw waveform behavior stays stable by
+default. Use config overrides for ablations or production-oriented comparisons:
+
+```bash
+uv run python scripts/vad_trimming_report.py \
+  --config configs/base.toml \
+  --override vad.mode=light \
+  --manifest artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl
+```

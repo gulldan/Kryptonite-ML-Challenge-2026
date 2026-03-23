@@ -12,6 +12,7 @@ The loader now covers the current repository contract:
 - channel-first `float32` tensors in memory
 - optional explicit resampling
 - optional deterministic mono fold-down
+- optional loader-time `none/light/aggressive` VAD trimming
 - windowed reads for long files through `start_seconds` and `duration_seconds`
 - direct loading from unified manifest rows or manifest JSONL files
 
@@ -24,7 +25,7 @@ from kryptonite.config import load_project_config
 from kryptonite.data import AudioLoadRequest, iter_manifest_audio, load_audio
 
 config = load_project_config(config_path="configs/base.toml")
-request = AudioLoadRequest.from_config(config.normalization)
+request = AudioLoadRequest.from_config(config.normalization, vad=config.vad)
 
 single = load_audio(
     "datasets/ffsvc2022-surrogate/raw/dev/dev/ffsvc22_dev_000001.wav",
@@ -43,7 +44,9 @@ batch = list(
 
 `AudioLoadRequest.from_config(...)` binds the loader to the same `16 kHz` /
 mono preprocessing policy already described in
-[audio-normalization.md](./audio-normalization.md). For ablations or future
+[audio-normalization.md](./audio-normalization.md), and optionally to the
+configured VAD/trimming mode from
+[audio-vad-trimming.md](./audio-vad-trimming.md). For ablations or future
 datasets, the request can be constructed manually.
 
 ## Contract Notes
@@ -52,6 +55,9 @@ datasets, the request can be constructed manually.
   long files can be inspected without decoding the full recording
 - mono fold-down is an arithmetic mean over channels; other channel-layout
   conversions are rejected explicitly
+- `light` and `aggressive` only trim leading/trailing silence; they keep
+  interior pauses so downstream chunking and augmentation still see realistic
+  pause structure
 - manifest loading validates rows through `ManifestRow.from_mapping(...)`, so
   missing canonical fields fail before the model pipeline consumes corrupted
   metadata
