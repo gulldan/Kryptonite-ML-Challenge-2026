@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 
 
 def load_embedding_matrix(
@@ -78,7 +79,11 @@ def load_metadata_rows(path: Path | str) -> list[dict[str, object]]:
         with source_path.open(newline="") as handle:
             reader = csv.DictReader(handle)
             return [dict(row) for row in reader]
-    raise ValueError(f"Unsupported metadata format for {source_path}; expected .jsonl or .csv.")
+    if suffix == ".parquet":
+        return [dict(row) for row in pl.read_parquet(source_path).iter_rows(named=True)]
+    raise ValueError(
+        f"Unsupported metadata format for {source_path}; expected .jsonl, .csv, or .parquet."
+    )
 
 
 def align_metadata_rows(

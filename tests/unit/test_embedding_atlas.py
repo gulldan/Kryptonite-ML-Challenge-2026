@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 import soundfile as sf
 
 from kryptonite.eval import build_embedding_atlas, write_embedding_atlas_report
@@ -72,6 +73,32 @@ def test_write_embedding_atlas_report_emits_points_html_and_json(tmp_path: Path)
     assert "Voice Atlas" in html
     assert "Interactive embedding atlas" in html
     assert "open `embedding_atlas.html`" in markdown.lower()
+
+
+def test_build_embedding_atlas_accepts_parquet_metadata(tmp_path: Path) -> None:
+    embeddings_path, metadata_path = _write_fixture_bundle(tmp_path)
+    parquet_path = metadata_path.with_suffix(".parquet")
+    rows = _read_jsonl(metadata_path)
+    pl.DataFrame(rows).write_parquet(parquet_path)
+
+    report = build_embedding_atlas(
+        project_root=tmp_path,
+        output_root="artifacts/eval/embedding-atlas",
+        embeddings_path=embeddings_path,
+        metadata_path=parquet_path,
+        title="Parquet Atlas",
+        projection_method="cosine_pca",
+        point_id_field="utterance_id",
+        label_field="speaker_id",
+        color_by_field="speaker_id",
+        search_fields=("speaker_id", "split", "dataset"),
+        audio_path_field="audio_path",
+        image_path_field=None,
+        neighbors=2,
+    )
+
+    assert report.summary.point_count == 6
+    assert report.points[0].label == "speaker_a"
 
 
 def _write_fixture_bundle(tmp_path: Path) -> tuple[Path, Path]:

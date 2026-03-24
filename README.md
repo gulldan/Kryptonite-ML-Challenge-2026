@@ -80,7 +80,7 @@ See [docs/audio-noise-bank.md](./docs/audio-noise-bank.md) for additive-noise ba
 See [docs/audio-rir-bank.md](./docs/audio-rir-bank.md) for room-impulse-response bank assembly, RT60/DRR sanity checks, and reusable room-simulation config generation.
 See [docs/audio-codec-simulation.md](./docs/audio-codec-simulation.md) for deterministic FFmpeg-based codec/channel preset generation and preview reporting.
 See [docs/audio-far-field-simulation.md](./docs/audio-far-field-simulation.md) for deterministic near/mid/far distance simulation presets, kernel controls, and preview reporting.
-See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings with nearest neighbors and optional media preview.
+See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
 
 ## Naming Conventions
 

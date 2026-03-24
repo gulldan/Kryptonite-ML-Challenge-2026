@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
         "--metadata",
         type=Path,
         required=True,
-        help="Path to a .jsonl or .csv metadata table aligned with the embeddings.",
+        help="Path to a .jsonl, .csv, or .parquet metadata table aligned with the embeddings.",
     )
     parser.add_argument(
         "--output-dir",
