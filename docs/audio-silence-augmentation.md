@@ -119,13 +119,14 @@ uv run python scripts/silence_augmentation_report.py \
 - какие utterances дали самые большие сдвиги по тишине
 
 Это и есть текущая ablation для KVA-509: waveform-level сравнение влияния
-тишины и пауз на входной сигнал до появления общего augmentation scheduler и
+тишины и пауз на входной сигнал перед включением общего augmentation scheduler и
 model-level training/eval checks.
 
 ## Current Limits
 
-- это standalone primitive, а не scheduler по эпохам; orchestration остаётся
-  задачей следующего этапа
+- это standalone primitive, а не scheduler по эпохам; orchestration теперь
+  лежит в `training/augmentation_scheduler`, а этот модуль остается
+  waveform-level building block
 - вставка пауз ищет low-energy точки по frame RMS, а не phoneme/word boundary
 - report измеряет waveform-level изменения, а не downstream SV quality
 - новый padding всегда нулевой; для channel/noise ambience его нужно будет

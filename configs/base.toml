@@ -64,17 +64,38 @@ min_retained_ratio = 0.4
 
 [silence_augmentation]
 enabled = false
-max_leading_padding_seconds = 0.0
-max_trailing_padding_seconds = 0.0
-max_inserted_pauses = 0
+max_leading_padding_seconds = 0.15
+max_trailing_padding_seconds = 0.20
+max_inserted_pauses = 2
 min_inserted_pause_seconds = 0.08
 max_inserted_pause_seconds = 0.25
-pause_ratio_min = 1.0
-pause_ratio_max = 1.0
+pause_ratio_min = 0.9
+pause_ratio_max = 1.4
 min_detected_pause_seconds = 0.08
 max_perturbed_pause_seconds = 0.6
 analysis_frame_ms = 20.0
 silence_threshold_dbfs = -45.0
+
+[augmentation_scheduler]
+enabled = true
+warmup_epochs = 2
+ramp_epochs = 3
+max_augmentations_per_sample = 2
+clean_probability_start = 0.70
+clean_probability_end = 0.25
+light_probability_start = 0.25
+light_probability_end = 0.30
+medium_probability_start = 0.05
+medium_probability_end = 0.25
+heavy_probability_start = 0.0
+heavy_probability_end = 0.20
+
+[augmentation_scheduler.family_weights]
+noise = 1.0
+reverb = 1.0
+distance = 0.9
+codec = 0.8
+silence = 0.6
 
 [features]
 sample_rate_hz = 16000
