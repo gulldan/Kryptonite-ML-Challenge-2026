@@ -77,6 +77,7 @@ See [docs/audio-fbank-extraction.md](./docs/audio-fbank-extraction.md) for the s
 See [docs/audio-feature-cache.md](./docs/audio-feature-cache.md) for the feature-cache policy, invalidation rules, and CPU/GPU benchmark workflow.
 See [docs/audio-chunking-policy.md](./docs/audio-chunking-policy.md) for the unified train/eval/demo utterance chunking contract and pooling rules.
 See [docs/audio-noise-bank.md](./docs/audio-noise-bank.md) for additive-noise bank assembly, severity buckets, and reproducible manifest/report generation.
+See [docs/audio-rir-bank.md](./docs/audio-rir-bank.md) for room-impulse-response bank assembly, RT60/DRR sanity checks, and reusable room-simulation config generation.
 
 ## Naming Conventions
 
