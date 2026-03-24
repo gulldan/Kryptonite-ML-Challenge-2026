@@ -83,6 +83,7 @@ See [docs/audio-far-field-simulation.md](./docs/audio-far-field-simulation.md) f
 See [docs/audio-augmentation-scheduler.md](./docs/audio-augmentation-scheduler.md) for the clean/light/medium/heavy curriculum policy over the assembled corruption banks.
 See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
 See [docs/campp-baseline.md](./docs/campp-baseline.md) for the first repo-native CAM++ baseline path from manifests to checkpoints, embeddings, and cosine scores.
+See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
 
 ## Naming Conventions
 

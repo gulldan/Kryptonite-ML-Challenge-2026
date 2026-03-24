@@ -1,4 +1,4 @@
-"""Typed config loader for the CAM++ baseline pipeline."""
+"""Typed config loader for the ERes2NetV2 baseline pipeline."""
 
 from __future__ import annotations
 
@@ -8,30 +8,30 @@ from pathlib import Path
 from typing import Any, cast
 
 from kryptonite.config import ProjectConfig, load_project_config
-from kryptonite.models import CAMPPlusConfig
+from kryptonite.models import ERes2NetV2Config
 from kryptonite.training.baseline_config import (
     BaselineDataConfig,
     BaselineObjectiveConfig,
     BaselineOptimizationConfig,
 )
 
-CAMPPlusDataConfig = BaselineDataConfig
-CAMPPlusObjectiveConfig = BaselineObjectiveConfig
-CAMPPlusOptimizationConfig = BaselineOptimizationConfig
+ERes2NetV2DataConfig = BaselineDataConfig
+ERes2NetV2ObjectiveConfig = BaselineObjectiveConfig
+ERes2NetV2OptimizationConfig = BaselineOptimizationConfig
 
 
 @dataclass(frozen=True, slots=True)
-class CAMPPlusBaselineConfig:
+class ERes2NetV2BaselineConfig:
     base_config_path: str
     project_overrides: tuple[str, ...]
     project: ProjectConfig
-    data: CAMPPlusDataConfig
-    model: CAMPPlusConfig
-    objective: CAMPPlusObjectiveConfig
-    optimization: CAMPPlusOptimizationConfig
+    data: ERes2NetV2DataConfig
+    model: ERes2NetV2Config
+    objective: ERes2NetV2ObjectiveConfig
+    optimization: ERes2NetV2OptimizationConfig
 
     def to_dict(self) -> dict[str, Any]:
-        payload = {
+        return {
             "base_config_path": self.base_config_path,
             "project_overrides": list(self.project_overrides),
             "project": self.project.to_dict(mask_secrets=True),
@@ -40,19 +40,17 @@ class CAMPPlusBaselineConfig:
             "objective": asdict(self.objective),
             "optimization": asdict(self.optimization),
         }
-        return payload
 
 
-def load_campp_baseline_config(
+def load_eres2netv2_baseline_config(
     *,
     config_path: Path | str,
     env_file: Path | str | None = None,
     project_overrides: list[str] | None = None,
-) -> CAMPPlusBaselineConfig:
+) -> ERes2NetV2BaselineConfig:
     config_file = Path(config_path)
     raw = tomllib.loads(config_file.read_text())
     base_config_path = str(raw.get("base_config", "configs/base.toml"))
-
     merged_project_overrides = tuple(
         [*_coerce_string_list(raw.get("project_overrides")), *(project_overrides or [])]
     )
@@ -68,35 +66,57 @@ def load_campp_baseline_config(
         {
             "train_manifest": "artifacts/manifests/demo_manifest.jsonl",
             "dev_manifest": "artifacts/manifests/demo_manifest.jsonl",
-            "output_root": "artifacts/baselines/campp",
+            "output_root": "artifacts/baselines/eres2netv2",
             "trials_manifest": None,
-            "checkpoint_name": "campp_encoder.pt",
+            "checkpoint_name": "eres2netv2_encoder.pt",
             "generate_demo_artifacts_if_missing": True,
             "max_train_rows": None,
             "max_dev_rows": None,
         },
     )
     model_section = _optional_section(raw, "model", {})
-    objective_section = _optional_section(raw, "objective", {})
-    optimization_section = _optional_section(raw, "optimization", {})
+    objective_section = _optional_section(
+        raw,
+        "objective",
+        {
+            "classifier_blocks": 0,
+            "classifier_hidden_dim": 192,
+            "scale": 32.0,
+            "margin": 0.3,
+            "easy_margin": False,
+        },
+    )
+    optimization_section = _optional_section(
+        raw,
+        "optimization",
+        {
+            "learning_rate": 0.2,
+            "min_learning_rate": 5e-5,
+            "momentum": 0.9,
+            "weight_decay": 1e-4,
+            "warmup_epochs": 5,
+            "grad_clip_norm": 5.0,
+        },
+    )
 
-    return CAMPPlusBaselineConfig(
+    return ERes2NetV2BaselineConfig(
         base_config_path=base_config_path,
         project_overrides=merged_project_overrides,
         project=project,
-        data=CAMPPlusDataConfig(**data_section),
+        data=ERes2NetV2DataConfig(**data_section),
         model=_load_model_config(model_section),
-        objective=CAMPPlusObjectiveConfig(**objective_section),
-        optimization=CAMPPlusOptimizationConfig(**optimization_section),
+        objective=ERes2NetV2ObjectiveConfig(**objective_section),
+        optimization=ERes2NetV2OptimizationConfig(**optimization_section),
     )
 
 
-def _load_model_config(section: dict[str, Any]) -> CAMPPlusConfig:
+def _load_model_config(section: dict[str, Any]) -> ERes2NetV2Config:
     values = dict(section)
-    for key in ("head_res_blocks", "block_layers", "block_kernel_sizes", "block_dilations"):
-        if key in values:
-            values[key] = tuple(_coerce_int_list(values[key], key))
-    return CAMPPlusConfig(**values)
+    if "num_blocks" in values:
+        values["num_blocks"] = tuple(_coerce_int_list(values["num_blocks"], "num_blocks"))
+    if "pooling_func" in values:
+        values["pooling_func"] = str(values["pooling_func"]).upper()
+    return ERes2NetV2Config(**values)
 
 
 def _optional_section(data: dict[str, Any], name: str, default: dict[str, Any]) -> dict[str, Any]:

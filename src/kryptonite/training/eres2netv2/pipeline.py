@@ -1,4 +1,4 @@
-"""End-to-end CAM++ baseline training, embedding export, and cosine scoring."""
+"""End-to-end ERes2NetV2 baseline training, embedding export, and cosine scoring."""
 
 from __future__ import annotations
 
@@ -12,10 +12,8 @@ from torch.utils.data import DataLoader
 
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
-from kryptonite.features import (
-    FbankExtractionRequest,
-)
-from kryptonite.models import ArcMarginLoss, CAMPPlusEncoder, CosineClassifier
+from kryptonite.features import FbankExtractionRequest
+from kryptonite.models import ArcMarginLoss, CosineClassifier, ERes2NetV2Encoder
 from kryptonite.repro import build_reproducibility_snapshot, set_global_seed
 from kryptonite.tracking import build_tracker, create_run_id
 
@@ -42,27 +40,28 @@ from ..speaker_baseline import (
     validate_fp32_only,
     write_checkpoint,
 )
-from .config import CAMPPlusBaselineConfig
+from .config import ERes2NetV2BaselineConfig
 
-REPORT_FILE_NAME = "campp_baseline_report.md"
-CAMPPlusRunArtifacts = SpeakerBaselineRunArtifacts
+REPORT_FILE_NAME = "eres2netv2_baseline_report.md"
+ERes2NetV2RunArtifacts = SpeakerBaselineRunArtifacts
 
 
-def run_campp_baseline(
-    config: CAMPPlusBaselineConfig,
+def run_eres2netv2_baseline(
+    config: ERes2NetV2BaselineConfig,
     *,
     config_path: Path | str,
     device_override: str | None = None,
-) -> CAMPPlusRunArtifacts:
+) -> ERes2NetV2RunArtifacts:
     prepare_demo_artifacts_if_needed(
         project=config.project,
         train_manifest=config.data.train_manifest,
         dev_manifest=config.data.dev_manifest,
         enabled=config.data.generate_demo_artifacts_if_missing,
     )
-    validate_fp32_only(config.project.training.precision, baseline_name="CAM++")
+    validate_fp32_only(config.project.training.precision, baseline_name="ERes2NetV2")
     if config.project.training.max_epochs <= 0:
-        raise ValueError("training.max_epochs must be positive for CAM++ baseline runs.")
+        raise ValueError("training.max_epochs must be positive for ERes2NetV2 baseline runs.")
+
     seed_state = set_global_seed(
         config.project.runtime.seed,
         deterministic=config.project.reproducibility.deterministic,
@@ -72,7 +71,6 @@ def run_campp_baseline(
 
     device = resolve_device(device_override or config.project.runtime.device)
     project_root = resolve_project_path(config.project.paths.project_root, ".")
-
     train_rows = load_manifest_rows(
         config.data.train_manifest,
         project_root=project_root,
@@ -92,7 +90,7 @@ def run_campp_baseline(
     feature_request = FbankExtractionRequest.from_config(config.project.features)
     chunking_request = build_fixed_train_chunking_request(
         chunking=config.project.chunking,
-        baseline_name="CAM++",
+        baseline_name="ERes2NetV2",
     )
 
     train_dataset = ManifestSpeakerDataset(
@@ -117,7 +115,7 @@ def run_campp_baseline(
     tracker_run = None
     if config.project.tracking.enabled:
         tracker = build_tracker(config=config.project)
-        tracker_run = tracker.start_run(kind="campp-baseline", config=config.to_dict())
+        tracker_run = tracker.start_run(kind="eres2netv2-baseline", config=config.to_dict())
         run_id = tracker_run.run_id
     else:
         run_id = create_run_id()
@@ -125,7 +123,7 @@ def run_campp_baseline(
     output_root = resolve_project_path(str(project_root), config.data.output_root) / run_id
     output_root.mkdir(parents=True, exist_ok=True)
 
-    model = CAMPPlusEncoder(config.model).to(device)
+    model = ERes2NetV2Encoder(config.model).to(device)
     classifier = CosineClassifier(
         config.model.embedding_size,
         num_classes=len(speaker_to_index),
@@ -197,7 +195,7 @@ def run_campp_baseline(
         feature_request=feature_request,
         chunking=config.project.chunking,
         device=device,
-        embedding_source="campp_baseline",
+        embedding_source="eres2netv2_baseline",
     )
     trials_path, trial_rows = load_or_generate_trials(
         output_root=output_root,
@@ -224,7 +222,7 @@ def run_campp_baseline(
     report_path = output_root / REPORT_FILE_NAME
     report_path.write_text(
         render_markdown_report(
-            title="CAM++ Baseline Report",
+            title="ERes2NetV2 Baseline Report",
             training_summary=training_summary,
             embedding_summary=embedding_summary,
             score_summary=score_summary,
@@ -264,7 +262,7 @@ def run_campp_baseline(
             }
         )
 
-    return CAMPPlusRunArtifacts(
+    return ERes2NetV2RunArtifacts(
         output_root=str(output_root),
         checkpoint_path=str(checkpoint_path),
         training_summary_path=str(training_summary_path),
@@ -283,7 +281,7 @@ def run_campp_baseline(
     )
 
 
-def _build_lr_lambda(config: CAMPPlusBaselineConfig):
+def _build_lr_lambda(config: ERes2NetV2BaselineConfig):
     max_epochs = config.project.training.max_epochs
     warmup_epochs = config.optimization.warmup_epochs
     max_lr = config.optimization.learning_rate
