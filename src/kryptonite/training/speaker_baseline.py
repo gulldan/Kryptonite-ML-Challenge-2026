@@ -442,13 +442,13 @@ def score_trials(
     point_id_to_embedding = {
         row["trial_item_id"]: embeddings[index] for index, row in enumerate(metadata_rows)
     }
-    point_id_to_embedding.update(
-        {
-            row["audio_path"]: embeddings[index]
-            for index, row in enumerate(metadata_rows)
-            if row.get("audio_path")
-        }
-    )
+    for index, row in enumerate(metadata_rows):
+        audio_path = row.get("audio_path")
+        if not audio_path:
+            continue
+        normalized_audio_path = str(audio_path)
+        point_id_to_embedding[normalized_audio_path] = embeddings[index]
+        point_id_to_embedding.setdefault(Path(normalized_audio_path).name, embeddings[index])
     point_id_to_embedding.update(
         {
             row["utterance_id"]: embeddings[index]
