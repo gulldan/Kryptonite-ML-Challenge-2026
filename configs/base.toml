@@ -62,6 +62,21 @@ provider = "auto"
 min_output_duration_seconds = 1.0
 min_retained_ratio = 0.4
 
+[features]
+sample_rate_hz = 16000
+num_mel_bins = 80
+frame_length_ms = 25.0
+frame_shift_ms = 10.0
+fft_size = 512
+window_type = "hann"
+f_min_hz = 20.0
+power = 2.0
+log_offset = 1e-6
+pad_end = true
+cmvn_mode = "none"
+cmvn_window_frames = 300
+output_dtype = "float32"
+
 [secrets]
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"

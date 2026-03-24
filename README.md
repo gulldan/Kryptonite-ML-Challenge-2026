@@ -73,6 +73,7 @@ See [docs/audio-quality-checks.md](./docs/audio-quality-checks.md) for the manif
 See [docs/audio-normalization.md](./docs/audio-normalization.md) for the 16 kHz mono normalization policy and reproducible CLI flow.
 See [docs/audio-loader.md](./docs/audio-loader.md) for the shared WAV/FLAC/MP3 loading contract used by preprocessing and feature work.
 See [docs/audio-vad-trimming.md](./docs/audio-vad-trimming.md) for the optional `none/light/aggressive` trimming modes and the reproducible dev comparison report.
+See [docs/audio-fbank-extraction.md](./docs/audio-fbank-extraction.md) for the shared 80-dim log-Mel/Fbank frontend and the offline/online parity smoke workflow.
 
 ## Naming Conventions
 

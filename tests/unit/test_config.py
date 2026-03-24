@@ -24,6 +24,14 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.vad.provider == "auto"
     assert config.vad.min_output_duration_seconds == 1.0
     assert config.vad.min_retained_ratio == 0.4
+    assert config.features.sample_rate_hz == 16000
+    assert config.features.num_mel_bins == 80
+    assert config.features.frame_length_ms == 25.0
+    assert config.features.frame_shift_ms == 10.0
+    assert config.features.fft_size == 512
+    assert config.features.window_type == "hann"
+    assert config.features.cmvn_mode == "none"
+    assert config.features.output_dtype == "float32"
     assert config.deployment.model_bundle_root == "artifacts/model-bundle"
     assert config.deployment.demo_subset_root == "artifacts/demo-subset"
     assert config.deployment.require_artifacts is False
@@ -49,6 +57,9 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "vad.provider=cpu",
             "vad.min_output_duration_seconds=1.25",
             "vad.min_retained_ratio=0.5",
+            "features.num_mel_bins=96",
+            "features.cmvn_mode=sliding",
+            "features.output_dtype=float16",
         ],
         env_file=env_file,
     )
@@ -65,6 +76,9 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.vad.provider == "cpu"
     assert config.vad.min_output_duration_seconds == 1.25
     assert config.vad.min_retained_ratio == 0.5
+    assert config.features.num_mel_bins == 96
+    assert config.features.cmvn_mode == "sliding"
+    assert config.features.output_dtype == "float16"
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 

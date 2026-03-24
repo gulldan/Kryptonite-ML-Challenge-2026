@@ -16,7 +16,8 @@ Current checks:
 
 ## Why This Scope Is Limited
 
-The Linear issue mentions smoke checks for audio pipeline, fbank extraction, scoring, ONNX export, and API startup. Those entrypoints do not exist in the repository yet, so the workflow currently focuses on:
+Some downstream entrypoints still depend on real dataset artifacts or export
+bundles that are not committed to git, so the workflow currently focuses on:
 
 - broken imports
 - broken training-environment imports
@@ -24,4 +25,8 @@ The Linear issue mentions smoke checks for audio pipeline, fbank extraction, sco
 - broken reproducibility hooks
 - broken unit tests
 
-When the corresponding modules land, extend the workflow rather than creating a parallel CI pipeline.
+The Fbank frontend now exists and is covered by unit tests plus
+`scripts/fbank_parity_report.py`, but the manifest-backed smoke CLI is still a
+manual/dev-path check because the repository does not version a real manifest +
+audio fixture for that command. When curated fixtures land, extend the existing
+workflow rather than creating a parallel CI pipeline.

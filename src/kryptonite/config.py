@@ -92,6 +92,24 @@ class VADConfig:
 
 
 @dataclass(slots=True)
+class FeaturesConfig:
+    sample_rate_hz: int
+    num_mel_bins: int
+    frame_length_ms: float
+    frame_shift_ms: float
+    fft_size: int
+    window_type: str
+    f_min_hz: float
+    f_max_hz: float | None = None
+    power: float = 2.0
+    log_offset: float = 1e-6
+    pad_end: bool = True
+    cmvn_mode: str = "none"
+    cmvn_window_frames: int = 300
+    output_dtype: str = "float32"
+
+
+@dataclass(slots=True)
 class SecretRefs:
     wandb_api_key: str
     mlflow_tracking_token: str
@@ -116,6 +134,7 @@ class ProjectConfig:
     tracking: TrackingConfig
     normalization: NormalizationConfig
     vad: VADConfig
+    features: FeaturesConfig
     secrets: SecretRefs
     deployment: DeploymentConfig
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
@@ -131,6 +150,7 @@ class ProjectConfig:
             "tracking": asdict(self.tracking),
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
+            "features": asdict(self.features),
             "secrets": asdict(self.secrets),
             "deployment": asdict(self.deployment),
             "resolved_secrets": dict(self.resolved_secrets),
@@ -194,6 +214,28 @@ def load_project_config(
                     "provider": "auto",
                     "min_output_duration_seconds": 1.0,
                     "min_retained_ratio": 0.4,
+                },
+            )
+        ),
+        features=FeaturesConfig(
+            **optional_section(
+                data,
+                "features",
+                {
+                    "sample_rate_hz": 16000,
+                    "num_mel_bins": 80,
+                    "frame_length_ms": 25.0,
+                    "frame_shift_ms": 10.0,
+                    "fft_size": 512,
+                    "window_type": "hann",
+                    "f_min_hz": 20.0,
+                    "f_max_hz": None,
+                    "power": 2.0,
+                    "log_offset": 1e-6,
+                    "pad_end": True,
+                    "cmvn_mode": "none",
+                    "cmvn_window_frames": 300,
+                    "output_dtype": "float32",
                 },
             )
         ),
