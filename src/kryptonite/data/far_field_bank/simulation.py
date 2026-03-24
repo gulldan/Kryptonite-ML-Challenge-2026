@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from kryptonite.data.audio_io import read_audio_file, write_audio_file
+from kryptonite.data.convolution import fft_convolve_1d
 
 from .models import (
     FarFieldAudioMetrics,
@@ -123,7 +124,7 @@ def render_far_field_preset(
         render_settings=render_settings,
     )
 
-    preview = np.convolve(mono, kernel, mode="full")
+    preview = fft_convolve_1d(mono, kernel)
     preview = _apply_frequency_shaping(
         preview,
         sample_rate_hz=sample_rate_hz,

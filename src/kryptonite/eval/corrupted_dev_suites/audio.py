@@ -17,6 +17,7 @@ from kryptonite.config import SilenceAugmentationConfig
 from kryptonite.data.audio_io import read_audio_file, resample_waveform
 from kryptonite.data.codec_bank import load_codec_bank_plan
 from kryptonite.data.codec_bank.ffmpeg import apply_codec_preset
+from kryptonite.data.convolution import fft_convolve_1d
 from kryptonite.data.far_field_bank import load_far_field_bank_plan
 from kryptonite.data.far_field_bank.simulation import render_far_field_preset
 from kryptonite.data.silence_augmentation import apply_silence_augmentation
@@ -311,7 +312,7 @@ def apply_reverb_transform(
     if rir_energy > 0.0:
         rir_mono = rir_mono / rir_energy
     source_mono = waveform.mean(axis=0)
-    reverberated = np.convolve(source_mono, rir_mono, mode="full")
+    reverberated = fft_convolve_1d(source_mono, rir_mono)
     output = _limit_peak(reverberated[np.newaxis, :].astype("float32"))
     return TransformOutcome(
         waveform=output,
