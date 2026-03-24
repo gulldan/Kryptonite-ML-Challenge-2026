@@ -249,7 +249,9 @@ def build_feature_cache_benchmark_report(
                         benchmark_iterations=settings.benchmark_iterations,
                         warmup_iterations=settings.benchmark_warmup_iterations,
                         operation=lambda sample: gpu_extractor.extract(
-                            sample.audio.waveform.to(device="cuda"),
+                            torch.as_tensor(sample.audio.waveform, dtype=torch.float32).to(
+                                device="cuda"
+                            ),
                             sample_rate_hz=sample.audio.sample_rate_hz,
                         ),
                     ),
