@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,3 +74,49 @@ class BaselineOptimizationConfig:
             raise ValueError("warmup_epochs must be non-negative")
         if self.grad_clip_norm is not None and self.grad_clip_norm <= 0.0:
             raise ValueError("grad_clip_norm must be positive when provided")
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineProvenanceConfig:
+    ruleset: str = "standard"
+    initialization: str = "from_scratch"
+    teacher_resources: tuple[str, ...] = ()
+    pretrained_resources: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.ruleset.strip():
+            raise ValueError("ruleset must not be empty")
+        if self.ruleset not in {"standard", "restricted-rules"}:
+            raise ValueError("ruleset must be either 'standard' or 'restricted-rules'")
+        if not self.initialization.strip():
+            raise ValueError("initialization must not be empty")
+        if self.initialization not in {"from_scratch", "pretrained"}:
+            raise ValueError("initialization must be either 'from_scratch' or 'pretrained'")
+
+        for field_name, values in (
+            ("teacher_resources", self.teacher_resources),
+            ("pretrained_resources", self.pretrained_resources),
+            ("notes", self.notes),
+        ):
+            for value in values:
+                if not value.strip():
+                    raise ValueError(f"{field_name} entries must not be empty")
+
+        if self.initialization == "from_scratch" and self.pretrained_resources:
+            raise ValueError(
+                "pretrained_resources must stay empty when initialization='from_scratch'"
+            )
+
+        if self.ruleset == "restricted-rules":
+            if self.initialization != "from_scratch":
+                raise ValueError(
+                    "restricted-rules baselines must use initialization='from_scratch'"
+                )
+            if self.teacher_resources:
+                raise ValueError("restricted-rules baselines must not declare teacher_resources")
+            if self.pretrained_resources:
+                raise ValueError("restricted-rules baselines must not declare pretrained_resources")
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)

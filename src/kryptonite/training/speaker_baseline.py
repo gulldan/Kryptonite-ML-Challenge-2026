@@ -27,6 +27,7 @@ from kryptonite.features import (
     pool_chunk_tensors,
 )
 
+from .baseline_config import BaselineProvenanceConfig
 from .manifest_speaker_data import TrainingBatch
 
 EMBEDDINGS_FILE_NAME = "dev_embeddings.npz"
@@ -56,6 +57,8 @@ class TrainingSummary:
     device: str
     train_manifest: str
     dev_manifest: str
+    provenance_ruleset: str
+    provenance_initialization: str
     speaker_count: int
     train_row_count: int
     dev_row_count: int
@@ -67,6 +70,8 @@ class TrainingSummary:
             "device": self.device,
             "train_manifest": self.train_manifest,
             "dev_manifest": self.dev_manifest,
+            "provenance_ruleset": self.provenance_ruleset,
+            "provenance_initialization": self.provenance_initialization,
             "speaker_count": self.speaker_count,
             "train_row_count": self.train_row_count,
             "dev_row_count": self.dev_row_count,
@@ -512,6 +517,7 @@ def mean_or_none(values: list[float]) -> float | None:
 def render_markdown_report(
     *,
     title: str,
+    provenance: BaselineProvenanceConfig,
     training_summary: TrainingSummary,
     embedding_summary: EmbeddingExportSummary,
     score_summary: ScoreSummary,
@@ -535,35 +541,54 @@ def render_markdown_report(
         f"- Device: `{training_summary.device}`",
         f"- Train manifest: `{training_summary.train_manifest}`",
         f"- Dev manifest: `{training_summary.dev_manifest}`",
+        f"- Ruleset: `{training_summary.provenance_ruleset}`",
+        f"- Initialization: `{training_summary.provenance_initialization}`",
         f"- Speakers: `{training_summary.speaker_count}`",
         f"- Train rows: `{training_summary.train_row_count}`",
         f"- Dev rows: `{training_summary.dev_row_count}`",
-        "",
-        "## Training",
-        "",
-        f"- Epochs: `{len(training_summary.epochs)}`",
-        f"- Final loss: `{final_epoch.mean_loss}`",
-        f"- Final accuracy: `{final_epoch.accuracy}`",
-        f"- Final learning rate: `{final_epoch.learning_rate}`",
-        f"- Checkpoint: `{relative_checkpoint}`",
-        "",
-        "## Embeddings",
-        "",
-        f"- Utterances exported: `{embedding_summary.utterance_count}`",
-        f"- Embedding dim: `{embedding_summary.embedding_dim}`",
-        f"- Speaker count: `{embedding_summary.speaker_count}`",
-        f"- Embeddings: `{relative_embeddings}`",
-        "",
-        "## Scores",
-        "",
-        f"- Scored trials: `{score_summary.trial_count}`",
-        f"- Positive trials: `{score_summary.positive_count}`",
-        f"- Negative trials: `{score_summary.negative_count}`",
-        f"- Missing trial embeddings: `{score_summary.missing_embedding_count}`",
-        f"- Mean positive score: `{score_summary.mean_positive_score}`",
-        f"- Mean negative score: `{score_summary.mean_negative_score}`",
-        f"- Score gap: `{score_summary.score_gap}`",
     ]
+    if provenance.teacher_resources or provenance.pretrained_resources or provenance.notes:
+        lines.extend(
+            [
+                "",
+                "## Provenance",
+                "",
+                f"- Teacher resources: `{list(provenance.teacher_resources)}`",
+                f"- Pretrained resources: `{list(provenance.pretrained_resources)}`",
+            ]
+        )
+        for note in provenance.notes:
+            lines.append(f"- Note: {note}")
+
+    lines.extend(
+        [
+            "",
+            "## Training",
+            "",
+            f"- Epochs: `{len(training_summary.epochs)}`",
+            f"- Final loss: `{final_epoch.mean_loss}`",
+            f"- Final accuracy: `{final_epoch.accuracy}`",
+            f"- Final learning rate: `{final_epoch.learning_rate}`",
+            f"- Checkpoint: `{relative_checkpoint}`",
+            "",
+            "## Embeddings",
+            "",
+            f"- Utterances exported: `{embedding_summary.utterance_count}`",
+            f"- Embedding dim: `{embedding_summary.embedding_dim}`",
+            f"- Speaker count: `{embedding_summary.speaker_count}`",
+            f"- Embeddings: `{relative_embeddings}`",
+            "",
+            "## Scores",
+            "",
+            f"- Scored trials: `{score_summary.trial_count}`",
+            f"- Positive trials: `{score_summary.positive_count}`",
+            f"- Negative trials: `{score_summary.negative_count}`",
+            f"- Missing trial embeddings: `{score_summary.missing_embedding_count}`",
+            f"- Mean positive score: `{score_summary.mean_positive_score}`",
+            f"- Mean negative score: `{score_summary.mean_negative_score}`",
+            f"- Score gap: `{score_summary.score_gap}`",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 

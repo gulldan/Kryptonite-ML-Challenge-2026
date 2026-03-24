@@ -59,6 +59,18 @@ uv run python scripts/run_campp_baseline.py \
 
 and edit `[data]` in the config to point at the actual train/dev manifests on that machine.
 
+For the strict-rules fallback path, use:
+
+```bash
+uv run python scripts/run_campp_baseline.py \
+  --config configs/training/campp-ffsvc2022-restricted-rules.toml \
+  --device cuda
+```
+
+That config is the clean-room fallback contract for this repository: it keeps the run in
+`provenance.ruleset = "restricted-rules"` mode, initializes from scratch, and refuses any declared
+teacher or pretrained resource.
+
 ## Output Contract
 
 Each run writes a dedicated directory under `artifacts/baselines/campp/<run-id>/` with:
@@ -91,3 +103,6 @@ uv run python scripts/build_embedding_atlas.py \
 - the default trial generation is intentionally simple and deterministic; the richer evaluation
   package comes later
 - the default config is a smoke baseline, not a claim of production-ready recipe quality
+
+See [clean-room fallback baseline](./clean-room-fallback-baseline.md) for the explicit restricted
+fallback scope, commands, and artifact location.

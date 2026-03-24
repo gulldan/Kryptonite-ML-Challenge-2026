@@ -13,6 +13,7 @@ from kryptonite.training.baseline_config import (
     BaselineDataConfig,
     BaselineObjectiveConfig,
     BaselineOptimizationConfig,
+    BaselineProvenanceConfig,
 )
 
 ERes2NetV2DataConfig = BaselineDataConfig
@@ -29,6 +30,7 @@ class ERes2NetV2BaselineConfig:
     model: ERes2NetV2Config
     objective: ERes2NetV2ObjectiveConfig
     optimization: ERes2NetV2OptimizationConfig
+    provenance: BaselineProvenanceConfig
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +41,7 @@ class ERes2NetV2BaselineConfig:
             "model": asdict(self.model),
             "objective": asdict(self.objective),
             "optimization": asdict(self.optimization),
+            "provenance": self.provenance.to_dict(),
         }
 
 
@@ -98,6 +101,17 @@ def load_eres2netv2_baseline_config(
             "grad_clip_norm": 5.0,
         },
     )
+    provenance_section = _optional_section(
+        raw,
+        "provenance",
+        {
+            "ruleset": "standard",
+            "initialization": "from_scratch",
+            "teacher_resources": [],
+            "pretrained_resources": [],
+            "notes": [],
+        },
+    )
 
     return ERes2NetV2BaselineConfig(
         base_config_path=base_config_path,
@@ -107,6 +121,7 @@ def load_eres2netv2_baseline_config(
         model=_load_model_config(model_section),
         objective=ERes2NetV2ObjectiveConfig(**objective_section),
         optimization=ERes2NetV2OptimizationConfig(**optimization_section),
+        provenance=_load_provenance_config(provenance_section),
     )
 
 
@@ -142,3 +157,14 @@ def _coerce_int_list(value: object, field_name: str) -> list[int]:
     if not all(isinstance(item, int) for item in value):
         raise ValueError(f"{field_name} must contain only integer values")
     return cast(list[int], list(value))
+
+
+def _load_provenance_config(section: dict[str, Any]) -> BaselineProvenanceConfig:
+    values = dict(section)
+    for key in ("ruleset", "initialization"):
+        if key in values:
+            values[key] = str(values[key]).strip().lower()
+    for key in ("teacher_resources", "pretrained_resources", "notes"):
+        if key in values:
+            values[key] = tuple(_coerce_string_list(values[key]))
+    return BaselineProvenanceConfig(**values)

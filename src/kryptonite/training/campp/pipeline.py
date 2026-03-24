@@ -176,6 +176,8 @@ def run_campp_baseline(
         device=str(device),
         train_manifest=config.data.train_manifest,
         dev_manifest=config.data.dev_manifest,
+        provenance_ruleset=config.provenance.ruleset,
+        provenance_initialization=config.provenance.initialization,
         speaker_count=len(speaker_to_index),
         train_row_count=len(train_rows),
         dev_row_count=len(dev_rows),
@@ -225,6 +227,7 @@ def run_campp_baseline(
     report_path.write_text(
         render_markdown_report(
             title="CAM++ Baseline Report",
+            provenance=config.provenance,
             training_summary=training_summary,
             embedding_summary=embedding_summary,
             score_summary=score_summary,

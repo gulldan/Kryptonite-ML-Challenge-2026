@@ -61,6 +61,8 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert Path(artifacts.score_summary_path).is_file()
     assert Path(artifacts.report_path).is_file()
     assert artifacts.training_summary.epochs[-1].mean_loss > 0.0
+    assert artifacts.training_summary.provenance_ruleset == "standard"
+    assert artifacts.training_summary.provenance_initialization == "from_scratch"
     assert artifacts.score_summary.trial_count > 0
     assert artifacts.score_summary.positive_count > 0
     assert artifacts.score_summary.negative_count > 0
@@ -70,6 +72,7 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
 
     report_text = Path(artifacts.report_path).read_text()
     assert "# ERes2NetV2 Baseline Report" in report_text
+    assert "- Ruleset: `standard`" in report_text
 
 
 def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manifest: Path) -> Path:
