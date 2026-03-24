@@ -32,6 +32,11 @@ from .embedding_atlas import (
     render_embedding_atlas_markdown,
     write_embedding_atlas_report,
 )
+from .verification_metrics import (
+    VerificationMetricsSummary,
+    compute_verification_metrics,
+    load_verification_score_rows,
+)
 
 __all__ = [
     "BuiltCorruptedSuite",
@@ -55,10 +60,13 @@ __all__ = [
     "SeverityWeights",
     "SUPPORTED_BASELINE_EMBEDDING_MODES",
     "SUPPORTED_METADATA_SOURCE_FORMATS",
+    "VerificationMetricsSummary",
     "build_corrupted_dev_suites",
     "build_embedding_atlas",
+    "compute_verification_metrics",
     "export_manifest_fbank_embeddings",
     "load_corrupted_dev_suites_plan",
+    "load_verification_score_rows",
     "render_embedding_atlas_html",
     "render_embedding_atlas_markdown",
     "write_embedding_atlas_report",

@@ -59,6 +59,18 @@ uv run python scripts/run_eres2netv2_baseline.py \
 
 and edit `[data]` in the config to point at the actual train/dev manifests on that machine.
 
+For the prepared `gpu-server` surrogate bundle, use:
+
+```bash
+uv run python scripts/run_eres2netv2_baseline.py \
+  --config configs/training/eres2netv2-ffsvc2022-surrogate.toml \
+  --device cuda
+```
+
+That config is pinned to the speaker-disjoint dev trials bundle, not the official dev trials file,
+because the current EDA backlog explicitly blocks threshold tuning on `official_dev_trials.jsonl`
+until the quarantined duplicate references are canonicalized.
+
 ## Output Contract
 
 Each run writes a dedicated directory under `artifacts/baselines/eres2netv2/<run-id>/` with:
@@ -78,6 +90,13 @@ Each run writes a dedicated directory under `artifacts/baselines/eres2netv2/<run
 Because ERes2NetV2 follows the same artifact contract as CAM++, you can compare the two baselines
 on the same manifests by diffing `score_summary.json` or plotting both embedding exports through the
 existing atlas tooling.
+
+To turn the generated `dev_scores.jsonl` into speaker-verification metrics:
+
+```bash
+uv run python scripts/evaluate_verification_scores.py \
+  --scores artifacts/baselines/eres2netv2/<run-id>/dev_scores.jsonl
+```
 
 ## Current Limits
 
