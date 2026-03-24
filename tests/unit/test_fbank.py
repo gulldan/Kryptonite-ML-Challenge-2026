@@ -59,6 +59,26 @@ def test_online_fbank_matches_offline_for_unaligned_chunks(cmvn_mode: str) -> No
     assert torch.allclose(online, offline, atol=1e-5, rtol=0.0)
 
 
+def test_online_fbank_does_not_emit_extra_frame_on_exact_frame_boundary() -> None:
+    waveform = _sine_wave(duration_seconds=0.035).astype(np.float32)
+    extractor = FbankExtractor(request=FbankExtractionRequest(output_dtype="float32"))
+
+    offline = extractor.extract(waveform, sample_rate_hz=16_000)
+    online_extractor = extractor.create_online_extractor()
+    online = torch.cat(
+        [
+            online_extractor.push(waveform[:, :320], sample_rate_hz=16_000),
+            online_extractor.push(waveform[:, 320:], sample_rate_hz=16_000),
+            online_extractor.flush(),
+        ],
+        dim=0,
+    )
+
+    assert offline.shape == (2, 80)
+    assert online.shape == offline.shape
+    assert torch.allclose(online, offline, atol=1e-5, rtol=0.0)
+
+
 def test_extract_fbank_rejects_multichannel_waveforms() -> None:
     waveform = torch.randn(2, 1_600, dtype=torch.float32)
 

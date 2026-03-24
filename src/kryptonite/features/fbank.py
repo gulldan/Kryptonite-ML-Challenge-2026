@@ -270,6 +270,7 @@ class OnlineFbankExtractor:
         self._buffer = torch.empty(0, dtype=torch.float32)
         self._device = torch.device("cpu")
         self._cmvn_state: _SlidingCMVNState | None = None
+        self._emitted_frame_count = 0
         self._initialized = False
 
     def push(self, waveform_chunk: Any, *, sample_rate_hz: int) -> torch.Tensor:
@@ -294,13 +295,22 @@ class OnlineFbankExtractor:
         frames, remainder = self._extractor._frame_waveform(self._buffer, final=False)
         self._buffer = remainder
         raw_features = self._extractor._compute_raw_features(frames)
+        self._emitted_frame_count += int(raw_features.shape[0])
         return self._extractor._finalize_features(raw_features, cmvn_state=self._cmvn_state)
 
     def flush(self) -> torch.Tensor:
         if not self._initialized:
             return self._empty_features(device=self._device)
 
-        frames, _ = self._extractor._frame_waveform(self._buffer, final=True)
+        overlap_samples = self._extractor.request.frame_length_samples - (
+            self._extractor.request.frame_shift_samples
+        )
+        if self._emitted_frame_count == 0:
+            frames, _ = self._extractor._frame_waveform(self._buffer, final=True)
+        elif int(self._buffer.numel()) <= overlap_samples:
+            frames = self._buffer.new_empty((0, self._extractor.request.frame_length_samples))
+        else:
+            frames, _ = self._extractor._frame_waveform(self._buffer, final=True)
         raw_features = self._extractor._compute_raw_features(frames)
         features = self._extractor._finalize_features(raw_features, cmvn_state=self._cmvn_state)
         self.reset()
@@ -309,6 +319,7 @@ class OnlineFbankExtractor:
     def reset(self) -> None:
         self._buffer = torch.empty(0, dtype=torch.float32, device=self._device)
         self._cmvn_state = None
+        self._emitted_frame_count = 0
         self._initialized = False
 
     def _empty_features(self, *, device: torch.device) -> torch.Tensor:
