@@ -1,0 +1,94 @@
+notes = [
+  "The RIR bank is limited to the approved OpenSLR SLR28 room-impulse-response corpus from the dataset inventory.",
+  "Near/mid/far field coverage is inferred from estimated direct-to-reverberant ratio unless a path rule overrides it.",
+  "Missing source roots are reported explicitly so local smoke runs stay reproducible before the OpenSLR corpus is materialized.",
+]
+
+[analysis]
+direct_window_ms = 3.0
+reverb_start_ms = 10.0
+preview_duration_ms = 500.0
+preview_bins = 24
+
+[analysis.rt60_buckets.short]
+maximum = 0.45
+
+[analysis.rt60_buckets.medium]
+minimum = 0.45
+maximum = 0.9
+
+[analysis.rt60_buckets.long]
+minimum = 0.9
+
+[analysis.field_buckets.near]
+minimum = 6.0
+
+[analysis.field_buckets.mid]
+minimum = 0.0
+maximum = 6.0
+
+[analysis.field_buckets.far]
+maximum = 0.0
+
+[analysis.direct_buckets.high]
+minimum = 6.0
+
+[analysis.direct_buckets.medium]
+minimum = 0.0
+maximum = 6.0
+
+[analysis.direct_buckets.low]
+maximum = 0.0
+
+[[sources]]
+id = "rirs-real"
+name = "OpenSLR real room impulse responses"
+inventory_source_id = "rirs-noises"
+room_family = "real"
+root_candidates = [
+  "datasets/rirs_noises/real_rirs_isotropic_noises",
+  "datasets/rirs_noises/real_rirs_isotropic_noises/real_rirs_isotropic_noises",
+  "datasets/rirs_noises/RIRS_NOISES/real_rirs_isotropic_noises",
+  "datasets/rirs_noises/RIRS_NOISES/real_rirs_isotropic_noises/real_rirs_isotropic_noises",
+]
+default_room_size = "medium"
+base_weight = 1.0
+tags = ["rirs-noises", "rir", "real"]
+
+[[sources.classification_rules]]
+match_any = ["smallroom", "small_room"]
+room_size = "small"
+tags = ["small-room"]
+
+[[sources.classification_rules]]
+match_any = ["largeroom", "large_room"]
+room_size = "large"
+tags = ["large-room"]
+
+[[sources]]
+id = "rirs-simulated"
+name = "OpenSLR simulated room impulse responses"
+inventory_source_id = "rirs-noises"
+room_family = "simulated"
+root_candidates = [
+  "datasets/rirs_noises/simulated_rirs",
+  "datasets/rirs_noises/RIRS_NOISES/simulated_rirs",
+]
+default_room_size = "medium"
+base_weight = 1.2
+tags = ["rirs-noises", "rir", "simulated"]
+
+[[sources.classification_rules]]
+match_any = ["smallroom", "small_room"]
+room_size = "small"
+tags = ["small-room"]
+
+[[sources.classification_rules]]
+match_any = ["mediumroom", "medium_room"]
+room_size = "medium"
+tags = ["medium-room"]
+
+[[sources.classification_rules]]
+match_any = ["largeroom", "large_room"]
+room_size = "large"
+tags = ["large-room"]
