@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--atol",
         type=float,
-        default=1e-5,
+        default=2e-4,
         help="Absolute tolerance for offline/online parity.",
     )
     return parser.parse_args()

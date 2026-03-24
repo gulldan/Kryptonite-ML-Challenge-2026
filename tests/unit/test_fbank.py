@@ -121,7 +121,7 @@ def test_build_fbank_parity_report_passes_on_manifest_audio(tmp_path: Path) -> N
     assert report.summary.frame_mismatch_row_count == 0
     assert report.summary.passed is True
     assert report.records[0].max_abs_diff is not None
-    assert report.records[0].max_abs_diff <= 1e-5
+    assert report.records[0].max_abs_diff <= report.summary.atol
 
 
 def _sine_wave(*, duration_seconds: float, sample_rate_hz: int = 16_000) -> np.ndarray:

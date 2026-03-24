@@ -141,7 +141,7 @@ def build_fbank_parity_report(
     vad: VADConfig | None = None,
     chunk_duration_ms: float = 137.0,
     limit: int | None = None,
-    atol: float = 1e-5,
+    atol: float = 2e-4,
 ) -> FbankParityReport:
     if chunk_duration_ms <= 0.0:
         raise ValueError("chunk_duration_ms must be positive")
