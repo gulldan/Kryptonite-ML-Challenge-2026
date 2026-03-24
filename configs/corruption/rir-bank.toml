@@ -46,7 +46,9 @@ name = "OpenSLR real room impulse responses"
 inventory_source_id = "rirs-noises"
 room_family = "real"
 root_candidates = [
+  "datasets/rirs_noises/real_rirs_isotropic_noises",
   "datasets/rirs_noises/real_rirs_isotropic_noises/real_rirs_isotropic_noises",
+  "datasets/rirs_noises/RIRS_NOISES/real_rirs_isotropic_noises",
   "datasets/rirs_noises/RIRS_NOISES/real_rirs_isotropic_noises/real_rirs_isotropic_noises",
 ]
 default_room_size = "medium"
