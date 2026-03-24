@@ -76,6 +76,7 @@ See [docs/audio-vad-trimming.md](./docs/audio-vad-trimming.md) for the optional 
 See [docs/audio-fbank-extraction.md](./docs/audio-fbank-extraction.md) for the shared 80-dim log-Mel/Fbank frontend and the offline/online parity smoke workflow.
 See [docs/audio-feature-cache.md](./docs/audio-feature-cache.md) for the feature-cache policy, invalidation rules, and CPU/GPU benchmark workflow.
 See [docs/audio-chunking-policy.md](./docs/audio-chunking-policy.md) for the unified train/eval/demo utterance chunking contract and pooling rules.
+See [docs/audio-noise-bank.md](./docs/audio-noise-bank.md) for additive-noise bank assembly, severity buckets, and reproducible manifest/report generation.
 
 ## Naming Conventions
 

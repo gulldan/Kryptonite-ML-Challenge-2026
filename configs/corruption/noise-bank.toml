@@ -1,0 +1,88 @@
+notes = [
+  "The noise bank is limited to approved additive-noise sources from the dataset inventory.",
+  "Missing source roots are reported explicitly so local smoke runs stay reproducible even before MUSAN or OpenSLR SLR28 are materialized.",
+  "Severity buckets are sampling guidance for later augmentation tasks; they do not mutate source audio labels.",
+]
+
+[severity_profiles.light]
+snr_db_min = 15.0
+snr_db_max = 25.0
+weight_multiplier = 1.0
+
+[severity_profiles.medium]
+snr_db_min = 8.0
+snr_db_max = 15.0
+weight_multiplier = 1.5
+
+[severity_profiles.heavy]
+snr_db_min = 0.0
+snr_db_max = 8.0
+weight_multiplier = 2.0
+
+[[sources]]
+id = "musan-noise"
+name = "MUSAN noise"
+inventory_source_id = "musan"
+root_candidates = ["datasets/musan/noise", "datasets/musan/musan/noise"]
+default_category = "stationary"
+default_severity = "medium"
+base_weight = 1.0
+tags = ["musan", "additive"]
+
+[[sources.classification_rules]]
+match_any = ["alarm", "bell", "beep", "clap", "crash", "door", "glass", "gun", "horn", "slam"]
+category = "impulsive"
+severity = "heavy"
+tags = ["transient"]
+
+[[sources.classification_rules]]
+match_any = ["air", "fan", "hiss", "hum", "rain", "street", "traffic", "vent", "wind"]
+category = "low_snr"
+severity = "heavy"
+tags = ["ambient"]
+
+[[sources]]
+id = "musan-speech"
+name = "MUSAN speech"
+inventory_source_id = "musan"
+root_candidates = ["datasets/musan/speech", "datasets/musan/musan/speech"]
+default_category = "babble"
+default_severity = "medium"
+base_weight = 1.0
+tags = ["musan", "speech-masker"]
+
+[[sources]]
+id = "musan-music"
+name = "MUSAN music"
+inventory_source_id = "musan"
+root_candidates = ["datasets/musan/music", "datasets/musan/musan/music"]
+default_category = "music"
+default_severity = "medium"
+base_weight = 1.0
+tags = ["musan", "music-masker"]
+
+[[sources]]
+id = "rirs-pointsource-noises"
+name = "OpenSLR point-source noises"
+inventory_source_id = "rirs-noises"
+root_candidates = [
+  "datasets/rirs_noises/pointsource_noises",
+  "datasets/rirs_noises/RIRS_NOISES/pointsource_noises",
+]
+default_category = "low_snr"
+default_severity = "heavy"
+base_weight = 1.2
+tags = ["rirs-noises", "point-source"]
+
+[[sources]]
+id = "rirs-isotropic-noises"
+name = "OpenSLR isotropic noises"
+inventory_source_id = "rirs-noises"
+root_candidates = [
+  "datasets/rirs_noises/real_rirs_isotropic_noises/noises",
+  "datasets/rirs_noises/RIRS_NOISES/real_rirs_isotropic_noises/noises",
+]
+default_category = "stationary"
+default_severity = "medium"
+base_weight = 1.0
+tags = ["rirs-noises", "isotropic"]

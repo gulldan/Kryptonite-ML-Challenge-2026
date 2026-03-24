@@ -14,6 +14,7 @@ Current entrypoints include:
 - `scripts/dataset_sync.py` for reproducible dataset/manifests sync and gpu-server readiness reporting
 - `scripts/generate_demo_artifacts.py` for reproducible mini-demo dataset/manifests/model bundle generation, including CSV sidecars and checksum inventory
 - `scripts/loudness_normalization_report.py` for comparing loader-time bounded RMS normalization against the raw waveform path
+- `scripts/build_noise_bank.py` for assembling approved additive-noise corpora into one normalized noise bank with manifest and report artifacts
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
 - `scripts/normalize_audio_dataset.py` for deterministic 16 kHz mono normalization, manifest rewriting, and quarantine reporting
 - `scripts/prepare_ffsvc2022_surrogate.py` for building manifests, quarantine lists, trials, speaker-disjoint splits, and checksum inventory from the surrogate bundle
