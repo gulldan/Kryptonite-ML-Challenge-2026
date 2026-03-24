@@ -1,5 +1,16 @@
 """Metrics, reports, and benchmark logic."""
 
+from .corrupted_dev_suites import (
+    BuiltCorruptedSuite,
+    CorruptedDevSuiteSpec,
+    CorruptedDevSuitesPlan,
+    CorruptedDevSuitesReport,
+    DistanceFieldWeights,
+    ReverbDirectWeights,
+    SeverityWeights,
+    build_corrupted_dev_suites,
+    load_corrupted_dev_suites_plan,
+)
 from .embedding_atlas import (
     ALLOWED_PROJECTION_METHODS,
     EMBEDDINGS_NPZ_NAME,
@@ -23,6 +34,11 @@ from .embedding_atlas import (
 )
 
 __all__ = [
+    "BuiltCorruptedSuite",
+    "CorruptedDevSuiteSpec",
+    "CorruptedDevSuitesPlan",
+    "CorruptedDevSuitesReport",
+    "DistanceFieldWeights",
     "ALLOWED_PROJECTION_METHODS",
     "EMBEDDINGS_NPZ_NAME",
     "EmbeddingAtlasPoint",
@@ -35,10 +51,14 @@ __all__ = [
     "ManifestEmbeddingExportSummary",
     "NeighborPoint",
     "ProjectionMethod",
+    "ReverbDirectWeights",
+    "SeverityWeights",
     "SUPPORTED_BASELINE_EMBEDDING_MODES",
     "SUPPORTED_METADATA_SOURCE_FORMATS",
+    "build_corrupted_dev_suites",
     "build_embedding_atlas",
     "export_manifest_fbank_embeddings",
+    "load_corrupted_dev_suites_plan",
     "render_embedding_atlas_html",
     "render_embedding_atlas_markdown",
     "write_embedding_atlas_report",

@@ -238,3 +238,24 @@ uv run python scripts/augmentation_scheduler_report.py \
 
 See [audio-augmentation-scheduler.md](./audio-augmentation-scheduler.md) for
 the manifest contract, stage policy, and artifact layout.
+
+## Corrupted Dev Suites
+
+Frozen corrupted dev suites are configured via the versioned plan file:
+
+- `configs/corruption/corrupted-dev-suites.toml`
+
+The builder reuses the shared `normalization` and `silence_augmentation`
+settings from the base config while reading the reusable corruption banks and
+plans already materialized under `artifacts/corruptions/`.
+
+Run it with:
+
+```bash
+uv run python scripts/build_corrupted_dev_suites.py \
+  --config configs/base.toml \
+  --plan configs/corruption/corrupted-dev-suites.toml
+```
+
+See [audio-corrupted-dev-suites.md](./audio-corrupted-dev-suites.md) for the
+suite catalog, artifact layout, and design constraints.

@@ -1,0 +1,79 @@
+output_root = "artifacts/eval/corrupted-dev-suites"
+source_manifest_path = "artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl"
+trial_manifest_paths = [
+  "artifacts/manifests/ffsvc2022-surrogate/official_dev_trials.jsonl",
+  "artifacts/manifests/ffsvc2022-surrogate/speaker_disjoint_dev_trials.jsonl",
+]
+seed = 20260324
+
+[[suites]]
+suite_id = "dev_snr"
+family = "noise"
+description = "Deterministic additive-noise stress set for SNR robustness."
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0
+
+[[suites]]
+suite_id = "dev_reverb"
+family = "reverb"
+description = "Deterministic reverberation stress set sampled from the reusable room configs."
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0
+
+[suites.reverb_direct_weights]
+high = 1.0
+medium = 1.0
+low = 1.0
+
+[[suites]]
+suite_id = "dev_codec"
+family = "codec"
+description = "Deterministic codec-family corruption set without the pure channel-coloration presets."
+codec_families = ["band_limit", "telephony", "voip", "compression"]
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0
+
+[[suites]]
+suite_id = "dev_distance"
+family = "distance"
+description = "Deterministic near/mid/far distance simulation set."
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0
+
+[suites.distance_field_weights]
+near = 1.0
+mid = 1.0
+far = 1.0
+
+[[suites]]
+suite_id = "dev_channel"
+family = "codec"
+description = "Deterministic device/channel coloration set built from the channel-only presets."
+codec_families = ["channel"]
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0
+
+[[suites]]
+suite_id = "dev_silence"
+family = "silence"
+description = "Deterministic silence and pause robustness set derived from the shared silence envelope."
+
+[suites.severity_weights]
+light = 1.0
+medium = 1.0
+heavy = 1.0

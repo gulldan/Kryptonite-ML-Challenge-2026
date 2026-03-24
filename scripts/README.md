@@ -20,6 +20,7 @@ Current entrypoints include:
 - `scripts/build_rir_bank.py` for assembling approved room impulse responses into a normalized RIR bank plus reusable room-simulation configs
 - `scripts/build_codec_bank.py` for rendering deterministic FFmpeg-based codec/channel presets into preview audio plus manifest/report artifacts
 - `scripts/build_far_field_bank.py` for rendering deterministic near/mid/far distance presets into preview audio, kernel controls, and manifest/report artifacts
+- `scripts/build_corrupted_dev_suites.py` for freezing deterministic `dev_snr` / `dev_reverb` / `dev_codec` / `dev_distance` / `dev_channel` / `dev_silence` evaluation bundles from one clean dev manifest
 - `scripts/build_embedding_atlas.py` for projecting precomputed embeddings into an interactive HTML atlas with nearest neighbors and optional media preview
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
