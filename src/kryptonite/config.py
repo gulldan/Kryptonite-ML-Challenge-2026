@@ -139,6 +139,63 @@ class SilenceAugmentationConfig:
 
 
 @dataclass(slots=True)
+class AugmentationFamilyWeightsConfig:
+    noise: float = 1.0
+    reverb: float = 1.0
+    distance: float = 0.9
+    codec: float = 0.8
+    silence: float = 0.6
+
+    def __post_init__(self) -> None:
+        for name in ("noise", "reverb", "distance", "codec", "silence"):
+            if getattr(self, name) <= 0.0:
+                raise ValueError(f"{name} family weight must be positive")
+
+
+@dataclass(slots=True)
+class AugmentationSchedulerConfig:
+    enabled: bool = False
+    warmup_epochs: int = 2
+    ramp_epochs: int = 3
+    max_augmentations_per_sample: int = 2
+    clean_probability_start: float = 0.7
+    clean_probability_end: float = 0.25
+    light_probability_start: float = 0.25
+    light_probability_end: float = 0.3
+    medium_probability_start: float = 0.05
+    medium_probability_end: float = 0.25
+    heavy_probability_start: float = 0.0
+    heavy_probability_end: float = 0.2
+    family_weights: AugmentationFamilyWeightsConfig = field(
+        default_factory=AugmentationFamilyWeightsConfig
+    )
+
+    def __post_init__(self) -> None:
+        if self.warmup_epochs < 0:
+            raise ValueError("warmup_epochs must be non-negative")
+        if self.ramp_epochs < 0:
+            raise ValueError("ramp_epochs must be non-negative")
+        if self.max_augmentations_per_sample <= 0:
+            raise ValueError("max_augmentations_per_sample must be positive")
+
+        start_sum = 0.0
+        end_sum = 0.0
+        for name in ("clean", "light", "medium", "heavy"):
+            start_value = getattr(self, f"{name}_probability_start")
+            end_value = getattr(self, f"{name}_probability_end")
+            if not 0.0 <= start_value <= 1.0:
+                raise ValueError(f"{name}_probability_start must be within [0.0, 1.0]")
+            if not 0.0 <= end_value <= 1.0:
+                raise ValueError(f"{name}_probability_end must be within [0.0, 1.0]")
+            start_sum += start_value
+            end_sum += end_value
+        if abs(start_sum - 1.0) > 1e-6:
+            raise ValueError("augmentation_scheduler *_probability_start values must sum to 1.0")
+        if abs(end_sum - 1.0) > 1e-6:
+            raise ValueError("augmentation_scheduler *_probability_end values must sum to 1.0")
+
+
+@dataclass(slots=True)
 class FeaturesConfig:
     sample_rate_hz: int
     num_mel_bins: int
@@ -209,6 +266,7 @@ class ProjectConfig:
     normalization: NormalizationConfig
     vad: VADConfig
     silence_augmentation: SilenceAugmentationConfig
+    augmentation_scheduler: AugmentationSchedulerConfig
     features: FeaturesConfig
     feature_cache: FeatureCacheConfig
     chunking: ChunkingConfig
@@ -228,6 +286,7 @@ class ProjectConfig:
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
             "silence_augmentation": asdict(self.silence_augmentation),
+            "augmentation_scheduler": asdict(self.augmentation_scheduler),
             "features": asdict(self.features),
             "feature_cache": asdict(self.feature_cache),
             "chunking": asdict(self.chunking),
@@ -317,6 +376,7 @@ def load_project_config(
                 },
             )
         ),
+        augmentation_scheduler=_load_augmentation_scheduler_config(data),
         features=FeaturesConfig(
             **optional_section(
                 data,
@@ -391,6 +451,42 @@ def load_project_config(
         key: env.get(env_var_name) for key, env_var_name in asdict(config.secrets).items()
     }
     return config
+
+
+def _load_augmentation_scheduler_config(data: dict[str, Any]) -> AugmentationSchedulerConfig:
+    scheduler_section = optional_section(
+        data,
+        "augmentation_scheduler",
+        {
+            "enabled": False,
+            "warmup_epochs": 2,
+            "ramp_epochs": 3,
+            "max_augmentations_per_sample": 2,
+            "clean_probability_start": 0.7,
+            "clean_probability_end": 0.25,
+            "light_probability_start": 0.25,
+            "light_probability_end": 0.3,
+            "medium_probability_start": 0.05,
+            "medium_probability_end": 0.25,
+            "heavy_probability_start": 0.0,
+            "heavy_probability_end": 0.2,
+            "family_weights": {
+                "noise": 1.0,
+                "reverb": 1.0,
+                "distance": 0.9,
+                "codec": 0.8,
+                "silence": 0.6,
+            },
+        },
+    )
+    family_weights_data = scheduler_section.get("family_weights", {})
+    if not isinstance(family_weights_data, dict):
+        raise ValueError(
+            "Config section 'augmentation_scheduler.family_weights' is missing or invalid."
+        )
+    scheduler_values = dict(scheduler_section)
+    scheduler_values["family_weights"] = AugmentationFamilyWeightsConfig(**family_weights_data)
+    return AugmentationSchedulerConfig(**scheduler_values)
 
 
 def require_section(data: dict[str, Any], name: str) -> dict[str, Any]:

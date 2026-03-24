@@ -179,11 +179,12 @@ standalone silence/pause robustness transform:
 - `silence_threshold_dbfs`
 
 The defaults keep it disabled so baseline waveforms and existing reports do not
-start changing implicitly. The intended workflow is:
+start changing implicitly, while still leaving a reusable parameter envelope for
+the shared scheduler. The intended workflow is:
 
 1. keep the base profile stable with `enabled = false`
 2. enable the transform explicitly through overrides for ablations
-3. feed the same config block into a future training scheduler instead of
+3. feed the same config block into the training scheduler instead of
    inventing one-off augmentation knobs elsewhere
 
 Use the dedicated ablation CLI when you need a reproducible before/after report:
@@ -199,3 +200,41 @@ uv run python scripts/silence_augmentation_report.py \
 
 See [audio-silence-augmentation.md](./audio-silence-augmentation.md) for the
 full contract and artifact layout.
+
+## Augmentation Scheduler
+
+The base config also includes an `augmentation_scheduler` section for the
+training-side curriculum that mixes clean, light, medium, and heavy corruption
+across epochs:
+
+- `enabled`
+- `warmup_epochs`
+- `ramp_epochs`
+- `max_augmentations_per_sample`
+- `clean_probability_start` / `clean_probability_end`
+- `light_probability_start` / `light_probability_end`
+- `medium_probability_start` / `medium_probability_end`
+- `heavy_probability_start` / `heavy_probability_end`
+- `family_weights.noise`
+- `family_weights.reverb`
+- `family_weights.distance`
+- `family_weights.codec`
+- `family_weights.silence`
+
+The scheduler reads the existing bank manifests under `artifacts/corruptions/`
+and derives per-epoch sampling policies plus coverage logs. Family weights act
+as global priors; the scheduler still applies stage-specific dampening so codec,
+distance, and strong room effects ramp in later than noise and silence.
+
+Use the dedicated report CLI to sanity-check the curriculum before wiring it
+into a full training recipe:
+
+```bash
+uv run python scripts/augmentation_scheduler_report.py \
+  --config configs/base.toml \
+  --epochs 10 \
+  --samples-per-epoch 512
+```
+
+See [audio-augmentation-scheduler.md](./audio-augmentation-scheduler.md) for
+the manifest contract, stage policy, and artifact layout.

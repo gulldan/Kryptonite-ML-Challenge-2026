@@ -25,12 +25,18 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.vad.min_output_duration_seconds == 1.0
     assert config.vad.min_retained_ratio == 0.4
     assert config.silence_augmentation.enabled is False
-    assert config.silence_augmentation.max_leading_padding_seconds == 0.0
-    assert config.silence_augmentation.max_trailing_padding_seconds == 0.0
-    assert config.silence_augmentation.max_inserted_pauses == 0
-    assert config.silence_augmentation.pause_ratio_min == 1.0
-    assert config.silence_augmentation.pause_ratio_max == 1.0
+    assert config.silence_augmentation.max_leading_padding_seconds == 0.15
+    assert config.silence_augmentation.max_trailing_padding_seconds == 0.20
+    assert config.silence_augmentation.max_inserted_pauses == 2
+    assert config.silence_augmentation.pause_ratio_min == 0.9
+    assert config.silence_augmentation.pause_ratio_max == 1.4
     assert config.silence_augmentation.analysis_frame_ms == 20.0
+    assert config.augmentation_scheduler.enabled is True
+    assert config.augmentation_scheduler.warmup_epochs == 2
+    assert config.augmentation_scheduler.ramp_epochs == 3
+    assert config.augmentation_scheduler.clean_probability_start == 0.7
+    assert config.augmentation_scheduler.heavy_probability_end == 0.2
+    assert config.augmentation_scheduler.family_weights.codec == 0.8
     assert config.features.sample_rate_hz == 16000
     assert config.features.num_mel_bins == 80
     assert config.features.frame_length_ms == 25.0
@@ -74,6 +80,10 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "silence_augmentation.max_leading_padding_seconds=0.15",
             "silence_augmentation.max_inserted_pauses=2",
             "silence_augmentation.pause_ratio_max=1.4",
+            "augmentation_scheduler.warmup_epochs=1",
+            "augmentation_scheduler.light_probability_end=0.2",
+            "augmentation_scheduler.heavy_probability_end=0.3",
+            "augmentation_scheduler.family_weights.silence=0.9",
             "features.num_mel_bins=96",
             "features.cmvn_mode=sliding",
             "features.output_dtype=float16",
@@ -101,6 +111,10 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.silence_augmentation.max_leading_padding_seconds == 0.15
     assert config.silence_augmentation.max_inserted_pauses == 2
     assert config.silence_augmentation.pause_ratio_max == 1.4
+    assert config.augmentation_scheduler.warmup_epochs == 1
+    assert config.augmentation_scheduler.light_probability_end == 0.2
+    assert config.augmentation_scheduler.heavy_probability_end == 0.3
+    assert config.augmentation_scheduler.family_weights.silence == 0.9
     assert config.features.num_mel_bins == 96
     assert config.features.cmvn_mode == "sliding"
     assert config.features.output_dtype == "float16"

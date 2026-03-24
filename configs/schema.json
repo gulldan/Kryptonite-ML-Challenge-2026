@@ -12,6 +12,7 @@
         "tracking",
         "normalization",
         "vad",
+        "augmentation_scheduler",
         "secrets",
         "deployment",
     ],
@@ -189,6 +190,51 @@
                 "max_perturbed_pause_seconds": {"type": "number", "minimum": 0.0},
                 "analysis_frame_ms": {"type": "number", "exclusiveMinimum": 0.0},
                 "silence_threshold_dbfs": {"type": "number"}
+            },
+            "additionalProperties": false
+        },
+        "augmentation_scheduler": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "warmup_epochs",
+                "ramp_epochs",
+                "max_augmentations_per_sample",
+                "clean_probability_start",
+                "clean_probability_end",
+                "light_probability_start",
+                "light_probability_end",
+                "medium_probability_start",
+                "medium_probability_end",
+                "heavy_probability_start",
+                "heavy_probability_end",
+                "family_weights"
+            ],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "warmup_epochs": {"type": "integer", "minimum": 0},
+                "ramp_epochs": {"type": "integer", "minimum": 0},
+                "max_augmentations_per_sample": {"type": "integer", "minimum": 1},
+                "clean_probability_start": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "clean_probability_end": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "light_probability_start": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "light_probability_end": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "medium_probability_start": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "medium_probability_end": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "heavy_probability_start": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "heavy_probability_end": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "family_weights": {
+                    "type": "object",
+                    "required": ["noise", "reverb", "distance", "codec", "silence"],
+                    "properties": {
+                        "noise": {"type": "number", "exclusiveMinimum": 0.0},
+                        "reverb": {"type": "number", "exclusiveMinimum": 0.0},
+                        "distance": {"type": "number", "exclusiveMinimum": 0.0},
+                        "codec": {"type": "number", "exclusiveMinimum": 0.0},
+                        "silence": {"type": "number", "exclusiveMinimum": 0.0}
+                    },
+                    "additionalProperties": false
+                }
             },
             "additionalProperties": false
         },
