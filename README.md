@@ -74,6 +74,7 @@ See [docs/audio-normalization.md](./docs/audio-normalization.md) for the 16 kHz 
 See [docs/audio-loader.md](./docs/audio-loader.md) for the shared WAV/FLAC/MP3 loading contract used by preprocessing and feature work.
 See [docs/audio-vad-trimming.md](./docs/audio-vad-trimming.md) for the optional `none/light/aggressive` trimming modes and the reproducible dev comparison report.
 See [docs/audio-fbank-extraction.md](./docs/audio-fbank-extraction.md) for the shared 80-dim log-Mel/Fbank frontend and the offline/online parity smoke workflow.
+See [docs/audio-chunking-policy.md](./docs/audio-chunking-policy.md) for the unified train/eval/demo utterance chunking contract and pooling rules.
 
 ## Naming Conventions
 

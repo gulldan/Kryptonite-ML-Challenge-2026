@@ -77,6 +77,20 @@ cmvn_mode = "none"
 cmvn_window_frames = 300
 output_dtype = "float32"
 
+[chunking]
+train_min_crop_seconds = 1.0
+train_max_crop_seconds = 4.0
+train_num_crops = 1
+train_short_utterance_policy = "repeat_pad"
+eval_max_full_utterance_seconds = 4.0
+eval_chunk_seconds = 4.0
+eval_chunk_overlap_seconds = 1.0
+eval_pooling = "mean"
+demo_max_full_utterance_seconds = 4.0
+demo_chunk_seconds = 4.0
+demo_chunk_overlap_seconds = 1.0
+demo_pooling = "mean"
+
 [secrets]
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"

@@ -32,6 +32,12 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.features.window_type == "hann"
     assert config.features.cmvn_mode == "none"
     assert config.features.output_dtype == "float32"
+    assert config.chunking.train_min_crop_seconds == 1.0
+    assert config.chunking.train_max_crop_seconds == 4.0
+    assert config.chunking.train_num_crops == 1
+    assert config.chunking.train_short_utterance_policy == "repeat_pad"
+    assert config.chunking.eval_pooling == "mean"
+    assert config.chunking.demo_pooling == "mean"
     assert config.deployment.model_bundle_root == "artifacts/model-bundle"
     assert config.deployment.demo_subset_root == "artifacts/demo-subset"
     assert config.deployment.require_artifacts is False
@@ -60,6 +66,10 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "features.num_mel_bins=96",
             "features.cmvn_mode=sliding",
             "features.output_dtype=float16",
+            "chunking.train_num_crops=3",
+            "chunking.train_short_utterance_policy=zero_pad",
+            "chunking.eval_chunk_overlap_seconds=0.5",
+            "chunking.demo_pooling=max",
         ],
         env_file=env_file,
     )
@@ -79,6 +89,10 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.features.num_mel_bins == 96
     assert config.features.cmvn_mode == "sliding"
     assert config.features.output_dtype == "float16"
+    assert config.chunking.train_num_crops == 3
+    assert config.chunking.train_short_utterance_policy == "zero_pad"
+    assert config.chunking.eval_chunk_overlap_seconds == 0.5
+    assert config.chunking.demo_pooling == "max"
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 

@@ -110,6 +110,22 @@ class FeaturesConfig:
 
 
 @dataclass(slots=True)
+class ChunkingConfig:
+    train_min_crop_seconds: float = 1.0
+    train_max_crop_seconds: float = 4.0
+    train_num_crops: int = 1
+    train_short_utterance_policy: str = "repeat_pad"
+    eval_max_full_utterance_seconds: float = 4.0
+    eval_chunk_seconds: float = 4.0
+    eval_chunk_overlap_seconds: float = 1.0
+    eval_pooling: str = "mean"
+    demo_max_full_utterance_seconds: float = 4.0
+    demo_chunk_seconds: float = 4.0
+    demo_chunk_overlap_seconds: float = 1.0
+    demo_pooling: str = "mean"
+
+
+@dataclass(slots=True)
 class SecretRefs:
     wandb_api_key: str
     mlflow_tracking_token: str
@@ -135,6 +151,7 @@ class ProjectConfig:
     normalization: NormalizationConfig
     vad: VADConfig
     features: FeaturesConfig
+    chunking: ChunkingConfig
     secrets: SecretRefs
     deployment: DeploymentConfig
     resolved_secrets: dict[str, str | None] = field(default_factory=dict)
@@ -151,6 +168,7 @@ class ProjectConfig:
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
             "features": asdict(self.features),
+            "chunking": asdict(self.chunking),
             "secrets": asdict(self.secrets),
             "deployment": asdict(self.deployment),
             "resolved_secrets": dict(self.resolved_secrets),
@@ -236,6 +254,26 @@ def load_project_config(
                     "cmvn_mode": "none",
                     "cmvn_window_frames": 300,
                     "output_dtype": "float32",
+                },
+            )
+        ),
+        chunking=ChunkingConfig(
+            **optional_section(
+                data,
+                "chunking",
+                {
+                    "train_min_crop_seconds": 1.0,
+                    "train_max_crop_seconds": 4.0,
+                    "train_num_crops": 1,
+                    "train_short_utterance_policy": "repeat_pad",
+                    "eval_max_full_utterance_seconds": 4.0,
+                    "eval_chunk_seconds": 4.0,
+                    "eval_chunk_overlap_seconds": 1.0,
+                    "eval_pooling": "mean",
+                    "demo_max_full_utterance_seconds": 4.0,
+                    "demo_chunk_seconds": 4.0,
+                    "demo_chunk_overlap_seconds": 1.0,
+                    "demo_pooling": "mean",
                 },
             )
         ),
