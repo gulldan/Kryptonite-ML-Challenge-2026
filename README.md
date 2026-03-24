@@ -78,6 +78,7 @@ See [docs/audio-feature-cache.md](./docs/audio-feature-cache.md) for the feature
 See [docs/audio-chunking-policy.md](./docs/audio-chunking-policy.md) for the unified train/eval/demo utterance chunking contract and pooling rules.
 See [docs/audio-noise-bank.md](./docs/audio-noise-bank.md) for additive-noise bank assembly, severity buckets, and reproducible manifest/report generation.
 See [docs/audio-rir-bank.md](./docs/audio-rir-bank.md) for room-impulse-response bank assembly, RT60/DRR sanity checks, and reusable room-simulation config generation.
+See [docs/audio-codec-simulation.md](./docs/audio-codec-simulation.md) for deterministic FFmpeg-based codec/channel preset generation and preview reporting.
 
 ## Naming Conventions
 
