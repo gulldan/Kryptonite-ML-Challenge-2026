@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from os import cpu_count
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,37 @@ class _SourceUtterance:
     suite_audio_basename: str
 
 
+@dataclass(frozen=True, slots=True)
+class _WorkerSuiteContext:
+    project_root: str
+    suite_spec: CorruptedDevSuiteSpec
+    plan_seed: int
+    audio_root: str
+    normalization_config: NormalizationConfig
+    silence_config: SilenceAugmentationConfig
+    noise_manifest_path: str | None
+    rir_manifest_path: str | None
+    room_config_manifest_path: str | None
+    codec_plan_path: str
+    far_field_plan_path: str
+    ffmpeg_path: str
+
+
+@dataclass(frozen=True, slots=True)
+class _RenderedSuiteItem:
+    index: int
+    source_audio_basename: str
+    suite_audio_basename: str
+    manifest_row: dict[str, object]
+    severity: str
+    candidate_id: str
+
+
+_WORKER_CONTEXT: _WorkerSuiteContext | None = None
+_WORKER_REQUEST: AudioLoadRequest | None = None
+_WORKER_CANDIDATES: tuple[Any, ...] = ()
+
+
 def build_corrupted_dev_suites(
     *,
     project_root: Path | str,
@@ -69,6 +102,7 @@ def build_corrupted_dev_suites(
     codec_plan_path: Path | str = "configs/corruption/codec-bank.toml",
     far_field_plan_path: Path | str = "configs/corruption/far-field-bank.toml",
     ffmpeg_path: str = "ffmpeg",
+    max_workers: int = 1,
 ) -> CorruptedDevSuitesReport:
     project_root_path = resolve_project_path(str(project_root), ".")
     output_root = resolve_project_path(str(project_root_path), plan.output_root)
@@ -127,6 +161,7 @@ def build_corrupted_dev_suites(
             codec_plan_path=resolved_codec_plan_path,
             far_field_plan_path=resolved_far_field_plan_path,
             ffmpeg_path=ffmpeg_path,
+            max_workers=max_workers,
         )
         for suite_spec in plan.suites
     )
@@ -174,6 +209,7 @@ def _build_single_suite(
     codec_plan_path: Path,
     far_field_plan_path: Path,
     ffmpeg_path: str,
+    max_workers: int,
 ) -> BuiltCorruptedSuite:
     suite_root.mkdir(parents=True, exist_ok=True)
     audio_root = suite_root / "audio"
@@ -193,56 +229,31 @@ def _build_single_suite(
         raise ValueError(f"No candidates available for suite {suite_spec.suite_id!r}.")
 
     request = AudioLoadRequest.from_config(normalization_config)
-    manifest_rows: list[dict[str, object]] = []
-    severity_counts: Counter[str] = Counter()
-    candidate_counts: Counter[str] = Counter()
-    basename_map: dict[str, str] = {}
-
-    for source_row in source_rows:
-        rng = stable_rng(seed=plan_seed, namespace=suite_spec.suite_id, item_id=source_row.item_id)
-        loaded = load_audio(
-            source_row.row.audio_path,
-            project_root=project_root,
-            request=request,
-        )
-        candidate = pick_weighted_candidate(candidates, rng=rng)
-        outcome = _apply_suite_candidate(
-            project_root=project_root,
-            suite_spec=suite_spec,
-            candidate=candidate,
-            waveform=loaded.waveform,
-            sample_rate_hz=loaded.sample_rate_hz,
-            rng=rng,
-            ffmpeg_path=ffmpeg_path,
-        )
-        output_path = audio_root / source_row.suite_audio_basename
-        write_audio_file(
-            path=output_path,
-            waveform=outcome.waveform,
-            sample_rate_hz=outcome.sample_rate_hz,
-            output_format=normalization_config.output_format,
-            pcm_bits_per_sample=normalization_config.output_pcm_bits_per_sample,
-        )
-        basename_map[source_row.source_audio_basename] = source_row.suite_audio_basename
-        severity_counts[outcome.severity] += 1
-        candidate_counts[outcome.candidate_id] += 1
-        manifest_rows.append(
-            _build_suite_manifest_row(
-                source=source_row,
-                suite_spec=suite_spec,
-                project_root=project_root,
-                output_path=output_path,
-                sample_rate_hz=outcome.sample_rate_hz,
-                num_channels=int(outcome.waveform.shape[0]),
-                duration_seconds=round(
-                    float(outcome.waveform.shape[-1]) / float(outcome.sample_rate_hz),
-                    6,
-                ),
-                candidate_id=outcome.candidate_id,
-                severity=outcome.severity,
-                metadata=outcome.metadata,
-            )
-        )
+    rendered_items = _render_suite_items(
+        project_root=project_root,
+        suite_spec=suite_spec,
+        plan_seed=plan_seed,
+        source_rows=source_rows,
+        audio_root=audio_root,
+        request=request,
+        normalization_config=normalization_config,
+        silence_config=silence_config,
+        candidates=candidates,
+        noise_manifest_path=noise_manifest_path,
+        rir_manifest_path=rir_manifest_path,
+        room_config_manifest_path=room_config_manifest_path,
+        codec_plan_path=codec_plan_path,
+        far_field_plan_path=far_field_plan_path,
+        ffmpeg_path=ffmpeg_path,
+        max_workers=max_workers,
+    )
+    manifest_rows = [item.manifest_row for item in rendered_items]
+    severity_counts = Counter(item.severity for item in rendered_items)
+    candidate_counts = Counter(item.candidate_id for item in rendered_items)
+    basename_map = {
+        source_row.source_audio_basename: source_row.suite_audio_basename
+        for source_row in source_rows
+    }
 
     manifest_path = suite_root / "dev_manifest.jsonl"
     manifest_artifact = write_tabular_artifact(
@@ -315,6 +326,187 @@ def _build_single_suite(
         ),
     )
     return provisional_suite
+
+
+def _render_suite_items(
+    *,
+    project_root: Path,
+    suite_spec: CorruptedDevSuiteSpec,
+    plan_seed: int,
+    source_rows: tuple[_SourceUtterance, ...],
+    audio_root: Path,
+    request: AudioLoadRequest,
+    normalization_config: NormalizationConfig,
+    silence_config: SilenceAugmentationConfig,
+    candidates: tuple[Any, ...],
+    noise_manifest_path: Path | None,
+    rir_manifest_path: Path | None,
+    room_config_manifest_path: Path | None,
+    codec_plan_path: Path,
+    far_field_plan_path: Path,
+    ffmpeg_path: str,
+    max_workers: int,
+) -> list[_RenderedSuiteItem]:
+    workers = _resolve_worker_count(max_workers=max_workers)
+    if workers == 1 or len(source_rows) <= 1:
+        return [
+            _render_source_row(
+                index=index,
+                source_row=source_row,
+                project_root=project_root,
+                suite_spec=suite_spec,
+                plan_seed=plan_seed,
+                audio_root=audio_root,
+                request=request,
+                candidates=candidates,
+                normalization_config=normalization_config,
+                ffmpeg_path=ffmpeg_path,
+            )
+            for index, source_row in enumerate(source_rows)
+        ]
+
+    context = _WorkerSuiteContext(
+        project_root=str(project_root),
+        suite_spec=suite_spec,
+        plan_seed=plan_seed,
+        audio_root=str(audio_root),
+        normalization_config=normalization_config,
+        silence_config=silence_config,
+        noise_manifest_path=str(noise_manifest_path) if noise_manifest_path is not None else None,
+        rir_manifest_path=str(rir_manifest_path) if rir_manifest_path is not None else None,
+        room_config_manifest_path=(
+            str(room_config_manifest_path) if room_config_manifest_path is not None else None
+        ),
+        codec_plan_path=str(codec_plan_path),
+        far_field_plan_path=str(far_field_plan_path),
+        ffmpeg_path=ffmpeg_path,
+    )
+    chunksize = max(1, min(32, len(source_rows) // (workers * 4) or 1))
+    with ProcessPoolExecutor(
+        max_workers=workers,
+        initializer=_init_suite_worker,
+        initargs=(context,),
+    ) as executor:
+        rendered_items = list(
+            executor.map(
+                _render_source_row_in_worker,
+                enumerate(source_rows),
+                chunksize=chunksize,
+            )
+        )
+    rendered_items.sort(key=lambda item: item.index)
+    return rendered_items
+
+
+def _resolve_worker_count(*, max_workers: int) -> int:
+    if max_workers <= 1:
+        return 1
+    available = cpu_count() or 1
+    return max(1, min(max_workers, available))
+
+
+def _init_suite_worker(context: _WorkerSuiteContext) -> None:
+    global _WORKER_CONTEXT, _WORKER_REQUEST, _WORKER_CANDIDATES
+
+    _WORKER_CONTEXT = context
+    project_root = Path(context.project_root)
+    _WORKER_REQUEST = AudioLoadRequest.from_config(context.normalization_config)
+    _WORKER_CANDIDATES = _load_suite_candidates(
+        project_root=project_root,
+        suite_spec=context.suite_spec,
+        silence_config=context.silence_config,
+        noise_manifest_path=Path(context.noise_manifest_path)
+        if context.noise_manifest_path is not None
+        else None,
+        rir_manifest_path=Path(context.rir_manifest_path)
+        if context.rir_manifest_path is not None
+        else None,
+        room_config_manifest_path=Path(context.room_config_manifest_path)
+        if context.room_config_manifest_path is not None
+        else None,
+        codec_plan_path=Path(context.codec_plan_path),
+        far_field_plan_path=Path(context.far_field_plan_path),
+    )
+
+
+def _render_source_row_in_worker(item: tuple[int, _SourceUtterance]) -> _RenderedSuiteItem:
+    if _WORKER_CONTEXT is None or _WORKER_REQUEST is None:
+        raise RuntimeError("Suite worker context was not initialized.")
+
+    index, source_row = item
+    return _render_source_row(
+        index=index,
+        source_row=source_row,
+        project_root=Path(_WORKER_CONTEXT.project_root),
+        suite_spec=_WORKER_CONTEXT.suite_spec,
+        plan_seed=_WORKER_CONTEXT.plan_seed,
+        audio_root=Path(_WORKER_CONTEXT.audio_root),
+        request=_WORKER_REQUEST,
+        candidates=_WORKER_CANDIDATES,
+        normalization_config=_WORKER_CONTEXT.normalization_config,
+        ffmpeg_path=_WORKER_CONTEXT.ffmpeg_path,
+    )
+
+
+def _render_source_row(
+    *,
+    index: int,
+    source_row: _SourceUtterance,
+    project_root: Path,
+    suite_spec: CorruptedDevSuiteSpec,
+    plan_seed: int,
+    audio_root: Path,
+    request: AudioLoadRequest,
+    candidates: tuple[Any, ...],
+    normalization_config: NormalizationConfig,
+    ffmpeg_path: str,
+) -> _RenderedSuiteItem:
+    rng = stable_rng(seed=plan_seed, namespace=suite_spec.suite_id, item_id=source_row.item_id)
+    loaded = load_audio(
+        source_row.row.audio_path,
+        project_root=project_root,
+        request=request,
+    )
+    candidate = pick_weighted_candidate(candidates, rng=rng)
+    outcome = _apply_suite_candidate(
+        project_root=project_root,
+        suite_spec=suite_spec,
+        candidate=candidate,
+        waveform=loaded.waveform,
+        sample_rate_hz=loaded.sample_rate_hz,
+        rng=rng,
+        ffmpeg_path=ffmpeg_path,
+    )
+    output_path = audio_root / source_row.suite_audio_basename
+    write_audio_file(
+        path=output_path,
+        waveform=outcome.waveform,
+        sample_rate_hz=outcome.sample_rate_hz,
+        output_format=normalization_config.output_format,
+        pcm_bits_per_sample=normalization_config.output_pcm_bits_per_sample,
+    )
+    return _RenderedSuiteItem(
+        index=index,
+        source_audio_basename=source_row.source_audio_basename,
+        suite_audio_basename=source_row.suite_audio_basename,
+        manifest_row=_build_suite_manifest_row(
+            source=source_row,
+            suite_spec=suite_spec,
+            project_root=project_root,
+            output_path=output_path,
+            sample_rate_hz=outcome.sample_rate_hz,
+            num_channels=int(outcome.waveform.shape[0]),
+            duration_seconds=round(
+                float(outcome.waveform.shape[-1]) / float(outcome.sample_rate_hz),
+                6,
+            ),
+            candidate_id=outcome.candidate_id,
+            severity=outcome.severity,
+            metadata=outcome.metadata,
+        ),
+        severity=outcome.severity,
+        candidate_id=outcome.candidate_id,
+    )
 
 
 def _load_suite_candidates(

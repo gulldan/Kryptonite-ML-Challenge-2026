@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -76,6 +77,68 @@ def test_build_corrupted_dev_suites_writes_manifests_trials_and_catalog(tmp_path
     assert str(channel_trials[0]["left_audio"]).endswith(".wav")
     assert (tmp_path / suites_by_id["dev_reverb"].inventory_path).is_file()
     assert (tmp_path / suites_by_id["dev_distance"].suite_summary_markdown_path).is_file()
+
+
+@pytest.mark.skipif(not _ffmpeg_available(), reason="ffmpeg is required")
+def test_build_corrupted_dev_suites_parallel_matches_sequential(tmp_path: Path) -> None:
+    source_manifest_path, source_trial_paths = _write_source_bundle(tmp_path)
+    noise_manifest_path = _write_noise_manifest(tmp_path)
+    rir_manifest_path, room_config_manifest_path = _write_rir_bundle(tmp_path)
+    codec_plan_path = _write_codec_plan(tmp_path)
+    far_field_plan_path = _write_far_field_plan(tmp_path)
+    suite_plan_path = _write_suite_plan(
+        tmp_path,
+        source_manifest_path=source_manifest_path,
+        source_trial_paths=source_trial_paths,
+    )
+    base_plan = load_corrupted_dev_suites_plan(suite_plan_path)
+    sequential_plan = replace(
+        base_plan,
+        output_root="artifacts/eval/corrupted-dev-suites-sequential",
+    )
+    parallel_plan = replace(base_plan, output_root="artifacts/eval/corrupted-dev-suites-parallel")
+
+    sequential_report = build_corrupted_dev_suites(
+        project_root=tmp_path,
+        plan=sequential_plan,
+        normalization_config=_normalization_config(),
+        silence_config=_silence_config(),
+        plan_path=suite_plan_path,
+        noise_manifest_path=noise_manifest_path,
+        rir_manifest_path=rir_manifest_path,
+        room_config_manifest_path=room_config_manifest_path,
+        codec_plan_path=codec_plan_path,
+        far_field_plan_path=far_field_plan_path,
+        max_workers=1,
+    )
+    parallel_report = build_corrupted_dev_suites(
+        project_root=tmp_path,
+        plan=parallel_plan,
+        normalization_config=_normalization_config(),
+        silence_config=_silence_config(),
+        plan_path=suite_plan_path,
+        noise_manifest_path=noise_manifest_path,
+        rir_manifest_path=rir_manifest_path,
+        room_config_manifest_path=room_config_manifest_path,
+        codec_plan_path=codec_plan_path,
+        far_field_plan_path=far_field_plan_path,
+        max_workers=2,
+    )
+
+    sequential_suites = {suite.suite_id: suite for suite in sequential_report.suites}
+    parallel_suites = {suite.suite_id: suite for suite in parallel_report.suites}
+
+    assert sequential_suites.keys() == parallel_suites.keys()
+    for suite_id in sequential_suites:
+        sequential_manifest = _normalized_manifest_rows(
+            _read_jsonl(tmp_path / sequential_suites[suite_id].manifest_path),
+            output_root=sequential_plan.output_root,
+        )
+        parallel_manifest = _normalized_manifest_rows(
+            _read_jsonl(tmp_path / parallel_suites[suite_id].manifest_path),
+            output_root=parallel_plan.output_root,
+        )
+        assert parallel_manifest == sequential_manifest
 
 
 def _write_source_bundle(tmp_path: Path) -> tuple[Path, tuple[Path, ...]]:
@@ -496,6 +559,25 @@ def _rir_wave(*, decay: float) -> np.ndarray:
 
 def _read_jsonl(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def _normalized_manifest_rows(
+    rows: list[dict[str, object]],
+    *,
+    output_root: str,
+) -> list[dict[str, object]]:
+    normalized: list[dict[str, object]] = []
+    root_prefix = f"{output_root}/"
+    for row in rows:
+        payload = dict(row)
+        audio_path = str(payload["audio_path"])
+        source_audio_path = str(payload["source_audio_path"])
+        if audio_path.startswith(root_prefix):
+            payload["audio_path"] = audio_path.removeprefix(root_prefix)
+        if source_audio_path.startswith(root_prefix):
+            payload["source_audio_path"] = source_audio_path.removeprefix(root_prefix)
+        normalized.append(payload)
+    return normalized
 
 
 def _as_dict(value: object) -> dict[str, object]:

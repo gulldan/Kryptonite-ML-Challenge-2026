@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -118,7 +119,7 @@ def render_far_field_preset(
     render_settings: FarFieldRenderSettings,
 ) -> RenderedFarFieldPreset:
     mono = np.asarray(waveform, dtype=np.float64).mean(axis=0)
-    kernel, kernel_metrics = _build_impulse_response(
+    kernel, kernel_metrics = _build_impulse_response_cached(
         sample_rate_hz=sample_rate_hz,
         preset=preset,
         render_settings=render_settings,
@@ -142,6 +143,20 @@ def render_far_field_preset(
         kernel_waveform=kernel_audio[np.newaxis, :].astype("float32"),
         output_metrics=output_metrics,
         kernel_metrics=kernel_metrics,
+    )
+
+
+@lru_cache(maxsize=32)
+def _build_impulse_response_cached(
+    *,
+    sample_rate_hz: int,
+    preset: FarFieldSimulationPreset,
+    render_settings: FarFieldRenderSettings,
+) -> tuple[np.ndarray, FarFieldKernelMetrics]:
+    return _build_impulse_response(
+        sample_rate_hz=sample_rate_hz,
+        preset=preset,
+        render_settings=render_settings,
     )
 
 

@@ -7,6 +7,7 @@ import json
 import math
 import random
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Protocol, cast
@@ -276,6 +277,7 @@ def apply_noise_transform(
     noise_waveform = _load_audio_for_transform(
         path=resolve_project_path(str(project_root), candidate.audio_path),
         sample_rate_hz=sample_rate_hz,
+        cacheable=True,
     )
     aligned_noise = _match_waveform_length(
         noise_waveform, target_frames=waveform.shape[-1], rng=rng
@@ -306,7 +308,11 @@ def apply_reverb_transform(
 ) -> TransformOutcome:
     rir_index = rng.randrange(len(candidate.rir_audio_paths))
     rir_path = resolve_project_path(str(project_root), candidate.rir_audio_paths[rir_index])
-    rir_waveform = _load_audio_for_transform(path=rir_path, sample_rate_hz=sample_rate_hz)
+    rir_waveform = _load_audio_for_transform(
+        path=rir_path,
+        sample_rate_hz=sample_rate_hz,
+        cacheable=True,
+    )
     rir_mono = rir_waveform.mean(axis=0)
     rir_energy = float(np.sqrt(np.mean(np.square(rir_mono), dtype=np.float64)))
     if rir_energy > 0.0:
@@ -449,8 +455,26 @@ def _read_jsonl_records(path: Path) -> list[dict[str, object]]:
     ]
 
 
-def _load_audio_for_transform(*, path: Path, sample_rate_hz: int) -> np.ndarray:
+def _load_audio_for_transform(
+    *,
+    path: Path,
+    sample_rate_hz: int,
+    cacheable: bool = False,
+) -> np.ndarray:
+    if cacheable:
+        return _load_cached_transform_audio(str(path.resolve()), sample_rate_hz)
     waveform, info = read_audio_file(path)
+    output = np.asarray(waveform, dtype=np.float32)
+    if info.sample_rate_hz != sample_rate_hz:
+        output = resample_waveform(output, orig_freq=info.sample_rate_hz, new_freq=sample_rate_hz)
+    if output.shape[0] > 1:
+        output = output.mean(axis=0, keepdims=True)
+    return output.astype("float32", copy=False)
+
+
+@lru_cache(maxsize=32)
+def _load_cached_transform_audio(path: str, sample_rate_hz: int) -> np.ndarray:
+    waveform, info = read_audio_file(Path(path))
     output = np.asarray(waveform, dtype=np.float32)
     if info.sample_rate_hz != sample_rate_hz:
         output = resample_waveform(output, orig_freq=info.sample_rate_hz, new_freq=sample_rate_hz)

@@ -60,6 +60,12 @@ def parse_args() -> argparse.Namespace:
         help="FFmpeg binary used for codec/channel transforms.",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Per-suite utterance workers. Defaults to runtime.num_workers from config.",
+    )
+    parser.add_argument(
         "--override",
         action="append",
         default=[],
@@ -84,6 +90,9 @@ def main() -> None:
         codec_plan_path=args.codec_plan,
         far_field_plan_path=args.far_field_plan,
         ffmpeg_path=args.ffmpeg_path,
+        max_workers=(
+            args.workers if args.workers is not None else max(1, int(config.runtime.num_workers))
+        ),
     )
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
 
