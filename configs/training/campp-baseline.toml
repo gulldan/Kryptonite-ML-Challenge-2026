@@ -1,0 +1,48 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-baseline"',
+  'tracking.run_name_prefix="campp"',
+  'runtime.num_workers=0',
+  'training.batch_size=4',
+  'training.eval_batch_size=4',
+  'training.max_epochs=2',
+  'chunking.train_min_crop_seconds=3.0',
+  'chunking.train_max_crop_seconds=3.0',
+  'chunking.train_num_crops=1',
+]
+
+[data]
+train_manifest = "artifacts/manifests/demo_manifest.jsonl"
+dev_manifest = "artifacts/manifests/demo_manifest.jsonl"
+output_root = "artifacts/baselines/campp"
+trials_manifest = ""
+checkpoint_name = "campp_encoder.pt"
+generate_demo_artifacts_if_missing = true
+
+[model]
+embedding_size = 512
+growth_rate = 32
+bottleneck_scale = 4
+init_channels = 128
+head_channels = 32
+head_res_blocks = [2, 2]
+block_layers = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations = [1, 2, 2]
+memory_efficient = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+learning_rate = 0.1
+min_learning_rate = 0.0001
+momentum = 0.9
+weight_decay = 0.0001
+warmup_epochs = 0
+grad_clip_norm = 5.0

@@ -82,6 +82,7 @@ See [docs/audio-codec-simulation.md](./docs/audio-codec-simulation.md) for deter
 See [docs/audio-far-field-simulation.md](./docs/audio-far-field-simulation.md) for deterministic near/mid/far distance simulation presets, kernel controls, and preview reporting.
 See [docs/audio-augmentation-scheduler.md](./docs/audio-augmentation-scheduler.md) for the clean/light/medium/heavy curriculum policy over the assembled corruption banks.
 See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
+See [docs/campp-baseline.md](./docs/campp-baseline.md) for the first repo-native CAM++ baseline path from manifests to checkpoints, embeddings, and cosine scores.
 
 ## Naming Conventions
 

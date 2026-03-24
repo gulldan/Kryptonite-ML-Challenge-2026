@@ -23,6 +23,7 @@ Current entrypoints include:
 - `scripts/build_corrupted_dev_suites.py` for freezing deterministic `dev_snr` / `dev_reverb` / `dev_codec` / `dev_distance` / `dev_channel` / `dev_silence` evaluation bundles from one clean dev manifest
 - `scripts/build_embedding_atlas.py` for projecting precomputed embeddings into an interactive HTML atlas with nearest neighbors and optional media preview
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
+- `scripts/run_campp_baseline.py` for training the repo-native CAM++ baseline and writing checkpoints, dev embeddings, trials, and cosine scores
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
 - `scripts/normalize_audio_dataset.py` for deterministic 16 kHz mono normalization, manifest rewriting, and quarantine reporting
 - `scripts/prepare_ffsvc2022_surrogate.py` for building manifests, quarantine lists, trials, speaker-disjoint splits, and checksum inventory from the surrogate bundle
