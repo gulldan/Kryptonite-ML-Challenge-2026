@@ -92,6 +92,53 @@ class VADConfig:
 
 
 @dataclass(slots=True)
+class SilenceAugmentationConfig:
+    enabled: bool = False
+    max_leading_padding_seconds: float = 0.0
+    max_trailing_padding_seconds: float = 0.0
+    max_inserted_pauses: int = 0
+    min_inserted_pause_seconds: float = 0.08
+    max_inserted_pause_seconds: float = 0.25
+    pause_ratio_min: float = 1.0
+    pause_ratio_max: float = 1.0
+    min_detected_pause_seconds: float = 0.08
+    max_perturbed_pause_seconds: float = 0.6
+    analysis_frame_ms: float = 20.0
+    silence_threshold_dbfs: float = -45.0
+
+    def __post_init__(self) -> None:
+        for name in (
+            "max_leading_padding_seconds",
+            "max_trailing_padding_seconds",
+            "min_inserted_pause_seconds",
+            "max_inserted_pause_seconds",
+            "min_detected_pause_seconds",
+            "max_perturbed_pause_seconds",
+        ):
+            value = getattr(self, name)
+            if value < 0.0:
+                raise ValueError(f"{name} must be non-negative")
+        if self.max_inserted_pauses < 0:
+            raise ValueError("max_inserted_pauses must be non-negative")
+        if self.min_inserted_pause_seconds > self.max_inserted_pause_seconds:
+            raise ValueError(
+                "min_inserted_pause_seconds must be less than or equal to "
+                "max_inserted_pause_seconds"
+            )
+        if self.pause_ratio_min <= 0.0 or self.pause_ratio_max <= 0.0:
+            raise ValueError("pause_ratio_min and pause_ratio_max must be positive")
+        if self.pause_ratio_min > self.pause_ratio_max:
+            raise ValueError("pause_ratio_min must be less than or equal to pause_ratio_max")
+        if self.max_perturbed_pause_seconds < self.min_detected_pause_seconds:
+            raise ValueError(
+                "max_perturbed_pause_seconds must be greater than or equal to "
+                "min_detected_pause_seconds"
+            )
+        if self.analysis_frame_ms <= 0.0:
+            raise ValueError("analysis_frame_ms must be positive")
+
+
+@dataclass(slots=True)
 class FeaturesConfig:
     sample_rate_hz: int
     num_mel_bins: int
@@ -161,6 +208,7 @@ class ProjectConfig:
     tracking: TrackingConfig
     normalization: NormalizationConfig
     vad: VADConfig
+    silence_augmentation: SilenceAugmentationConfig
     features: FeaturesConfig
     feature_cache: FeatureCacheConfig
     chunking: ChunkingConfig
@@ -179,6 +227,7 @@ class ProjectConfig:
             "tracking": asdict(self.tracking),
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
+            "silence_augmentation": asdict(self.silence_augmentation),
             "features": asdict(self.features),
             "feature_cache": asdict(self.feature_cache),
             "chunking": asdict(self.chunking),
@@ -245,6 +294,26 @@ def load_project_config(
                     "provider": "auto",
                     "min_output_duration_seconds": 1.0,
                     "min_retained_ratio": 0.4,
+                },
+            )
+        ),
+        silence_augmentation=SilenceAugmentationConfig(
+            **optional_section(
+                data,
+                "silence_augmentation",
+                {
+                    "enabled": False,
+                    "max_leading_padding_seconds": 0.0,
+                    "max_trailing_padding_seconds": 0.0,
+                    "max_inserted_pauses": 0,
+                    "min_inserted_pause_seconds": 0.08,
+                    "max_inserted_pause_seconds": 0.25,
+                    "pause_ratio_min": 1.0,
+                    "pause_ratio_max": 1.0,
+                    "min_detected_pause_seconds": 0.08,
+                    "max_perturbed_pause_seconds": 0.6,
+                    "analysis_frame_ms": 20.0,
+                    "silence_threshold_dbfs": -45.0,
                 },
             )
         ),

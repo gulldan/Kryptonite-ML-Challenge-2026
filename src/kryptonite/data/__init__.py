@@ -92,6 +92,13 @@ from .schema import (
     normalize_manifest_entry,
     validate_manifest_entry,
 )
+from .silence_augmentation import (
+    PauseSpan,
+    SilenceAugmentationDecision,
+    SilenceProfile,
+    analyze_silence_profile,
+    apply_silence_augmentation,
+)
 from .validation import (
     ManifestRowIssue,
     ManifestValidationReport,
@@ -138,6 +145,7 @@ __all__ = [
     "NoiseSourcePlan",
     "NoiseSourceStatus",
     "NumericRange",
+    "PauseSpan",
     "ProbeAudioMetrics",
     "RIRAcousticMetrics",
     "RIRAnalysisSettings",
@@ -157,6 +165,8 @@ __all__ = [
     "RIRSourcePlan",
     "RIRSourceStatus",
     "RoomSimulationConfig",
+    "SilenceAugmentationDecision",
+    "SilenceProfile",
     "SkippedManifest",
     "WrittenRIRBankArtifacts",
     "WrittenCodecBankArtifacts",
@@ -165,6 +175,8 @@ __all__ = [
     "build_noise_bank",
     "build_rir_bank",
     "WrittenDatasetInventoryReport",
+    "analyze_silence_profile",
+    "apply_silence_augmentation",
     "build_dataset_inventory_report",
     "build_manifest_validation_report",
     "iter_manifest_audio",

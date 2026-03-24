@@ -14,6 +14,7 @@ Current entrypoints include:
 - `scripts/dataset_sync.py` for reproducible dataset/manifests sync and gpu-server readiness reporting
 - `scripts/generate_demo_artifacts.py` for reproducible mini-demo dataset/manifests/model bundle generation, including CSV sidecars and checksum inventory
 - `scripts/loudness_normalization_report.py` for comparing loader-time bounded RMS normalization against the raw waveform path
+- `scripts/silence_augmentation_report.py` for waveform-level ablations of boundary padding, inserted pauses, and pause-ratio perturbation
 - `scripts/build_noise_bank.py` for assembling approved additive-noise corpora into one normalized noise bank with manifest and report artifacts
 - `scripts/build_rir_bank.py` for assembling approved room impulse responses into a normalized RIR bank plus reusable room-simulation configs
 - `scripts/build_codec_bank.py` for rendering deterministic FFmpeg-based codec/channel presets into preview audio plus manifest/report artifacts

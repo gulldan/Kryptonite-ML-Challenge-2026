@@ -159,3 +159,43 @@ uv run python scripts/vad_trimming_report.py \
   --override vad.mode=light \
   --manifest artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl
 ```
+
+## Silence Augmentation
+
+The base config also includes a `silence_augmentation` section for the
+standalone silence/pause robustness transform:
+
+- `enabled`
+- `max_leading_padding_seconds`
+- `max_trailing_padding_seconds`
+- `max_inserted_pauses`
+- `min_inserted_pause_seconds`
+- `max_inserted_pause_seconds`
+- `pause_ratio_min`
+- `pause_ratio_max`
+- `min_detected_pause_seconds`
+- `max_perturbed_pause_seconds`
+- `analysis_frame_ms`
+- `silence_threshold_dbfs`
+
+The defaults keep it disabled so baseline waveforms and existing reports do not
+start changing implicitly. The intended workflow is:
+
+1. keep the base profile stable with `enabled = false`
+2. enable the transform explicitly through overrides for ablations
+3. feed the same config block into a future training scheduler instead of
+   inventing one-off augmentation knobs elsewhere
+
+Use the dedicated ablation CLI when you need a reproducible before/after report:
+
+```bash
+uv run python scripts/silence_augmentation_report.py \
+  --config configs/base.toml \
+  --override silence_augmentation.enabled=true \
+  --override silence_augmentation.max_inserted_pauses=2 \
+  --override silence_augmentation.pause_ratio_max=1.4 \
+  --manifest artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl
+```
+
+See [audio-silence-augmentation.md](./audio-silence-augmentation.md) for the
+full contract and artifact layout.

@@ -160,6 +160,38 @@
             },
             "additionalProperties": false,
         },
+        "silence_augmentation": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "max_leading_padding_seconds",
+                "max_trailing_padding_seconds",
+                "max_inserted_pauses",
+                "min_inserted_pause_seconds",
+                "max_inserted_pause_seconds",
+                "pause_ratio_min",
+                "pause_ratio_max",
+                "min_detected_pause_seconds",
+                "max_perturbed_pause_seconds",
+                "analysis_frame_ms",
+                "silence_threshold_dbfs"
+            ],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "max_leading_padding_seconds": {"type": "number", "minimum": 0.0},
+                "max_trailing_padding_seconds": {"type": "number", "minimum": 0.0},
+                "max_inserted_pauses": {"type": "integer", "minimum": 0},
+                "min_inserted_pause_seconds": {"type": "number", "minimum": 0.0},
+                "max_inserted_pause_seconds": {"type": "number", "minimum": 0.0},
+                "pause_ratio_min": {"type": "number", "exclusiveMinimum": 0.0},
+                "pause_ratio_max": {"type": "number", "exclusiveMinimum": 0.0},
+                "min_detected_pause_seconds": {"type": "number", "minimum": 0.0},
+                "max_perturbed_pause_seconds": {"type": "number", "minimum": 0.0},
+                "analysis_frame_ms": {"type": "number", "exclusiveMinimum": 0.0},
+                "silence_threshold_dbfs": {"type": "number"}
+            },
+            "additionalProperties": false
+        },
         "features": {
             "type": "object",
             "required": [
