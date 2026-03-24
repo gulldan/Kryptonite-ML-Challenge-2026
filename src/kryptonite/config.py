@@ -110,6 +110,17 @@ class FeaturesConfig:
 
 
 @dataclass(slots=True)
+class FeatureCacheConfig:
+    namespace: str = "fbank-v1"
+    train_policy: str = "precompute_cpu"
+    dev_policy: str = "optional"
+    infer_policy: str = "runtime"
+    benchmark_device: str = "auto"
+    benchmark_warmup_iterations: int = 1
+    benchmark_iterations: int = 3
+
+
+@dataclass(slots=True)
 class ChunkingConfig:
     train_min_crop_seconds: float = 1.0
     train_max_crop_seconds: float = 4.0
@@ -151,6 +162,7 @@ class ProjectConfig:
     normalization: NormalizationConfig
     vad: VADConfig
     features: FeaturesConfig
+    feature_cache: FeatureCacheConfig
     chunking: ChunkingConfig
     secrets: SecretRefs
     deployment: DeploymentConfig
@@ -168,6 +180,7 @@ class ProjectConfig:
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
             "features": asdict(self.features),
+            "feature_cache": asdict(self.feature_cache),
             "chunking": asdict(self.chunking),
             "secrets": asdict(self.secrets),
             "deployment": asdict(self.deployment),
@@ -254,6 +267,21 @@ def load_project_config(
                     "cmvn_mode": "none",
                     "cmvn_window_frames": 300,
                     "output_dtype": "float32",
+                },
+            )
+        ),
+        feature_cache=FeatureCacheConfig(
+            **optional_section(
+                data,
+                "feature_cache",
+                {
+                    "namespace": "fbank-v1",
+                    "train_policy": "precompute_cpu",
+                    "dev_policy": "optional",
+                    "infer_policy": "runtime",
+                    "benchmark_device": "auto",
+                    "benchmark_warmup_iterations": 1,
+                    "benchmark_iterations": 3,
                 },
             )
         ),

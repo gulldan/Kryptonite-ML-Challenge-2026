@@ -1,192 +1,283 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "KryptoniteConfig",
-  "type": "object",
-  "required": [
-    "paths",
-    "runtime",
-    "reproducibility",
-    "training",
-    "backends",
-    "export",
-    "tracking",
-    "normalization",
-    "vad",
-    "secrets",
-    "deployment"
-  ],
-  "properties": {
-    "paths": {
-      "type": "object",
-      "required": [
-        "project_root",
-        "dataset_root",
-        "artifacts_root",
-        "cache_root",
-        "manifests_root"
-      ],
-      "properties": {
-        "project_root": { "type": "string" },
-        "dataset_root": { "type": "string" },
-        "artifacts_root": { "type": "string" },
-        "cache_root": { "type": "string" },
-        "manifests_root": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "runtime": {
-      "type": "object",
-      "required": ["seed", "device", "log_level", "num_workers"],
-      "properties": {
-        "seed": { "type": "integer", "minimum": 0 },
-        "device": { "type": "string" },
-        "log_level": { "type": "string" },
-        "num_workers": { "type": "integer", "minimum": 0 }
-      },
-      "additionalProperties": false
-    },
-    "reproducibility": {
-      "type": "object",
-      "required": ["deterministic", "pythonhashseed", "fingerprint_paths"],
-      "properties": {
-        "deterministic": { "type": "boolean" },
-        "pythonhashseed": { "type": "integer", "minimum": 0 },
-        "fingerprint_paths": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
-      },
-      "additionalProperties": false
-    },
-    "training": {
-      "type": "object",
-      "required": ["batch_size", "eval_batch_size", "max_epochs", "precision"],
-      "properties": {
-        "batch_size": { "type": "integer", "minimum": 1 },
-        "eval_batch_size": { "type": "integer", "minimum": 1 },
-        "max_epochs": { "type": "integer", "minimum": 1 },
-        "precision": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "backends": {
-      "type": "object",
-      "required": [
-        "inference",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "KryptoniteConfig",
+    "type": "object",
+    "required": [
+        "paths",
+        "runtime",
+        "reproducibility",
+        "training",
+        "backends",
         "export",
-        "allow_torch",
-        "allow_onnx",
-        "allow_tensorrt"
-      ],
-      "properties": {
-        "inference": { "type": "string" },
-        "export": { "type": "string" },
-        "allow_torch": { "type": "boolean" },
-        "allow_onnx": { "type": "boolean" },
-        "allow_tensorrt": { "type": "boolean" }
-      },
-      "additionalProperties": false
+        "tracking",
+        "normalization",
+        "vad",
+        "secrets",
+        "deployment",
+    ],
+    "properties": {
+        "paths": {
+            "type": "object",
+            "required": [
+                "project_root",
+                "dataset_root",
+                "artifacts_root",
+                "cache_root",
+                "manifests_root",
+            ],
+            "properties": {
+                "project_root": {"type": "string"},
+                "dataset_root": {"type": "string"},
+                "artifacts_root": {"type": "string"},
+                "cache_root": {"type": "string"},
+                "manifests_root": {"type": "string"},
+            },
+            "additionalProperties": false,
+        },
+        "runtime": {
+            "type": "object",
+            "required": ["seed", "device", "log_level", "num_workers"],
+            "properties": {
+                "seed": {"type": "integer", "minimum": 0},
+                "device": {"type": "string"},
+                "log_level": {"type": "string"},
+                "num_workers": {"type": "integer", "minimum": 0},
+            },
+            "additionalProperties": false,
+        },
+        "reproducibility": {
+            "type": "object",
+            "required": ["deterministic", "pythonhashseed", "fingerprint_paths"],
+            "properties": {
+                "deterministic": {"type": "boolean"},
+                "pythonhashseed": {"type": "integer", "minimum": 0},
+                "fingerprint_paths": {"type": "array", "items": {"type": "string"}},
+            },
+            "additionalProperties": false,
+        },
+        "training": {
+            "type": "object",
+            "required": ["batch_size", "eval_batch_size", "max_epochs", "precision"],
+            "properties": {
+                "batch_size": {"type": "integer", "minimum": 1},
+                "eval_batch_size": {"type": "integer", "minimum": 1},
+                "max_epochs": {"type": "integer", "minimum": 1},
+                "precision": {"type": "string"},
+            },
+            "additionalProperties": false,
+        },
+        "backends": {
+            "type": "object",
+            "required": ["inference", "export", "allow_torch", "allow_onnx", "allow_tensorrt"],
+            "properties": {
+                "inference": {"type": "string"},
+                "export": {"type": "string"},
+                "allow_torch": {"type": "boolean"},
+                "allow_onnx": {"type": "boolean"},
+                "allow_tensorrt": {"type": "boolean"},
+            },
+            "additionalProperties": false,
+        },
+        "export": {
+            "type": "object",
+            "required": ["opset", "dynamic_axes", "profile"],
+            "properties": {
+                "opset": {"type": "integer", "minimum": 1},
+                "dynamic_axes": {"type": "boolean"},
+                "profile": {"type": "string"},
+            },
+            "additionalProperties": false,
+        },
+        "tracking": {
+            "type": "object",
+            "required": [
+                "enabled",
+                "backend",
+                "experiment",
+                "run_name_prefix",
+                "output_root",
+                "copy_artifacts",
+            ],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "backend": {"type": "string"},
+                "experiment": {"type": "string"},
+                "run_name_prefix": {"type": "string"},
+                "output_root": {"type": "string"},
+                "copy_artifacts": {"type": "boolean"},
+            },
+            "additionalProperties": false,
+        },
+        "normalization": {
+            "type": "object",
+            "required": [
+                "target_sample_rate_hz",
+                "target_channels",
+                "output_format",
+                "output_pcm_bits_per_sample",
+                "peak_headroom_db",
+                "dc_offset_threshold",
+                "clipped_sample_threshold",
+                "loudness_mode",
+                "target_loudness_dbfs",
+                "max_loudness_gain_db",
+                "max_loudness_attenuation_db",
+            ],
+            "properties": {
+                "target_sample_rate_hz": {"type": "integer", "minimum": 1},
+                "target_channels": {"type": "integer", "minimum": 1},
+                "output_format": {"type": "string", "enum": ["wav", "flac"]},
+                "output_pcm_bits_per_sample": {"type": "integer", "minimum": 1},
+                "peak_headroom_db": {"type": "number", "minimum": 0.0},
+                "dc_offset_threshold": {"type": "number", "minimum": 0.0},
+                "clipped_sample_threshold": {
+                    "type": "number",
+                    "exclusiveMinimum": 0.0,
+                    "maximum": 1.0,
+                },
+                "loudness_mode": {"type": "string", "enum": ["none", "rms"]},
+                "target_loudness_dbfs": {"type": "number"},
+                "max_loudness_gain_db": {"type": "number", "minimum": 0.0},
+                "max_loudness_attenuation_db": {"type": "number", "minimum": 0.0},
+            },
+            "additionalProperties": false,
+        },
+        "vad": {
+            "type": "object",
+            "required": [
+                "mode",
+                "backend",
+                "provider",
+                "min_output_duration_seconds",
+                "min_retained_ratio",
+            ],
+            "properties": {
+                "mode": {"type": "string", "enum": ["none", "light", "aggressive"]},
+                "backend": {"type": "string", "enum": ["silero_vad_v6_onnx"]},
+                "provider": {"type": "string", "enum": ["auto", "cpu", "cuda"]},
+                "min_output_duration_seconds": {"type": ["number", "null"], "minimum": 0.0},
+                "min_retained_ratio": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+            },
+            "additionalProperties": false,
+        },
+        "features": {
+            "type": "object",
+            "required": [
+                "sample_rate_hz",
+                "num_mel_bins",
+                "frame_length_ms",
+                "frame_shift_ms",
+                "fft_size",
+                "window_type",
+                "f_min_hz",
+                "power",
+                "log_offset",
+                "pad_end",
+                "cmvn_mode",
+                "cmvn_window_frames",
+                "output_dtype",
+            ],
+            "properties": {
+                "sample_rate_hz": {"type": "integer", "minimum": 1},
+                "num_mel_bins": {"type": "integer", "minimum": 1},
+                "frame_length_ms": {"type": "number", "exclusiveMinimum": 0.0},
+                "frame_shift_ms": {"type": "number", "exclusiveMinimum": 0.0},
+                "fft_size": {"type": "integer", "minimum": 1},
+                "window_type": {"type": "string", "enum": ["hann", "hamming"]},
+                "f_min_hz": {"type": "number", "minimum": 0.0},
+                "f_max_hz": {"type": ["number", "null"]},
+                "power": {"type": "number", "exclusiveMinimum": 0.0},
+                "log_offset": {"type": "number", "exclusiveMinimum": 0.0},
+                "pad_end": {"type": "boolean"},
+                "cmvn_mode": {"type": "string", "enum": ["none", "sliding"]},
+                "cmvn_window_frames": {"type": "integer", "minimum": 1},
+                "output_dtype": {"type": "string", "enum": ["float16", "float32", "bfloat16"]},
+            },
+            "additionalProperties": false,
+        },
+        "feature_cache": {
+            "type": "object",
+            "required": [
+                "namespace",
+                "train_policy",
+                "dev_policy",
+                "infer_policy",
+                "benchmark_device",
+                "benchmark_warmup_iterations",
+                "benchmark_iterations",
+            ],
+            "properties": {
+                "namespace": {"type": "string", "minLength": 1},
+                "train_policy": {
+                    "type": "string",
+                    "enum": ["precompute_cpu", "optional", "runtime"],
+                },
+                "dev_policy": {"type": "string", "enum": ["precompute_cpu", "optional", "runtime"]},
+                "infer_policy": {
+                    "type": "string",
+                    "enum": ["precompute_cpu", "optional", "runtime"],
+                },
+                "benchmark_device": {"type": "string", "enum": ["auto", "cpu", "cuda"]},
+                "benchmark_warmup_iterations": {"type": "integer", "minimum": 0},
+                "benchmark_iterations": {"type": "integer", "minimum": 1},
+            },
+            "additionalProperties": false,
+        },
+        "chunking": {
+            "type": "object",
+            "required": [
+                "train_min_crop_seconds",
+                "train_max_crop_seconds",
+                "train_num_crops",
+                "train_short_utterance_policy",
+                "eval_max_full_utterance_seconds",
+                "eval_chunk_seconds",
+                "eval_chunk_overlap_seconds",
+                "eval_pooling",
+                "demo_max_full_utterance_seconds",
+                "demo_chunk_seconds",
+                "demo_chunk_overlap_seconds",
+                "demo_pooling",
+            ],
+            "properties": {
+                "train_min_crop_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "train_max_crop_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "train_num_crops": {"type": "integer", "minimum": 1},
+                "train_short_utterance_policy": {
+                    "type": "string",
+                    "enum": ["full", "repeat_pad", "zero_pad"],
+                },
+                "eval_max_full_utterance_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "eval_chunk_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "eval_chunk_overlap_seconds": {"type": "number", "minimum": 0.0},
+                "eval_pooling": {"type": "string", "enum": ["mean", "max"]},
+                "demo_max_full_utterance_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "demo_chunk_seconds": {"type": "number", "exclusiveMinimum": 0.0},
+                "demo_chunk_overlap_seconds": {"type": "number", "minimum": 0.0},
+                "demo_pooling": {"type": "string", "enum": ["mean", "max"]},
+            },
+            "additionalProperties": false,
+        },
+        "secrets": {
+            "type": "object",
+            "required": ["wandb_api_key", "mlflow_tracking_token", "huggingface_hub_token"],
+            "properties": {
+                "wandb_api_key": {"type": "string"},
+                "mlflow_tracking_token": {"type": "string"},
+                "huggingface_hub_token": {"type": "string"},
+            },
+            "additionalProperties": false,
+        },
+        "deployment": {
+            "type": "object",
+            "required": ["model_bundle_root", "demo_subset_root", "require_artifacts"],
+            "properties": {
+                "model_bundle_root": {"type": "string"},
+                "demo_subset_root": {"type": "string"},
+                "require_artifacts": {"type": "boolean"},
+            },
+            "additionalProperties": false,
+        },
     },
-    "export": {
-      "type": "object",
-      "required": ["opset", "dynamic_axes", "profile"],
-      "properties": {
-        "opset": { "type": "integer", "minimum": 1 },
-        "dynamic_axes": { "type": "boolean" },
-        "profile": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "tracking": {
-      "type": "object",
-      "required": [
-        "enabled",
-        "backend",
-        "experiment",
-        "run_name_prefix",
-        "output_root",
-        "copy_artifacts"
-      ],
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "backend": { "type": "string" },
-        "experiment": { "type": "string" },
-        "run_name_prefix": { "type": "string" },
-        "output_root": { "type": "string" },
-        "copy_artifacts": { "type": "boolean" }
-      },
-      "additionalProperties": false
-    },
-    "normalization": {
-      "type": "object",
-      "required": [
-        "target_sample_rate_hz",
-        "target_channels",
-        "output_format",
-        "output_pcm_bits_per_sample",
-        "peak_headroom_db",
-        "dc_offset_threshold",
-        "clipped_sample_threshold",
-        "loudness_mode",
-        "target_loudness_dbfs",
-        "max_loudness_gain_db",
-        "max_loudness_attenuation_db"
-      ],
-      "properties": {
-        "target_sample_rate_hz": { "type": "integer", "minimum": 1 },
-        "target_channels": { "type": "integer", "minimum": 1 },
-        "output_format": { "type": "string", "enum": ["wav", "flac"] },
-        "output_pcm_bits_per_sample": { "type": "integer", "minimum": 1 },
-        "peak_headroom_db": { "type": "number", "minimum": 0.0 },
-        "dc_offset_threshold": { "type": "number", "minimum": 0.0 },
-        "clipped_sample_threshold": { "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0 },
-        "loudness_mode": { "type": "string", "enum": ["none", "rms"] },
-        "target_loudness_dbfs": { "type": "number" },
-        "max_loudness_gain_db": { "type": "number", "minimum": 0.0 },
-        "max_loudness_attenuation_db": { "type": "number", "minimum": 0.0 }
-      },
-      "additionalProperties": false
-    },
-    "vad": {
-      "type": "object",
-      "required": ["mode", "backend", "provider", "min_output_duration_seconds", "min_retained_ratio"],
-      "properties": {
-        "mode": { "type": "string", "enum": ["none", "light", "aggressive"] },
-        "backend": { "type": "string", "enum": ["silero_vad_v6_onnx"] },
-        "provider": { "type": "string", "enum": ["auto", "cpu", "cuda"] },
-        "min_output_duration_seconds": { "type": ["number", "null"], "minimum": 0.0 },
-        "min_retained_ratio": { "type": ["number", "null"], "minimum": 0.0, "maximum": 1.0 }
-      },
-      "additionalProperties": false
-    },
-    "secrets": {
-      "type": "object",
-      "required": [
-        "wandb_api_key",
-        "mlflow_tracking_token",
-        "huggingface_hub_token"
-      ],
-      "properties": {
-        "wandb_api_key": { "type": "string" },
-        "mlflow_tracking_token": { "type": "string" },
-        "huggingface_hub_token": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "deployment": {
-      "type": "object",
-      "required": [
-        "model_bundle_root",
-        "demo_subset_root",
-        "require_artifacts"
-      ],
-      "properties": {
-        "model_bundle_root": { "type": "string" },
-        "demo_subset_root": { "type": "string" },
-        "require_artifacts": { "type": "boolean" }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
+    "additionalProperties": false,
 }

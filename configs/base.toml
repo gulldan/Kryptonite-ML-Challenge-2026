@@ -77,6 +77,15 @@ cmvn_mode = "none"
 cmvn_window_frames = 300
 output_dtype = "float32"
 
+[feature_cache]
+namespace = "fbank-v1"
+train_policy = "precompute_cpu"
+dev_policy = "optional"
+infer_policy = "runtime"
+benchmark_device = "auto"
+benchmark_warmup_iterations = 1
+benchmark_iterations = 3
+
 [chunking]
 train_min_crop_seconds = 1.0
 train_max_crop_seconds = 4.0

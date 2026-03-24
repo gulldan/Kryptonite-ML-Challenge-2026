@@ -120,5 +120,5 @@ frame-aligned splits.
 - the current frontend is intentionally explicit, not Kaldi-compatibility magic
 - utterance-global CMVN is not implemented yet because it breaks exact streaming
   parity
-- performance optimization is intentionally deferred to `KRYP-026`; the current
-  goal is one correct and testable frontend contract
+- disk-backed feature caching and CPU/GPU profiling now live in
+  [docs/audio-feature-cache.md](./audio-feature-cache.md)
