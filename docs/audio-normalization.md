@@ -8,6 +8,7 @@ The current repository policy for derived training-ready audio is:
 
 - resample every active row to `16 kHz`
 - downmix every active row to `mono`
+- optionally apply bounded RMS loudness normalization through the shared config
 - write a deterministic `PCM16 WAV` bundle under `artifacts/preprocessed/`
 - keep source clipping as an auditable source-side flag instead of silently dropping rows
 - remove material DC offset when it crosses the configured threshold
@@ -40,6 +41,8 @@ The rewritten manifest rows keep the unified schema fields and add normalization
 - `source_audio_path`
 - `source_sample_rate_hz`
 - `source_num_channels`
+- `source_rms_dbfs`
+- `normalized_rms_dbfs`
 - `source_dc_offset_ratio`
 - `source_clipped_sample_ratio`
 - `normalization_profile`
@@ -47,12 +50,23 @@ The rewritten manifest rows keep the unified schema fields and add normalization
 - `normalization_downmixed`
 - `normalization_dc_offset_removed`
 - `normalization_peak_scaled`
+- `normalization_loudness_mode`
+- `normalization_loudness_applied`
+- `normalization_loudness_gain_db`
+- `normalization_loudness_gain_clamped`
+- `normalization_loudness_peak_limited`
+- `normalization_loudness_degradation_check_passed`
 
 ## Policy Notes
 
 - Source clipping is preserved as a source-quality observation. The derived waveform is peak-scaled only to avoid writing a newly clipped output file.
+- Loudness normalization is still optional and stays disabled in `configs/base.toml`
+  by default; enable it explicitly per experiment or preprocessing bundle.
 - Missing or undecodable audio does not stay in active manifests. Those rows are appended to the derived `quarantine_manifest.jsonl` with `quarantine_stage=audio_normalization`.
 - Existing quarantine rows are carried forward so downstream stages can see the complete exclusion set in one place.
+
+For loader-time comparison artifacts and the bounded RMS policy itself, see
+[audio-loudness-normalization.md](./audio-loudness-normalization.md).
 
 ## Validation
 

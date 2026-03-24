@@ -7,6 +7,7 @@ from pathlib import Path
 
 from kryptonite.deployment import resolve_project_path
 
+from ..loudness import LoudnessNormalizationSettings, apply_loudness_normalization
 from .audio_io import (
     all_finite,
     channel_dc_offset_ratio,
@@ -145,6 +146,17 @@ class ManifestAudioNormalizer:
             dc_offset_removed = True
 
         peak_scaled = False
+        normalized, loudness_decision = apply_loudness_normalization(
+            normalized,
+            settings=LoudnessNormalizationSettings(
+                mode=self.policy.loudness_mode,
+                target_loudness_dbfs=self.policy.target_loudness_dbfs,
+                max_gain_db=self.policy.max_loudness_gain_db,
+                max_attenuation_db=self.policy.max_loudness_attenuation_db,
+                peak_headroom_db=self.policy.peak_headroom_db,
+            ),
+        )
+
         normalized_peak = peak_amplitude(normalized)
         if normalized_peak > self.policy.target_peak_amplitude and normalized_peak > 0.0:
             normalized = normalized * (self.policy.target_peak_amplitude / normalized_peak)
@@ -178,12 +190,20 @@ class ManifestAudioNormalizer:
                 6,
             ),
             source_peak_amplitude=source_peak_value,
+            source_rms_dbfs=loudness_decision.source_rms_dbfs,
+            normalized_rms_dbfs=loudness_decision.output_rms_dbfs,
             source_dc_offset_ratio=source_dc_offset_value,
             source_clipped_sample_ratio=source_clipped_ratio,
             resampled=resampled,
             downmixed=downmixed,
             dc_offset_removed=dc_offset_removed,
             peak_scaled=peak_scaled,
+            loudness_mode=loudness_decision.mode,
+            loudness_applied=loudness_decision.applied,
+            loudness_gain_db=loudness_decision.applied_gain_db,
+            loudness_gain_clamped=loudness_decision.gain_clamped,
+            loudness_peak_limited=loudness_decision.peak_limited,
+            loudness_degradation_check_passed=loudness_decision.degradation_check_passed,
         )
 
     def _build_normalized_audio_path(self, source_path: Path) -> Path:

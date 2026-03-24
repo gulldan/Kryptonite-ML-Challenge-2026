@@ -168,6 +168,8 @@ def test_normalize_audio_manifest_bundle_rewrites_manifests_and_quarantines_fail
     assert summary.downmixed_row_count == 1
     assert summary.dc_offset_fixed_row_count == 1
     assert summary.peak_scaled_row_count == 1
+    assert summary.loudness_applied_row_count == 0
+    assert summary.loudness_degradation_failed_row_count == 0
     assert summary.source_clipping_row_count == 1
     assert summary.quarantine_issue_counts == {"missing_audio_file": 1}
     assert report_payload["normalized_audio_count"] == 2
@@ -181,6 +183,9 @@ def test_normalize_audio_manifest_bundle_rewrites_manifests_and_quarantines_fail
     assert normalized_train["normalization_downmixed"] is True
     assert normalized_train["normalization_dc_offset_removed"] is True
     assert normalized_train["normalization_peak_scaled"] is True
+    assert normalized_train["normalization_loudness_mode"] == "none"
+    assert normalized_train["normalization_loudness_applied"] is False
+    assert normalized_train["normalization_loudness_degradation_check_passed"] is True
     assert normalized_train["source_sample_rate_hz"] == 8_000
     assert normalized_train["source_num_channels"] == 2
     assert cast(float, normalized_train["source_clipped_sample_ratio"]) > 0.0

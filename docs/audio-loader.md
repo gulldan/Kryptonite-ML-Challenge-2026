@@ -12,6 +12,7 @@ The loader now covers the current repository contract:
 - channel-first `float32` tensors in memory
 - optional explicit resampling
 - optional deterministic mono fold-down
+- optional bounded RMS loudness normalization
 - optional loader-time `none/light/aggressive` Silero VAD v6 ONNX trimming
 - windowed reads for long files through `start_seconds` and `duration_seconds`
 - direct loading from unified manifest rows or manifest JSONL files
@@ -45,6 +46,8 @@ batch = list(
 `AudioLoadRequest.from_config(...)` binds the loader to the same `16 kHz` /
 mono preprocessing policy already described in
 [audio-normalization.md](./audio-normalization.md), and optionally to the
+configured loudness policy from
+[audio-loudness-normalization.md](./audio-loudness-normalization.md), and to the
 configured VAD/trimming mode from
 [audio-vad-trimming.md](./audio-vad-trimming.md). For ablations or future
 datasets, the request can be constructed manually.
@@ -55,6 +58,9 @@ datasets, the request can be constructed manually.
   long files can be inspected without decoding the full recording
 - mono fold-down is an arithmetic mean over channels; other channel-layout
   conversions are rejected explicitly
+- when enabled, loudness normalization is applied after resampling and optional
+  boundary trimming, so the target RMS is computed on the waveform that the
+  downstream pipeline actually sees
 - `light` and `aggressive` use the Silero VAD v6 ONNX backend and only trim
   leading/trailing silence; they keep
   interior pauses so downstream chunking and augmentation still see realistic

@@ -76,6 +76,10 @@ class NormalizationConfig:
     peak_headroom_db: float
     dc_offset_threshold: float
     clipped_sample_threshold: float
+    loudness_mode: str = "none"
+    target_loudness_dbfs: float = -27.0
+    max_loudness_gain_db: float = 20.0
+    max_loudness_attenuation_db: float = 12.0
 
 
 @dataclass(slots=True)
@@ -173,6 +177,10 @@ def load_project_config(
                     "peak_headroom_db": 1.0,
                     "dc_offset_threshold": 0.01,
                     "clipped_sample_threshold": 0.999,
+                    "loudness_mode": "none",
+                    "target_loudness_dbfs": -27.0,
+                    "max_loudness_gain_db": 20.0,
+                    "max_loudness_attenuation_db": 12.0,
                 },
             )
         ),

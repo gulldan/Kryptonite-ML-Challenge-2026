@@ -17,6 +17,10 @@ class AudioNormalizationPolicy:
     peak_headroom_db: float
     dc_offset_threshold: float
     clipped_sample_threshold: float
+    loudness_mode: str = "none"
+    target_loudness_dbfs: float = -27.0
+    max_loudness_gain_db: float = 20.0
+    max_loudness_attenuation_db: float = 12.0
 
     @classmethod
     def from_config(cls, config: NormalizationConfig) -> AudioNormalizationPolicy:
@@ -28,6 +32,10 @@ class AudioNormalizationPolicy:
             peak_headroom_db=config.peak_headroom_db,
             dc_offset_threshold=config.dc_offset_threshold,
             clipped_sample_threshold=config.clipped_sample_threshold,
+            loudness_mode=config.loudness_mode,
+            target_loudness_dbfs=config.target_loudness_dbfs,
+            max_loudness_gain_db=config.max_loudness_gain_db,
+            max_loudness_attenuation_db=config.max_loudness_attenuation_db,
         )
 
     @property
@@ -56,6 +64,10 @@ class AudioNormalizationPolicy:
             "peak_headroom_db": self.peak_headroom_db,
             "dc_offset_threshold": self.dc_offset_threshold,
             "clipped_sample_threshold": self.clipped_sample_threshold,
+            "loudness_mode": self.loudness_mode,
+            "target_loudness_dbfs": self.target_loudness_dbfs,
+            "max_loudness_gain_db": self.max_loudness_gain_db,
+            "max_loudness_attenuation_db": self.max_loudness_attenuation_db,
             "normalization_profile": self.normalization_profile,
         }
 
@@ -83,12 +95,20 @@ class NormalizedAudioRecord:
     source_duration_seconds: float
     normalized_duration_seconds: float
     source_peak_amplitude: float
+    source_rms_dbfs: float | None
+    normalized_rms_dbfs: float | None
     source_dc_offset_ratio: float
     source_clipped_sample_ratio: float
     resampled: bool
     downmixed: bool
     dc_offset_removed: bool
     peak_scaled: bool
+    loudness_mode: str
+    loudness_applied: bool
+    loudness_gain_db: float
+    loudness_gain_clamped: bool
+    loudness_peak_limited: bool
+    loudness_degradation_check_passed: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +140,13 @@ class AudioNormalizationSummary:
     downmixed_row_count: int
     dc_offset_fixed_row_count: int
     peak_scaled_row_count: int
+    loudness_applied_row_count: int
+    loudness_gain_limited_row_count: int
+    loudness_peak_limited_row_count: int
+    loudness_degradation_failed_row_count: int
     source_clipping_row_count: int
+    mean_source_rms_dbfs: float | None
+    mean_normalized_rms_dbfs: float | None
     quarantine_issue_counts: dict[str, int]
     policy: AudioNormalizationPolicy
 
@@ -146,7 +172,13 @@ class AudioNormalizationSummary:
             "downmixed_row_count": self.downmixed_row_count,
             "dc_offset_fixed_row_count": self.dc_offset_fixed_row_count,
             "peak_scaled_row_count": self.peak_scaled_row_count,
+            "loudness_applied_row_count": self.loudness_applied_row_count,
+            "loudness_gain_limited_row_count": self.loudness_gain_limited_row_count,
+            "loudness_peak_limited_row_count": self.loudness_peak_limited_row_count,
+            "loudness_degradation_failed_row_count": self.loudness_degradation_failed_row_count,
             "source_clipping_row_count": self.source_clipping_row_count,
+            "mean_source_rms_dbfs": self.mean_source_rms_dbfs,
+            "mean_normalized_rms_dbfs": self.mean_normalized_rms_dbfs,
             "quarantine_issue_counts": dict(self.quarantine_issue_counts),
             "policy": self.policy.to_dict(),
         }

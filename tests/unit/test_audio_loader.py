@@ -84,6 +84,43 @@ def test_load_audio_supports_mp3_inputs(tmp_path: Path) -> None:
     assert float(np.abs(loaded.waveform).max()) > 0.0
 
 
+def test_load_audio_applies_bounded_loudness_normalization(tmp_path: Path) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / "quiet.wav"
+    audio_path.parent.mkdir(parents=True)
+    _write_tone_audio(audio_path, format_name="WAV", sample_rate_hz=16_000, amplitude_scale=0.05)
+
+    loaded = load_audio(
+        audio_path,
+        project_root=tmp_path,
+        request=AudioLoadRequest.from_config(
+            NormalizationConfig(
+                target_sample_rate_hz=16_000,
+                target_channels=1,
+                output_format="wav",
+                output_pcm_bits_per_sample=16,
+                peak_headroom_db=1.0,
+                dc_offset_threshold=0.01,
+                clipped_sample_threshold=0.999,
+                loudness_mode="rms",
+                target_loudness_dbfs=-27.0,
+                max_loudness_gain_db=20.0,
+                max_loudness_attenuation_db=12.0,
+            )
+        ),
+    )
+
+    assert loaded.loudness_mode == "rms"
+    assert loaded.loudness_applied is True
+    assert loaded.pre_loudness_rms_dbfs is not None
+    assert loaded.post_loudness_rms_dbfs is not None
+    assert loaded.post_loudness_rms_dbfs > loaded.pre_loudness_rms_dbfs
+    assert loaded.post_loudness_rms_dbfs == pytest.approx(-27.0, abs=0.2)
+    assert loaded.loudness_gain_clamped is False
+    assert loaded.loudness_skip_reason == "normalized"
+    assert loaded.loudness_alignment_error == pytest.approx(0.0, abs=1e-7)
+    assert loaded.loudness_degradation_check_passed is True
+
+
 def test_manifest_audio_loading_uses_manifest_contract_and_line_numbers(tmp_path: Path) -> None:
     audio_root = tmp_path / "datasets" / "demo"
     manifest_root = tmp_path / "artifacts" / "manifests" / "demo"
@@ -327,10 +364,14 @@ def _write_tone_audio(
     sample_rate_hz: int,
     channels: int = 1,
     duration_seconds: float = 1.0,
+    amplitude_scale: float = 1.0,
 ) -> None:
     frame_count = int(sample_rate_hz * duration_seconds)
     time = np.arange(frame_count, dtype=np.float32) / np.float32(sample_rate_hz)
-    base = (0.3 * np.sin(2.0 * np.pi * 220.0 * time)).astype(np.float32, copy=False)
+    base = (0.3 * amplitude_scale * np.sin(2.0 * np.pi * 220.0 * time)).astype(
+        np.float32,
+        copy=False,
+    )
     if channels == 1:
         waveform = base
     else:

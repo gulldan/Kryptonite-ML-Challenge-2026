@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 
 from kryptonite.deployment import resolve_project_path
@@ -186,10 +186,37 @@ def normalize_audio_manifest_bundle(
         peak_scaled_row_count=sum(
             1 for record in normalizer.success_by_source_audio_path.values() if record.peak_scaled
         ),
+        loudness_applied_row_count=sum(
+            1
+            for record in normalizer.success_by_source_audio_path.values()
+            if record.loudness_applied
+        ),
+        loudness_gain_limited_row_count=sum(
+            1
+            for record in normalizer.success_by_source_audio_path.values()
+            if record.loudness_gain_clamped
+        ),
+        loudness_peak_limited_row_count=sum(
+            1
+            for record in normalizer.success_by_source_audio_path.values()
+            if record.loudness_peak_limited
+        ),
+        loudness_degradation_failed_row_count=sum(
+            1
+            for record in normalizer.success_by_source_audio_path.values()
+            if not record.loudness_degradation_check_passed
+        ),
         source_clipping_row_count=sum(
             1
             for record in normalizer.success_by_source_audio_path.values()
             if record.source_clipped_sample_ratio > 0.0
+        ),
+        mean_source_rms_dbfs=_mean_rms_dbfs(
+            record.source_rms_dbfs for record in normalizer.success_by_source_audio_path.values()
+        ),
+        mean_normalized_rms_dbfs=_mean_rms_dbfs(
+            record.normalized_rms_dbfs
+            for record in normalizer.success_by_source_audio_path.values()
         ),
         quarantine_issue_counts=dict(sorted(quarantine_issue_counts.items())),
         policy=policy,
@@ -356,6 +383,8 @@ def _build_normalized_manifest_row(
             "source_sample_rate_hz": record.source_sample_rate_hz,
             "source_num_channels": record.source_num_channels,
             "source_peak_amplitude": round(record.source_peak_amplitude, 6),
+            "source_rms_dbfs": record.source_rms_dbfs,
+            "normalized_rms_dbfs": record.normalized_rms_dbfs,
             "source_dc_offset_ratio": round(record.source_dc_offset_ratio, 6),
             "source_clipped_sample_ratio": round(record.source_clipped_sample_ratio, 6),
             "normalization_profile": policy.normalization_profile,
@@ -363,6 +392,14 @@ def _build_normalized_manifest_row(
             "normalization_downmixed": record.downmixed,
             "normalization_dc_offset_removed": record.dc_offset_removed,
             "normalization_peak_scaled": record.peak_scaled,
+            "normalization_loudness_mode": record.loudness_mode,
+            "normalization_loudness_applied": record.loudness_applied,
+            "normalization_loudness_gain_db": record.loudness_gain_db,
+            "normalization_loudness_gain_clamped": record.loudness_gain_clamped,
+            "normalization_loudness_peak_limited": record.loudness_peak_limited,
+            "normalization_loudness_degradation_check_passed": (
+                record.loudness_degradation_check_passed
+            ),
         }
     )
     return base_row.to_dict(extra_fields=extra_fields)
@@ -405,3 +442,10 @@ def _rewrite_trial_rows(
             payload[field_name] = basename_mapping.get(current, current)
         rewritten_rows.append(payload)
     return rewritten_rows
+
+
+def _mean_rms_dbfs(values: Iterable[float | None]) -> float | None:
+    finite_values = [value for value in values if value is not None]
+    if not finite_values:
+        return None
+    return round(sum(finite_values) / len(finite_values), 6)

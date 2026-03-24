@@ -82,6 +82,10 @@ The base config also includes a `normalization` section for the manifest-driven 
 - `peak_headroom_db`
 - `dc_offset_threshold`
 - `clipped_sample_threshold`
+- `loudness_mode`
+- `target_loudness_dbfs`
+- `max_loudness_gain_db`
+- `max_loudness_attenuation_db`
 
 The defaults currently define the canonical preprocessing bundle for this repo:
 
@@ -89,8 +93,28 @@ The defaults currently define the canonical preprocessing bundle for this repo:
 - `mono`
 - `PCM16 WAV`
 - `1 dB` peak headroom
+- `loudness_mode = "none"` by default, so gain staging stays explicit
 
 Use them through `scripts/normalize_audio_dataset.py`, and override only when a specific experiment needs a different derived bundle.
+
+The loudness-related normalization fields support the current bounded RMS policy:
+
+- `loudness_mode`: `none` or `rms`
+- `target_loudness_dbfs`: target RMS level when the mode is enabled
+- `max_loudness_gain_db`: upper bound on amplification
+- `max_loudness_attenuation_db`: upper bound on attenuation
+
+Use the dedicated comparison CLI before enabling it in a real run:
+
+```bash
+uv run python scripts/loudness_normalization_report.py \
+  --config configs/base.toml \
+  --override normalization.loudness_mode=rms \
+  --manifest artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl
+```
+
+See [audio-loudness-normalization.md](./audio-loudness-normalization.md) for the
+full contract and report outputs.
 
 ## VAD / Trimming
 

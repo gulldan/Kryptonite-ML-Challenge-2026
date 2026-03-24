@@ -126,7 +126,11 @@
         "output_pcm_bits_per_sample",
         "peak_headroom_db",
         "dc_offset_threshold",
-        "clipped_sample_threshold"
+        "clipped_sample_threshold",
+        "loudness_mode",
+        "target_loudness_dbfs",
+        "max_loudness_gain_db",
+        "max_loudness_attenuation_db"
       ],
       "properties": {
         "target_sample_rate_hz": { "type": "integer", "minimum": 1 },
@@ -135,7 +139,11 @@
         "output_pcm_bits_per_sample": { "type": "integer", "minimum": 1 },
         "peak_headroom_db": { "type": "number", "minimum": 0.0 },
         "dc_offset_threshold": { "type": "number", "minimum": 0.0 },
-        "clipped_sample_threshold": { "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0 }
+        "clipped_sample_threshold": { "type": "number", "exclusiveMinimum": 0.0, "maximum": 1.0 },
+        "loudness_mode": { "type": "string", "enum": ["none", "rms"] },
+        "target_loudness_dbfs": { "type": "number" },
+        "max_loudness_gain_db": { "type": "number", "minimum": 0.0 },
+        "max_loudness_attenuation_db": { "type": "number", "minimum": 0.0 }
       },
       "additionalProperties": false
     },

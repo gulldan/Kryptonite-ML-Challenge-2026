@@ -24,6 +24,10 @@ def render_summary_markdown(summary: AudioNormalizationSummary) -> str:
             f"- peak headroom: `{summary.policy.peak_headroom_db:.2f} dB`",
             f"- dc offset threshold: `{summary.policy.dc_offset_threshold:.4f}`",
             f"- clipped sample threshold: `{summary.policy.clipped_sample_threshold:.4f}`",
+            f"- loudness mode: `{summary.policy.loudness_mode}`",
+            f"- target loudness: `{summary.policy.target_loudness_dbfs:.2f} dBFS`",
+            f"- max loudness gain: `{summary.policy.max_loudness_gain_db:.2f} dB`",
+            f"- max loudness attenuation: `{summary.policy.max_loudness_attenuation_db:.2f} dB`",
             "",
             "## Results",
             "",
@@ -37,7 +41,19 @@ def render_summary_markdown(summary: AudioNormalizationSummary) -> str:
             f"- downmixed rows: `{summary.downmixed_row_count}`",
             f"- dc-offset fixes: `{summary.dc_offset_fixed_row_count}`",
             f"- peak-scaled rows: `{summary.peak_scaled_row_count}`",
+            f"- loudness-applied rows: `{summary.loudness_applied_row_count}`",
+            f"- loudness gain-capped rows: `{summary.loudness_gain_limited_row_count}`",
+            f"- loudness peak-limited rows: `{summary.loudness_peak_limited_row_count}`",
+            (
+                "- loudness degradation check failures: "
+                f"`{summary.loudness_degradation_failed_row_count}`"
+            ),
             f"- source clipping detections: `{summary.source_clipping_row_count}`",
+            f"- mean source loudness: `{_format_optional_dbfs(summary.mean_source_rms_dbfs)}`",
+            (
+                "- mean normalized loudness: "
+                f"`{_format_optional_dbfs(summary.mean_normalized_rms_dbfs)}`"
+            ),
             "",
             "## Quarantine Issues",
             "",
@@ -45,3 +61,9 @@ def render_summary_markdown(summary: AudioNormalizationSummary) -> str:
             "",
         ]
     )
+
+
+def _format_optional_dbfs(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.2f} dBFS"

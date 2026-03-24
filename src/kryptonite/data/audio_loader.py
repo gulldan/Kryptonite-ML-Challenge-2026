@@ -13,6 +13,11 @@ from kryptonite.config import NormalizationConfig, VADConfig
 from kryptonite.deployment import resolve_project_path
 
 from .audio_io import AudioFileInfo, inspect_audio_file, read_audio_file, resample_waveform
+from .loudness import (
+    SUPPORTED_LOUDNESS_MODES,
+    LoudnessNormalizationSettings,
+    apply_loudness_normalization,
+)
 from .schema import ManifestRow
 from .vad import (
     DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS,
@@ -30,6 +35,11 @@ class AudioLoadRequest:
     target_channels: int | None = None
     start_seconds: float = 0.0
     duration_seconds: float | None = None
+    loudness_mode: str = "none"
+    target_loudness_dbfs: float = -27.0
+    max_loudness_gain_db: float = 20.0
+    max_loudness_attenuation_db: float = 12.0
+    peak_headroom_db: float = 1.0
     vad_mode: str = "none"
     vad_backend: str = "silero_vad_v6_onnx"
     vad_provider: str = "auto"
@@ -45,6 +55,14 @@ class AudioLoadRequest:
             raise ValueError("start_seconds must be non-negative")
         if self.duration_seconds is not None and self.duration_seconds <= 0.0:
             raise ValueError("duration_seconds must be positive when provided")
+        if self.loudness_mode.lower() not in SUPPORTED_LOUDNESS_MODES:
+            raise ValueError(f"loudness_mode must be one of {SUPPORTED_LOUDNESS_MODES}")
+        if self.max_loudness_gain_db < 0.0:
+            raise ValueError("max_loudness_gain_db must be non-negative")
+        if self.max_loudness_attenuation_db < 0.0:
+            raise ValueError("max_loudness_attenuation_db must be non-negative")
+        if self.peak_headroom_db < 0.0:
+            raise ValueError("peak_headroom_db must be non-negative")
         if self.vad_mode.lower() not in SUPPORTED_VAD_MODES:
             raise ValueError(f"vad_mode must be one of {SUPPORTED_VAD_MODES}")
         if self.vad_backend.lower() not in SUPPORTED_VAD_BACKENDS:
@@ -76,6 +94,11 @@ class AudioLoadRequest:
             target_channels=config.target_channels,
             start_seconds=start_seconds,
             duration_seconds=duration_seconds,
+            loudness_mode=config.loudness_mode,
+            target_loudness_dbfs=config.target_loudness_dbfs,
+            max_loudness_gain_db=config.max_loudness_gain_db,
+            max_loudness_attenuation_db=config.max_loudness_attenuation_db,
+            peak_headroom_db=config.peak_headroom_db,
             vad_mode="none" if vad is None else vad.mode,
             vad_backend="silero_vad_v6_onnx" if vad is None else vad.backend,
             vad_provider="auto" if vad is None else vad.provider,
@@ -109,6 +132,17 @@ class LoadedAudio:
     requested_duration_seconds: float | None
     resampled: bool
     downmixed: bool
+    loudness_mode: str
+    loudness_target_dbfs: float
+    loudness_applied: bool
+    loudness_gain_db: float
+    loudness_gain_clamped: bool
+    loudness_peak_limited: bool
+    loudness_skip_reason: str
+    pre_loudness_rms_dbfs: float | None
+    post_loudness_rms_dbfs: float | None
+    loudness_alignment_error: float
+    loudness_degradation_check_passed: bool
     vad_mode: str
     vad_backend: str
     vad_provider: str
@@ -190,6 +224,16 @@ def load_audio(
         min_output_duration_seconds=active_request.vad_min_output_duration_seconds,
         min_retained_ratio=active_request.vad_min_retained_ratio,
     )
+    waveform, loudness_decision = apply_loudness_normalization(
+        waveform,
+        settings=LoudnessNormalizationSettings(
+            mode=active_request.loudness_mode,
+            target_loudness_dbfs=active_request.target_loudness_dbfs,
+            max_gain_db=active_request.max_loudness_gain_db,
+            max_attenuation_db=active_request.max_loudness_attenuation_db,
+            peak_headroom_db=active_request.peak_headroom_db,
+        ),
+    )
     frame_count = int(waveform.shape[-1])
     num_channels = int(waveform.shape[0])
     return LoadedAudio(
@@ -210,6 +254,17 @@ def load_audio(
         requested_duration_seconds=active_request.duration_seconds,
         resampled=resampled,
         downmixed=downmixed,
+        loudness_mode=loudness_decision.mode,
+        loudness_target_dbfs=active_request.target_loudness_dbfs,
+        loudness_applied=loudness_decision.applied,
+        loudness_gain_db=loudness_decision.applied_gain_db,
+        loudness_gain_clamped=loudness_decision.gain_clamped,
+        loudness_peak_limited=loudness_decision.peak_limited,
+        loudness_skip_reason=loudness_decision.skip_reason,
+        pre_loudness_rms_dbfs=loudness_decision.source_rms_dbfs,
+        post_loudness_rms_dbfs=loudness_decision.output_rms_dbfs,
+        loudness_alignment_error=loudness_decision.alignment_error,
+        loudness_degradation_check_passed=loudness_decision.degradation_check_passed,
         vad_mode=active_request.vad_mode.lower(),
         vad_backend=active_request.vad_backend.lower(),
         vad_provider=active_request.vad_provider.lower(),

@@ -12,6 +12,7 @@ from ..audio_io import (
     resample_waveform,
     write_audio_file,
 )
+from ..loudness import LoudnessNormalizationSettings
 from .models import AudioNormalizationPolicy
 
 __all__ = [
@@ -40,6 +41,13 @@ def validate_audio_normalization_policy(policy: AudioNormalizationPolicy) -> Non
         raise ValueError("dc_offset_threshold must be non-negative")
     if policy.peak_headroom_db < 0.0:
         raise ValueError("peak_headroom_db must be non-negative")
+    LoudnessNormalizationSettings(
+        mode=policy.loudness_mode,
+        target_loudness_dbfs=policy.target_loudness_dbfs,
+        max_gain_db=policy.max_loudness_gain_db,
+        max_attenuation_db=policy.max_loudness_attenuation_db,
+        peak_headroom_db=policy.peak_headroom_db,
+    )
 
 
 def channel_dc_offset_ratio(waveform: Any) -> float:
