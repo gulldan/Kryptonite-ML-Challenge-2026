@@ -131,6 +131,7 @@ def main(
                 f"MinDCF threshold: {metrics.min_dcf_threshold:.6f}",
                 f"Report JSON: {written.report_json_path}",
                 f"Report Markdown: {written.report_markdown_path}",
+                f"Slice dashboard: {written.slice_dashboard_path}",
             ]
         )
     )

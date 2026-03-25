@@ -313,6 +313,10 @@ def export_dev_embeddings(
 ) -> tuple[EmbeddingExportSummary, list[dict[str, Any]]]:
     model.eval()
     extractor = FbankExtractor(request=feature_request)
+    manifest_metadata_lookup = _load_manifest_metadata_lookup(
+        manifest_path=manifest_path,
+        project_root=project_root,
+    )
     metadata_rows: list[dict[str, Any]] = []
     embeddings: list[torch.Tensor] = []
     point_ids: list[str] = []
@@ -345,6 +349,11 @@ def export_dev_embeddings(
             point_ids.append(point_id)
             metadata_rows.append(
                 {
+                    **_lookup_manifest_metadata_row(
+                        row=row,
+                        trial_item_id=trial_item_id,
+                        manifest_metadata_lookup=manifest_metadata_lookup,
+                    ),
                     "atlas_point_id": point_id,
                     "trial_item_id": trial_item_id,
                     "speaker_id": row.speaker_id,
@@ -384,6 +393,55 @@ def export_dev_embeddings(
         metadata_parquet_path=str(parquet_path),
     )
     return summary, metadata_rows
+
+
+def _load_manifest_metadata_lookup(
+    *,
+    manifest_path: str,
+    project_root: Path,
+) -> dict[str, dict[str, Any]]:
+    manifest_file = resolve_project_path(str(project_root), manifest_path)
+    lookup: dict[str, dict[str, Any]] = {}
+    for raw_line in manifest_file.read_text().splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        payload = json.loads(line)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Expected object JSONL rows in {manifest_file}")
+        for key in _manifest_lookup_keys(payload):
+            lookup.setdefault(key, payload)
+    return lookup
+
+
+def _lookup_manifest_metadata_row(
+    *,
+    row: ManifestRow,
+    trial_item_id: str,
+    manifest_metadata_lookup: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    for key in (trial_item_id, row.utterance_id, row.audio_path, Path(row.audio_path).name):
+        if not key:
+            continue
+        payload = manifest_metadata_lookup.get(key)
+        if payload is not None:
+            return dict(payload)
+    return {}
+
+
+def _manifest_lookup_keys(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    keys: list[str] = []
+    for field_name in ("trial_item_id", "utterance_id", "audio_path"):
+        value = payload.get(field_name)
+        if value is None:
+            continue
+        normalized = str(value).strip()
+        if not normalized:
+            continue
+        keys.append(normalized)
+        if field_name == "audio_path":
+            keys.append(Path(normalized).name)
+    return tuple(dict.fromkeys(keys))
 
 
 def load_or_generate_trials(
@@ -603,6 +661,10 @@ def render_markdown_report(
     )
     if verification_report is not None:
         metrics = verification_report.summary.metrics
+        relative_slice_dashboard = relative_to_project(
+            Path(verification_report.slice_dashboard_path),
+            project_root=project_root,
+        )
         lines.extend(
             [
                 "",
@@ -613,6 +675,7 @@ def render_markdown_report(
                 f"- MinDCF: `{metrics.min_dcf}`",
                 f"- MinDCF threshold: `{metrics.min_dcf_threshold}`",
                 f"- Eval report: `{relative_verification_report}`",
+                f"- Slice dashboard: `{relative_slice_dashboard}`",
             ]
         )
     return "\n".join(lines) + "\n"

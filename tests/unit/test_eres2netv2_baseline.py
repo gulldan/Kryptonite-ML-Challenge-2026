@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import soundfile as sf
@@ -63,6 +64,7 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert artifacts.verification_report is not None
     assert Path(artifacts.verification_report.report_json_path).is_file()
     assert Path(artifacts.verification_report.report_markdown_path).is_file()
+    assert Path(artifacts.verification_report.slice_dashboard_path).is_file()
     assert artifacts.training_summary.epochs[-1].mean_loss > 0.0
     assert artifacts.training_summary.provenance_ruleset == "standard"
     assert artifacts.training_summary.provenance_initialization == "from_scratch"
@@ -76,11 +78,18 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
 
     payload = np.load(artifacts.embeddings_path)
     assert payload["embeddings"].shape == (4, 32)
+    metadata_rows = _read_jsonl(Path(artifacts.embedding_metadata_jsonl_path))
+    assert metadata_rows[0]["corruption_family"] == "noise"
+    assert metadata_rows[0]["corruption_severity"] == "light"
+    corruption_metadata = metadata_rows[0]["corruption_metadata"]
+    assert isinstance(corruption_metadata, dict)
+    assert cast(dict[str, object], corruption_metadata)["corruption_category"] == "stationary"
 
     report_text = Path(artifacts.report_path).read_text()
     assert "# ERes2NetV2 Baseline Report" in report_text
     assert "- Ruleset: `standard`" in report_text
     assert "## Verification Eval" in report_text
+    assert "Slice dashboard:" in report_text
 
 
 def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manifest: Path) -> Path:
@@ -189,6 +198,10 @@ def _write_manifest_fixtures(tmp_path: Path) -> tuple[Path, Path]:
                 "role": role,
                 "audio_path": f"datasets/fixture/{file_name}",
                 "channel": "mono",
+                "corruption_suite": "dev_snr",
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
             }
         )
 
@@ -204,3 +217,7 @@ def _write_tone(path: Path, *, frequency_hz: float, sample_rate_hz: int = 16_000
     timeline = np.arange(sample_count, dtype=np.float32) / np.float32(sample_rate_hz)
     waveform = 0.3 * np.sin(2.0 * np.pi * frequency_hz * timeline)
     sf.write(path, waveform, sample_rate_hz, format="WAV")
+
+
+def _read_jsonl(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]

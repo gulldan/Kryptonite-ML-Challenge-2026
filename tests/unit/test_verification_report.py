@@ -13,6 +13,7 @@ from kryptonite.eval import (
     VERIFICATION_REPORT_MARKDOWN_NAME,
     VERIFICATION_ROC_CURVE_JSONL_NAME,
     VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME,
+    VERIFICATION_SLICE_DASHBOARD_HTML_NAME,
     build_verification_evaluation_report,
     write_verification_evaluation_report,
 )
@@ -78,6 +79,15 @@ def test_build_verification_evaluation_report_produces_curves_and_slice_breakdow
     assert dataset_slice.eer == 0.0
     assert dataset_slice.min_dcf == 0.0
 
+    noise_slice = next(
+        row
+        for row in report.slice_breakdown
+        if row.field_name == "noise_slice" and row.field_value == "stationary/light"
+    )
+    assert noise_slice.trial_count == 4
+    assert noise_slice.positive_count == 2
+    assert noise_slice.negative_count == 2
+
 
 def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Path) -> None:
     score_rows = [
@@ -95,6 +105,7 @@ def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Pat
 
     assert Path(written.report_json_path).name == VERIFICATION_REPORT_JSON_NAME
     assert Path(written.report_markdown_path).name == VERIFICATION_REPORT_MARKDOWN_NAME
+    assert Path(written.slice_dashboard_path).name == VERIFICATION_SLICE_DASHBOARD_HTML_NAME
     assert Path(written.roc_curve_path).name == VERIFICATION_ROC_CURVE_JSONL_NAME
     assert Path(written.det_curve_path).name == VERIFICATION_DET_CURVE_JSONL_NAME
     assert Path(written.calibration_curve_path).name == VERIFICATION_CALIBRATION_CURVE_JSONL_NAME
@@ -104,6 +115,7 @@ def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Pat
     for path in (
         written.report_json_path,
         written.report_markdown_path,
+        written.slice_dashboard_path,
         written.roc_curve_path,
         written.det_curve_path,
         written.calibration_curve_path,
@@ -111,6 +123,10 @@ def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Pat
         written.slice_breakdown_path,
     ):
         assert Path(path).is_file()
+
+    html = Path(written.slice_dashboard_path).read_text()
+    assert "Verification Slice Dashboard" in html
+    assert "Duration" in html
 
 
 def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -165,6 +181,9 @@ def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "channel": "mono",
                 "role": "enrollment",
                 "duration_seconds": 0.8,
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
             },
             {
                 "trial_item_id": "speaker_alpha:test",
@@ -173,6 +192,9 @@ def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "channel": "mono",
                 "role": "test",
                 "duration_seconds": 1.0,
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
             },
             {
                 "trial_item_id": "speaker_bravo:enroll",
@@ -181,6 +203,9 @@ def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "channel": "phone",
                 "role": "enrollment",
                 "duration_seconds": 3.0,
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
             },
             {
                 "trial_item_id": "speaker_bravo:test",
@@ -189,6 +214,9 @@ def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "channel": "phone",
                 "role": "test",
                 "duration_seconds": 4.0,
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
             },
         ]
     ).write_parquet(metadata_path)

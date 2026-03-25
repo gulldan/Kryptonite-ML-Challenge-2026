@@ -33,6 +33,7 @@ The report writer produces these files:
 
 - `verification_eval_report.json`
 - `verification_eval_report.md`
+- `verification_slice_dashboard.html`
 - `verification_roc_curve.jsonl`
 - `verification_det_curve.jsonl`
 - `verification_calibration_curve.jsonl`
@@ -50,10 +51,15 @@ The default per-slice report groups trials by:
 - `channel`
 - `role_pair`
 - `duration_bucket`
+- `noise_slice`
+- `reverb_slice`
+- `channel_slice`
+- `distance_slice`
+- `silence_slice`
 
 Override or extend this with repeated `--slice-field` flags. The implementation supports pairwise
-fields such as `dataset` / `channel`, explicit side selectors such as `left_device`, and
-`duration_bucket`.
+fields such as `dataset` / `channel`, explicit side selectors such as `left_device`, derived
+corruption-aware fields such as `noise_slice`, and `duration_bucket`.
 
 ## Calibration Notes
 

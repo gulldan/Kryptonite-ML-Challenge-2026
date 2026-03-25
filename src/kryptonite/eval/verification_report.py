@@ -11,6 +11,12 @@ from typing import Any
 
 import numpy as np
 
+from .verification_dashboard import (
+    VERIFICATION_SLICE_DASHBOARD_HTML_NAME as DASHBOARD_HTML_NAME,
+)
+from .verification_dashboard import (
+    render_verification_slice_dashboard_html,
+)
 from .verification_data import (
     build_trial_item_index,
     load_verification_metadata_rows,
@@ -32,8 +38,19 @@ VERIFICATION_DET_CURVE_JSONL_NAME = "verification_det_curve.jsonl"
 VERIFICATION_CALIBRATION_CURVE_JSONL_NAME = "verification_calibration_curve.jsonl"
 VERIFICATION_HISTOGRAM_JSON_NAME = "verification_score_histogram.json"
 VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME = "verification_slice_breakdown.jsonl"
+VERIFICATION_SLICE_DASHBOARD_HTML_NAME = DASHBOARD_HTML_NAME
 
-DEFAULT_SLICE_FIELDS: tuple[str, ...] = ("dataset", "channel", "role_pair", "duration_bucket")
+DEFAULT_SLICE_FIELDS: tuple[str, ...] = (
+    "dataset",
+    "channel",
+    "role_pair",
+    "duration_bucket",
+    "noise_slice",
+    "reverb_slice",
+    "channel_slice",
+    "distance_slice",
+    "silence_slice",
+)
 _PAIR_FIELDS = {"dataset", "source_dataset", "channel", "device", "language", "split", "role"}
 _DURATION_BUCKETS: tuple[tuple[float, float | None, str], ...] = (
     (0.0, 1.0, "lt_1s"),
@@ -197,6 +214,7 @@ class WrittenVerificationEvaluationReport:
     output_root: str
     report_json_path: str
     report_markdown_path: str
+    slice_dashboard_path: str
     roc_curve_path: str
     det_curve_path: str
     calibration_curve_path: str
@@ -209,6 +227,7 @@ class WrittenVerificationEvaluationReport:
             "output_root": self.output_root,
             "report_json_path": self.report_json_path,
             "report_markdown_path": self.report_markdown_path,
+            "slice_dashboard_path": self.slice_dashboard_path,
             "roc_curve_path": self.roc_curve_path,
             "det_curve_path": self.det_curve_path,
             "calibration_curve_path": self.calibration_curve_path,
@@ -307,6 +326,7 @@ def write_verification_evaluation_report(
 
     report_json_path = output_path / VERIFICATION_REPORT_JSON_NAME
     report_markdown_path = output_path / VERIFICATION_REPORT_MARKDOWN_NAME
+    slice_dashboard_path = output_path / VERIFICATION_SLICE_DASHBOARD_HTML_NAME
     roc_curve_path = output_path / VERIFICATION_ROC_CURVE_JSONL_NAME
     det_curve_path = output_path / VERIFICATION_DET_CURVE_JSONL_NAME
     calibration_curve_path = output_path / VERIFICATION_CALIBRATION_CURVE_JSONL_NAME
@@ -319,6 +339,10 @@ def write_verification_evaluation_report(
     )
     report_markdown_path.write_text(
         render_verification_evaluation_markdown(report), encoding="utf-8"
+    )
+    slice_dashboard_path.write_text(
+        render_verification_slice_dashboard_html(report),
+        encoding="utf-8",
     )
     roc_curve_path.write_text(
         "".join(json.dumps(point.to_dict(), sort_keys=True) + "\n" for point in report.roc_points),
@@ -348,6 +372,7 @@ def write_verification_evaluation_report(
         output_root=str(output_path),
         report_json_path=str(report_json_path),
         report_markdown_path=str(report_markdown_path),
+        slice_dashboard_path=str(slice_dashboard_path),
         roc_curve_path=str(roc_curve_path),
         det_curve_path=str(det_curve_path),
         calibration_curve_path=str(calibration_curve_path),
@@ -586,6 +611,8 @@ def _build_slice_breakdown(
                 left_metadata=left_metadata,
                 right_metadata=right_metadata,
             )
+            if field_value is None:
+                continue
             grouped_rows.setdefault((field_name, field_value), []).append(normalized_row)
 
     slice_rows: list[VerificationSliceSummary] = []
@@ -675,7 +702,22 @@ def _derive_slice_value(
     *,
     left_metadata: dict[str, Any] | None,
     right_metadata: dict[str, Any] | None,
-) -> str:
+) -> str | None:
+    if field_name == "noise_slice":
+        return _derive_noise_slice(left_metadata=left_metadata, right_metadata=right_metadata)
+
+    if field_name == "reverb_slice":
+        return _derive_reverb_slice(left_metadata=left_metadata, right_metadata=right_metadata)
+
+    if field_name == "channel_slice":
+        return _derive_channel_slice(left_metadata=left_metadata, right_metadata=right_metadata)
+
+    if field_name == "distance_slice":
+        return _derive_distance_slice(left_metadata=left_metadata, right_metadata=right_metadata)
+
+    if field_name == "silence_slice":
+        return _derive_silence_slice(left_metadata=left_metadata, right_metadata=right_metadata)
+
     if field_name == "duration_bucket":
         duration_values = [
             _coerce_float_or_none(metadata.get("duration_seconds"))
@@ -739,6 +781,213 @@ def _derive_slice_value(
     return f"{left_value}|{right_value}"
 
 
+def _derive_noise_slice(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+) -> str | None:
+    if (
+        _coerce_pair_label(
+            left_metadata=left_metadata,
+            right_metadata=right_metadata,
+            field_name="corruption_family",
+        )
+        != "noise"
+    ):
+        return None
+    category = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="corruption_category",
+    )
+    severity = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_severity",
+    )
+    return _join_slice_parts(category, severity)
+
+
+def _derive_reverb_slice(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+) -> str | None:
+    if (
+        _coerce_pair_label(
+            left_metadata=left_metadata,
+            right_metadata=right_metadata,
+            field_name="corruption_family",
+        )
+        != "reverb"
+    ):
+        return None
+    direct = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="direct_condition",
+    )
+    rt60 = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="rt60_bucket",
+    )
+    field = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="field",
+    )
+    return _join_slice_parts(field, direct, rt60)
+
+
+def _derive_channel_slice(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+) -> str | None:
+    if (
+        _coerce_pair_label(
+            left_metadata=left_metadata,
+            right_metadata=right_metadata,
+            field_name="corruption_family",
+        )
+        != "codec"
+    ):
+        return None
+    codec_family = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="codec_family",
+    )
+    suite_id = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_suite",
+    )
+    if codec_family != "channel" and "channel" not in suite_id:
+        return None
+    codec_name = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="codec_name",
+    )
+    severity = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_severity",
+    )
+    return _join_slice_parts(codec_family, codec_name, severity)
+
+
+def _derive_distance_slice(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+) -> str | None:
+    if (
+        _coerce_pair_label(
+            left_metadata=left_metadata,
+            right_metadata=right_metadata,
+            field_name="corruption_family",
+        )
+        != "distance"
+    ):
+        return None
+    field = _coerce_pair_nested_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        nested_field_name="distance_field",
+    )
+    severity = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_severity",
+    )
+    return _join_slice_parts(field, severity)
+
+
+def _derive_silence_slice(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+) -> str | None:
+    if (
+        _coerce_pair_label(
+            left_metadata=left_metadata,
+            right_metadata=right_metadata,
+            field_name="corruption_family",
+        )
+        != "silence"
+    ):
+        return None
+    severity = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_severity",
+    )
+    candidate = _coerce_pair_label(
+        left_metadata=left_metadata,
+        right_metadata=right_metadata,
+        field_name="corruption_candidate_id",
+    )
+    return _join_slice_parts(severity, candidate)
+
+
+def _coerce_pair_label(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+    field_name: str,
+) -> str:
+    return _merge_pair_labels(
+        _coerce_label(None if left_metadata is None else left_metadata.get(field_name)),
+        _coerce_label(None if right_metadata is None else right_metadata.get(field_name)),
+    )
+
+
+def _coerce_pair_nested_label(
+    *,
+    left_metadata: dict[str, Any] | None,
+    right_metadata: dict[str, Any] | None,
+    nested_field_name: str,
+) -> str:
+    return _merge_pair_labels(
+        _coerce_label(_lookup_nested_metadata(left_metadata, nested_field_name)),
+        _coerce_label(_lookup_nested_metadata(right_metadata, nested_field_name)),
+    )
+
+
+def _lookup_nested_metadata(
+    metadata: dict[str, Any] | None,
+    nested_field_name: str,
+) -> Any:
+    if metadata is None:
+        return None
+    container = metadata.get("corruption_metadata")
+    if isinstance(container, dict):
+        return container.get(nested_field_name)
+    return None
+
+
+def _merge_pair_labels(left_value: str, right_value: str) -> str:
+    if left_value == "unknown" and right_value == "unknown":
+        return "unknown"
+    if left_value == right_value:
+        return left_value
+    if left_value == "unknown":
+        return right_value
+    if right_value == "unknown":
+        return left_value
+    return "mixed"
+
+
+def _join_slice_parts(*parts: str) -> str | None:
+    normalized = [part for part in parts if part and part != "unknown"]
+    if not normalized:
+        return None
+    return "/".join(normalized)
+
+
 def _fit_platt_scaler(scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
     design = np.column_stack([scores, np.ones_like(scores)])
     coefficients = np.zeros(2, dtype=np.float64)
@@ -800,6 +1049,7 @@ __all__ = [
     "VERIFICATION_REPORT_JSON_NAME",
     "VERIFICATION_REPORT_MARKDOWN_NAME",
     "VERIFICATION_ROC_CURVE_JSONL_NAME",
+    "VERIFICATION_SLICE_DASHBOARD_HTML_NAME",
     "VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME",
     "VerificationCalibrationBin",
     "VerificationCalibrationSummary",

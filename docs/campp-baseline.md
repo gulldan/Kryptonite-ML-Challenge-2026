@@ -86,6 +86,7 @@ Each run writes a dedicated directory under `artifacts/baselines/campp/<run-id>/
 - `score_summary.json`
 - `verification_eval_report.json`
 - `verification_eval_report.md`
+- `verification_slice_dashboard.html`
 - `verification_roc_curve.jsonl`
 - `verification_det_curve.jsonl`
 - `verification_calibration_curve.jsonl`
