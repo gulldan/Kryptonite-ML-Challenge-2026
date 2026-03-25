@@ -19,6 +19,7 @@ from kryptonite.config import ChunkingConfig, ProjectConfig
 from kryptonite.data import AudioLoadRequest, ManifestRow, load_manifest_audio
 from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.deployment import resolve_project_path
+from kryptonite.eval import WrittenVerificationEvaluationReport
 from kryptonite.features import (
     FbankExtractionRequest,
     FbankExtractor,
@@ -126,6 +127,7 @@ class SpeakerBaselineRunArtifacts:
     training_summary: TrainingSummary
     embedding_summary: EmbeddingExportSummary
     score_summary: ScoreSummary
+    verification_report: WrittenVerificationEvaluationReport | None = None
     tracking_run_dir: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -144,6 +146,9 @@ class SpeakerBaselineRunArtifacts:
             "training_summary": self.training_summary.to_dict(),
             "embedding_summary": self.embedding_summary.to_dict(),
             "score_summary": self.score_summary.to_dict(),
+            "verification_report": (
+                None if self.verification_report is None else self.verification_report.to_dict()
+            ),
             "tracking_run_dir": self.tracking_run_dir,
         }
 
@@ -521,6 +526,7 @@ def render_markdown_report(
     training_summary: TrainingSummary,
     embedding_summary: EmbeddingExportSummary,
     score_summary: ScoreSummary,
+    verification_report: WrittenVerificationEvaluationReport | None,
     output_root: Path,
     project_root: Path,
 ) -> str:
@@ -534,6 +540,12 @@ def render_markdown_report(
         Path(embedding_summary.embeddings_path),
         project_root=project_root,
     )
+    relative_verification_report = None
+    if verification_report is not None:
+        relative_verification_report = relative_to_project(
+            Path(verification_report.report_markdown_path),
+            project_root=project_root,
+        )
     lines = [
         f"# {title}",
         "",
@@ -589,6 +601,20 @@ def render_markdown_report(
             f"- Score gap: `{score_summary.score_gap}`",
         ]
     )
+    if verification_report is not None:
+        metrics = verification_report.summary.metrics
+        lines.extend(
+            [
+                "",
+                "## Verification Eval",
+                "",
+                f"- EER: `{metrics.eer}`",
+                f"- EER threshold: `{metrics.eer_threshold}`",
+                f"- MinDCF: `{metrics.min_dcf}`",
+                f"- MinDCF threshold: `{metrics.min_dcf_threshold}`",
+                f"- Eval report: `{relative_verification_report}`",
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 

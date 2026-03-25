@@ -35,8 +35,8 @@ By default the run will:
 5. generate simple verification trials from the dev manifest roles when no explicit trials file is
    configured
 6. write cosine scores to `dev_scores.jsonl`
-7. emit `training_summary.json`, `score_summary.json`, `reproducibility_snapshot.json`, and a
-   markdown report
+7. emit `training_summary.json`, `score_summary.json`, `verification_eval_report.{json,md}`,
+   curve artifacts, `reproducibility_snapshot.json`, and a markdown report
 
 ## Config Surface
 
@@ -84,6 +84,13 @@ Each run writes a dedicated directory under `artifacts/baselines/eres2netv2/<run
 - `dev_scores.jsonl`: cosine scores with labels
 - `training_summary.json`
 - `score_summary.json`
+- `verification_eval_report.json`
+- `verification_eval_report.md`
+- `verification_roc_curve.jsonl`
+- `verification_det_curve.jsonl`
+- `verification_calibration_curve.jsonl`
+- `verification_score_histogram.json`
+- `verification_slice_breakdown.jsonl`
 - `reproducibility_snapshot.json`
 - `eres2netv2_baseline_report.md`
 
@@ -91,17 +98,18 @@ Because ERes2NetV2 follows the same artifact contract as CAM++, you can compare 
 on the same manifests by diffing `score_summary.json` or plotting both embedding exports through the
 existing atlas tooling.
 
-To turn the generated `dev_scores.jsonl` into speaker-verification metrics:
+To rebuild the generated verification report manually:
 
 ```bash
 uv run python scripts/evaluate_verification_scores.py \
-  --scores artifacts/baselines/eres2netv2/<run-id>/dev_scores.jsonl
+  --scores artifacts/baselines/eres2netv2/<run-id>/dev_scores.jsonl \
+  --trials artifacts/baselines/eres2netv2/<run-id>/dev_trials.jsonl \
+  --metadata artifacts/baselines/eres2netv2/<run-id>/dev_embedding_metadata.parquet
 ```
 
 ## Current Limits
 
 - training currently supports `fp32` only; mixed precision is deferred to the optimizer/scheduler
-  task
-- the default trial generation is intentionally simple and deterministic; the richer evaluation
-  package comes later
+- the default trial generation is intentionally simple and deterministic; richer scoring backends
+  and held-out calibration protocols still come later
 - the default config is a smoke baseline, not a claim of production-ready recipe quality

@@ -108,6 +108,7 @@ def test_render_markdown_report_includes_provenance_notes(tmp_path: Path) -> Non
             mean_negative_score=0.1,
             score_gap=0.4,
         ),
+        verification_report=None,
         output_root=output_root,
         project_root=project_root,
     )

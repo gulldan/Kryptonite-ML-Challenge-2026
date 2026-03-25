@@ -84,6 +84,7 @@ See [docs/audio-augmentation-scheduler.md](./docs/audio-augmentation-scheduler.m
 See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
 See [docs/campp-baseline.md](./docs/campp-baseline.md) for the first repo-native CAM++ baseline path from manifests to checkpoints, embeddings, and cosine scores.
 See [docs/clean-room-fallback-baseline.md](./docs/clean-room-fallback-baseline.md) for the restricted-rules fallback baseline that stays fully train-from-scratch.
+See [docs/evaluation-package.md](./docs/evaluation-package.md) for the shared offline verification report contract, ROC/DET artifacts, calibration bins, and per-slice breakdown flow.
 See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
 
 ## Naming Conventions

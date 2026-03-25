@@ -413,7 +413,7 @@ def _require_literal(
     if value not in allowed_values:
         allowed = ", ".join(allowed_values)
         raise ValueError(f"Inventory field '{key}' must be one of: {allowed}.")
-    return value  # type: ignore[return-value]
+    return cast(InventoryStatus, value)
 
 
 def _format_counts(counts: dict[str, int]) -> str:

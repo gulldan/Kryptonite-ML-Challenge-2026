@@ -35,8 +35,8 @@ By default the run will:
 5. generate simple verification trials from the dev manifest roles when no explicit trials file is
    configured
 6. write cosine scores to `dev_scores.jsonl`
-7. emit `training_summary.json`, `score_summary.json`, `reproducibility_snapshot.json`, and a
-   markdown report
+7. emit `training_summary.json`, `score_summary.json`, `verification_eval_report.{json,md}`,
+   curve artifacts, `reproducibility_snapshot.json`, and a markdown report
 
 ## Config Surface
 
@@ -84,6 +84,13 @@ Each run writes a dedicated directory under `artifacts/baselines/campp/<run-id>/
 - `dev_scores.jsonl`: cosine scores with labels
 - `training_summary.json`
 - `score_summary.json`
+- `verification_eval_report.json`
+- `verification_eval_report.md`
+- `verification_roc_curve.jsonl`
+- `verification_det_curve.jsonl`
+- `verification_calibration_curve.jsonl`
+- `verification_score_histogram.json`
+- `verification_slice_breakdown.jsonl`
 - `reproducibility_snapshot.json`
 - `campp_baseline_report.md`
 
@@ -99,9 +106,8 @@ uv run python scripts/build_embedding_atlas.py \
 ## Current Limits
 
 - training currently supports `fp32` only; mixed precision is deferred to the optimizer/scheduler
-  task
-- the default trial generation is intentionally simple and deterministic; the richer evaluation
-  package comes later
+- the default trial generation is intentionally simple and deterministic; richer scoring backends
+  and held-out calibration protocols still come later
 - the default config is a smoke baseline, not a claim of production-ready recipe quality
 
 See [clean-room fallback baseline](./clean-room-fallback-baseline.md) for the explicit restricted

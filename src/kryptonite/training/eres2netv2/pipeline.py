@@ -12,6 +12,11 @@ from torch.utils.data import DataLoader
 
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
+from kryptonite.eval import (
+    build_verification_evaluation_report,
+    load_verification_score_rows,
+    write_verification_evaluation_report,
+)
 from kryptonite.features import FbankExtractionRequest
 from kryptonite.models import ArcMarginLoss, CosineClassifier, ERes2NetV2Encoder
 from kryptonite.repro import build_reproducibility_snapshot, set_global_seed
@@ -213,6 +218,17 @@ def run_eres2netv2_baseline(
     )
     score_summary_path = output_root / SCORE_SUMMARY_FILE_NAME
     score_summary_path.write_text(json.dumps(score_summary.to_dict(), indent=2, sort_keys=True))
+    verification_report = write_verification_evaluation_report(
+        build_verification_evaluation_report(
+            load_verification_score_rows(score_summary.scores_path),
+            scores_path=score_summary.scores_path,
+            trials_path=trials_path,
+            metadata_path=embedding_summary.metadata_parquet_path,
+            trial_rows=trial_rows,
+            metadata_rows=metadata_rows,
+        ),
+        output_root=output_root,
+    )
 
     reproducibility = build_reproducibility_snapshot(
         config=config.project,
@@ -229,6 +245,7 @@ def run_eres2netv2_baseline(
             training_summary=training_summary,
             embedding_summary=embedding_summary,
             score_summary=score_summary,
+            verification_report=verification_report,
             output_root=output_root,
             project_root=project_root,
         )
@@ -241,6 +258,8 @@ def run_eres2netv2_baseline(
                 "train_loss": final_epoch.mean_loss,
                 "train_accuracy": final_epoch.accuracy,
                 "score_gap": score_summary.score_gap or 0.0,
+                "eer": verification_report.summary.metrics.eer,
+                "min_dcf": verification_report.summary.metrics.min_dcf,
             },
             step=config.project.training.max_epochs,
         )
@@ -253,6 +272,13 @@ def run_eres2netv2_baseline(
             Path(trials_path),
             Path(score_summary.scores_path),
             score_summary_path,
+            Path(verification_report.report_json_path),
+            Path(verification_report.report_markdown_path),
+            Path(verification_report.roc_curve_path),
+            Path(verification_report.det_curve_path),
+            Path(verification_report.calibration_curve_path),
+            Path(verification_report.histogram_path),
+            Path(verification_report.slice_breakdown_path),
             reproducibility_path,
             report_path,
         ):
@@ -262,6 +288,8 @@ def run_eres2netv2_baseline(
                 "checkpoint_path": str(checkpoint_path),
                 "score_gap": score_summary.score_gap,
                 "trial_count": score_summary.trial_count,
+                "eer": verification_report.summary.metrics.eer,
+                "min_dcf": verification_report.summary.metrics.min_dcf,
             }
         )
 
@@ -280,6 +308,7 @@ def run_eres2netv2_baseline(
         training_summary=training_summary,
         embedding_summary=embedding_summary,
         score_summary=score_summary,
+        verification_report=verification_report,
         tracking_run_dir=(None if tracker_run is None else str(tracker_run.run_dir)),
     )
 
