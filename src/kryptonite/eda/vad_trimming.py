@@ -192,9 +192,7 @@ def build_vad_trimming_report(
     min_output_duration_seconds = (
         DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS if vad is None else vad.min_output_duration_seconds
     )
-    min_retained_ratio = (
-        DEFAULT_VAD_MIN_RETAINED_RATIO if vad is None else vad.min_retained_ratio
-    )
+    min_retained_ratio = DEFAULT_VAD_MIN_RETAINED_RATIO if vad is None else vad.min_retained_ratio
     records: list[VADComparisonRecord] = []
     for index, loaded in enumerate(
         iter_manifest_audio(

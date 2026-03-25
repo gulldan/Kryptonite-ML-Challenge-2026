@@ -39,8 +39,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("artifacts/eval/embedding-atlas/manifest-run"),
         help=(
-            "Directory where exported embeddings, metadata, "
-            "and atlas artifacts should be written."
+            "Directory where exported embeddings, metadata, and atlas artifacts should be written."
         ),
     )
     parser.add_argument(

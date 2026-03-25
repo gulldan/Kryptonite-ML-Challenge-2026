@@ -177,9 +177,7 @@ def resolve_vad_settings(
         else float(min_output_duration_seconds)
     )
     active_min_retained_ratio = (
-        DEFAULT_VAD_MIN_RETAINED_RATIO
-        if min_retained_ratio is None
-        else float(min_retained_ratio)
+        DEFAULT_VAD_MIN_RETAINED_RATIO if min_retained_ratio is None else float(min_retained_ratio)
     )
     if normalized_mode == "none":
         return VADSettings(
