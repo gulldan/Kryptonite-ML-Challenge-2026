@@ -12,6 +12,8 @@ emits a full offline report with:
 - score histograms
 - calibration bins from a simple Platt-style logistic fit
 - per-slice breakdowns driven by embedding metadata
+- thresholded error analysis for false accepts / false rejects, hard examples, domain failures,
+  and speaker confusion patterns
 
 ## CLI
 
@@ -39,9 +41,24 @@ The report writer produces these files:
 - `verification_calibration_curve.jsonl`
 - `verification_score_histogram.json`
 - `verification_slice_breakdown.jsonl`
+- `verification_error_analysis.json`
+- `verification_error_analysis.md`
 
 Baseline pipelines now emit the same files automatically into each run directory next to
 `score_summary.json`.
+
+## Error Analysis
+
+When the score rows carry trial identifiers or you provide `--trials`, the writer also emits a
+thresholded error-analysis bundle. By default it uses the global `EER` threshold so false accepts
+and false rejects stay comparable for baseline review. The artifact summarizes:
+
+- hardest false accepts
+- hardest false rejects
+- slice-level/domain failure rows with error rates
+- recurrent speaker confusion pairs
+- speaker-specific false-reject fragility
+- priority weak spots to carry into the next training stage
 
 ## Slice Breakdown
 

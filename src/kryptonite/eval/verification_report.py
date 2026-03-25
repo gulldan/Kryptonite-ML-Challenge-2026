@@ -23,6 +23,17 @@ from .verification_data import (
     load_verification_trial_rows,
     resolve_trial_side_identifier,
 )
+from .verification_error_analysis import (
+    VERIFICATION_ERROR_ANALYSIS_JSON_NAME as ERROR_ANALYSIS_JSON_NAME,
+)
+from .verification_error_analysis import (
+    VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME as ERROR_ANALYSIS_MARKDOWN_NAME,
+)
+from .verification_error_analysis import (
+    VerificationErrorAnalysisReport,
+    build_verification_error_analysis,
+    write_verification_error_analysis_report,
+)
 from .verification_metrics import (
     VerificationMetricsSummary,
     VerificationOperatingPoint,
@@ -39,6 +50,8 @@ VERIFICATION_CALIBRATION_CURVE_JSONL_NAME = "verification_calibration_curve.json
 VERIFICATION_HISTOGRAM_JSON_NAME = "verification_score_histogram.json"
 VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME = "verification_slice_breakdown.jsonl"
 VERIFICATION_SLICE_DASHBOARD_HTML_NAME = DASHBOARD_HTML_NAME
+VERIFICATION_ERROR_ANALYSIS_JSON_NAME = ERROR_ANALYSIS_JSON_NAME
+VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME = ERROR_ANALYSIS_MARKDOWN_NAME
 
 DEFAULT_SLICE_FIELDS: tuple[str, ...] = (
     "dataset",
@@ -194,6 +207,7 @@ class VerificationEvaluationReport:
     slice_breakdown: tuple[VerificationSliceSummary, ...]
     roc_points: tuple[VerificationOperatingPoint, ...]
     det_points: tuple[VerificationDetPoint, ...]
+    error_analysis: VerificationErrorAnalysisReport | None = None
 
     def to_dict(self, *, include_curves: bool = False) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -206,6 +220,8 @@ class VerificationEvaluationReport:
         if include_curves:
             payload["roc_points"] = [point.to_dict() for point in self.roc_points]
             payload["det_points"] = [point.to_dict() for point in self.det_points]
+        if self.error_analysis is not None:
+            payload["error_analysis"] = self.error_analysis.to_dict()
         return payload
 
 
@@ -221,6 +237,8 @@ class WrittenVerificationEvaluationReport:
     histogram_path: str
     slice_breakdown_path: str
     summary: VerificationEvaluationSummary
+    error_analysis_json_path: str | None = None
+    error_analysis_markdown_path: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -234,6 +252,8 @@ class WrittenVerificationEvaluationReport:
             "histogram_path": self.histogram_path,
             "slice_breakdown_path": self.slice_breakdown_path,
             "summary": self.summary.to_dict(),
+            "error_analysis_json_path": self.error_analysis_json_path,
+            "error_analysis_markdown_path": self.error_analysis_markdown_path,
         }
 
 
@@ -290,6 +310,19 @@ def build_verification_evaluation_report(
             c_fa=c_fa,
         )
     )
+    error_analysis = None
+    if resolved_trial_rows is not None or any(
+        resolve_trial_side_identifier(row, "left") or resolve_trial_side_identifier(row, "right")
+        for row in score_rows
+    ):
+        error_analysis = build_verification_error_analysis(
+            score_rows,
+            decision_threshold=metrics.eer_threshold,
+            threshold_source="eer",
+            trial_rows=resolved_trial_rows,
+            metadata_rows=resolved_metadata_rows,
+            slice_fields=slice_fields,
+        )
 
     summary = VerificationEvaluationSummary(
         metrics=metrics,
@@ -313,6 +346,7 @@ def build_verification_evaluation_report(
         slice_breakdown=slice_breakdown,
         roc_points=roc_points,
         det_points=det_points,
+        error_analysis=error_analysis,
     )
 
 
@@ -332,6 +366,8 @@ def write_verification_evaluation_report(
     calibration_curve_path = output_path / VERIFICATION_CALIBRATION_CURVE_JSONL_NAME
     histogram_path = output_path / VERIFICATION_HISTOGRAM_JSON_NAME
     slice_breakdown_path = output_path / VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME
+    error_analysis_json_path = None
+    error_analysis_markdown_path = None
 
     report_json_path.write_text(
         json.dumps(report.to_dict(include_curves=False), indent=2, sort_keys=True) + "\n",
@@ -367,6 +403,13 @@ def write_verification_evaluation_report(
         "".join(json.dumps(row.to_dict(), sort_keys=True) + "\n" for row in report.slice_breakdown),
         encoding="utf-8",
     )
+    if report.error_analysis is not None:
+        written_error_analysis = write_verification_error_analysis_report(
+            report.error_analysis,
+            output_root=output_path,
+        )
+        error_analysis_json_path = written_error_analysis.report_json_path
+        error_analysis_markdown_path = written_error_analysis.report_markdown_path
 
     return WrittenVerificationEvaluationReport(
         output_root=str(output_path),
@@ -379,6 +422,8 @@ def write_verification_evaluation_report(
         histogram_path=str(histogram_path),
         slice_breakdown_path=str(slice_breakdown_path),
         summary=report.summary,
+        error_analysis_json_path=error_analysis_json_path,
+        error_analysis_markdown_path=error_analysis_markdown_path,
     )
 
 
@@ -433,6 +478,30 @@ def render_verification_evaluation_markdown(report: VerificationEvaluationReport
                     f"EER `{row.eer}`, minDCF `{row.min_dcf}`, gap `{row.score_gap}`"
                 )
             lines.append("")
+    if report.error_analysis is not None:
+        error_summary = report.error_analysis.summary
+        lines.extend(
+            [
+                "",
+                "## Error Analysis",
+                "",
+                f"- Threshold source: `{error_summary.threshold_source}`",
+                f"- Decision threshold: `{error_summary.decision_threshold}`",
+                f"- False accepts: `{error_summary.false_accept_count}` "
+                f"({error_summary.false_accept_rate})",
+                f"- False rejects: `{error_summary.false_reject_count}` "
+                f"({error_summary.false_reject_rate})",
+            ]
+        )
+        if report.error_analysis.priority_findings:
+            lines.extend(["", "### Priority Weak Spots", ""])
+            for finding in report.error_analysis.priority_findings[:5]:
+                lines.append(
+                    "- "
+                    f"**{finding.title}**: {finding.evidence} "
+                    f"(errors `{finding.error_count}` / trials `{finding.trial_count}`, "
+                    f"rate `{finding.error_rate}`)"
+                )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -1045,6 +1114,8 @@ __all__ = [
     "DEFAULT_SLICE_FIELDS",
     "VERIFICATION_CALIBRATION_CURVE_JSONL_NAME",
     "VERIFICATION_DET_CURVE_JSONL_NAME",
+    "VERIFICATION_ERROR_ANALYSIS_JSON_NAME",
+    "VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME",
     "VERIFICATION_HISTOGRAM_JSON_NAME",
     "VERIFICATION_REPORT_JSON_NAME",
     "VERIFICATION_REPORT_MARKDOWN_NAME",

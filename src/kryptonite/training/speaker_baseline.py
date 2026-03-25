@@ -599,11 +599,17 @@ def render_markdown_report(
         project_root=project_root,
     )
     relative_verification_report = None
+    relative_error_analysis_report = None
     if verification_report is not None:
         relative_verification_report = relative_to_project(
             Path(verification_report.report_markdown_path),
             project_root=project_root,
         )
+        if verification_report.error_analysis_markdown_path is not None:
+            relative_error_analysis_report = relative_to_project(
+                Path(verification_report.error_analysis_markdown_path),
+                project_root=project_root,
+            )
     lines = [
         f"# {title}",
         "",
@@ -678,6 +684,8 @@ def render_markdown_report(
                 f"- Slice dashboard: `{relative_slice_dashboard}`",
             ]
         )
+        if relative_error_analysis_report is not None:
+            lines.append(f"- Error analysis: `{relative_error_analysis_report}`")
     return "\n".join(lines) + "\n"
 
 

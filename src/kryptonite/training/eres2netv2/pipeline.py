@@ -263,7 +263,7 @@ def run_eres2netv2_baseline(
             },
             step=config.project.training.max_epochs,
         )
-        for artifact_path in (
+        artifact_paths = [
             checkpoint_path,
             training_summary_path,
             Path(embedding_summary.embeddings_path),
@@ -281,7 +281,12 @@ def run_eres2netv2_baseline(
             Path(verification_report.slice_breakdown_path),
             reproducibility_path,
             report_path,
-        ):
+        ]
+        if verification_report.error_analysis_json_path is not None:
+            artifact_paths.append(Path(verification_report.error_analysis_json_path))
+        if verification_report.error_analysis_markdown_path is not None:
+            artifact_paths.append(Path(verification_report.error_analysis_markdown_path))
+        for artifact_path in artifact_paths:
             tracker_run.log_artifact(artifact_path)
         tracker_run.finish(
             summary={

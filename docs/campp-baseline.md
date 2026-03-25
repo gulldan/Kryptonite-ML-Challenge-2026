@@ -92,6 +92,8 @@ Each run writes a dedicated directory under `artifacts/baselines/campp/<run-id>/
 - `verification_calibration_curve.jsonl`
 - `verification_score_histogram.json`
 - `verification_slice_breakdown.jsonl`
+- `verification_error_analysis.json`
+- `verification_error_analysis.md`
 - `reproducibility_snapshot.json`
 - `campp_baseline_report.md`
 

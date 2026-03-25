@@ -8,6 +8,8 @@ import polars as pl
 from kryptonite.eval import (
     VERIFICATION_CALIBRATION_CURVE_JSONL_NAME,
     VERIFICATION_DET_CURVE_JSONL_NAME,
+    VERIFICATION_ERROR_ANALYSIS_JSON_NAME,
+    VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME,
     VERIFICATION_HISTOGRAM_JSON_NAME,
     VERIFICATION_REPORT_JSON_NAME,
     VERIFICATION_REPORT_MARKDOWN_NAME,
@@ -69,6 +71,9 @@ def test_build_verification_evaluation_report_produces_curves_and_slice_breakdow
     assert len(report.det_points) == len(report.roc_points)
     assert len(report.histogram) == 4
     assert len(report.calibration_bins) == 2
+    assert report.error_analysis is not None
+    assert report.error_analysis.summary.false_accept_count == 0
+    assert report.error_analysis.summary.false_reject_count == 0
 
     dataset_slice = next(
         row
@@ -111,6 +116,8 @@ def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Pat
     assert Path(written.calibration_curve_path).name == VERIFICATION_CALIBRATION_CURVE_JSONL_NAME
     assert Path(written.histogram_path).name == VERIFICATION_HISTOGRAM_JSON_NAME
     assert Path(written.slice_breakdown_path).name == VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME
+    assert written.error_analysis_json_path is not None
+    assert written.error_analysis_markdown_path is not None
 
     for path in (
         written.report_json_path,
@@ -121,12 +128,83 @@ def test_write_verification_evaluation_report_writes_all_artifacts(tmp_path: Pat
         written.calibration_curve_path,
         written.histogram_path,
         written.slice_breakdown_path,
+        written.error_analysis_json_path,
+        written.error_analysis_markdown_path,
     ):
         assert Path(path).is_file()
 
     html = Path(written.slice_dashboard_path).read_text()
     assert "Verification Slice Dashboard" in html
     assert "Duration" in html
+
+
+def test_write_verification_evaluation_report_writes_error_analysis_when_identifiers_exist(
+    tmp_path: Path,
+) -> None:
+    scores_path, trials_path, metadata_path = _write_eval_fixtures(tmp_path)
+    score_rows = [
+        {
+            "left_id": "speaker_alpha:enroll",
+            "right_id": "speaker_alpha:test",
+            "label": 1,
+            "score": 0.34,
+        },
+        {
+            "left_id": "speaker_alpha:enroll",
+            "right_id": "speaker_bravo:test",
+            "label": 0,
+            "score": 0.87,
+        },
+        {
+            "left_id": "speaker_bravo:enroll",
+            "right_id": "speaker_bravo:test",
+            "label": 1,
+            "score": 0.91,
+        },
+        {
+            "left_id": "speaker_bravo:enroll",
+            "right_id": "speaker_alpha:test",
+            "label": 0,
+            "score": 0.11,
+        },
+    ]
+    trial_rows = [json.loads(line) for line in trials_path.read_text().splitlines() if line.strip()]
+    metadata_rows = pl.read_parquet(metadata_path).to_dicts()
+
+    report = build_verification_evaluation_report(
+        score_rows,
+        scores_path=scores_path,
+        trials_path=trials_path,
+        metadata_path=metadata_path,
+        trial_rows=trial_rows,
+        metadata_rows=metadata_rows,
+        histogram_bins=4,
+        calibration_bins=2,
+    )
+    written = write_verification_evaluation_report(report, output_root=tmp_path / "artifacts")
+
+    assert report.error_analysis is not None
+    assert report.error_analysis.summary.false_accept_count == 1
+    assert report.error_analysis.summary.false_reject_count == 1
+    assert written.error_analysis_json_path is not None
+    assert written.error_analysis_markdown_path is not None
+    assert Path(written.error_analysis_json_path).name == VERIFICATION_ERROR_ANALYSIS_JSON_NAME
+    assert (
+        Path(written.error_analysis_markdown_path).name == VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME
+    )
+    assert Path(written.error_analysis_json_path).is_file()
+    assert Path(written.error_analysis_markdown_path).is_file()
+
+    payload = json.loads(Path(written.error_analysis_json_path).read_text())
+    assert payload["summary"]["false_accept_count"] == 1
+    assert payload["summary"]["false_reject_count"] == 1
+    assert payload["speaker_confusions"][0]["speaker_a"] == "speaker_alpha"
+    assert payload["speaker_confusions"][0]["speaker_b"] == "speaker_bravo"
+
+    markdown = Path(written.error_analysis_markdown_path).read_text()
+    assert "# Verification Error Analysis" in markdown
+    assert "Priority Weak Spots" in markdown
+    assert "speaker_alpha" in markdown
 
 
 def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:

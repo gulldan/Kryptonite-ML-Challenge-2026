@@ -65,6 +65,10 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert Path(artifacts.verification_report.report_json_path).is_file()
     assert Path(artifacts.verification_report.report_markdown_path).is_file()
     assert Path(artifacts.verification_report.slice_dashboard_path).is_file()
+    assert artifacts.verification_report.error_analysis_json_path is not None
+    assert artifacts.verification_report.error_analysis_markdown_path is not None
+    assert Path(artifacts.verification_report.error_analysis_json_path).is_file()
+    assert Path(artifacts.verification_report.error_analysis_markdown_path).is_file()
     assert artifacts.training_summary.epochs[-1].mean_loss > 0.0
     assert artifacts.training_summary.provenance_ruleset == "standard"
     assert artifacts.training_summary.provenance_initialization == "from_scratch"
@@ -90,6 +94,7 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert "- Ruleset: `standard`" in report_text
     assert "## Verification Eval" in report_text
     assert "Slice dashboard:" in report_text
+    assert "Error analysis:" in report_text
 
 
 def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manifest: Path) -> Path:

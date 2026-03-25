@@ -132,6 +132,11 @@ def main(
                 f"Report JSON: {written.report_json_path}",
                 f"Report Markdown: {written.report_markdown_path}",
                 f"Slice dashboard: {written.slice_dashboard_path}",
+                *(
+                    []
+                    if written.error_analysis_markdown_path is None
+                    else [f"Error analysis: {written.error_analysis_markdown_path}"]
+                ),
             ]
         )
     )

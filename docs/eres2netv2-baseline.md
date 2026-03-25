@@ -92,6 +92,8 @@ Each run writes a dedicated directory under `artifacts/baselines/eres2netv2/<run
 - `verification_calibration_curve.jsonl`
 - `verification_score_histogram.json`
 - `verification_slice_breakdown.jsonl`
+- `verification_error_analysis.json`
+- `verification_error_analysis.md`
 - `reproducibility_snapshot.json`
 - `eres2netv2_baseline_report.md`
 
