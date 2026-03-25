@@ -26,6 +26,7 @@ Current entrypoints include:
 - `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report (ROC/DET curves, histogram, calibration bins, slice breakdowns, slice dashboard HTML, thresholded error analysis)
 - `scripts/run_campp_baseline.py` for training the repo-native CAM++ baseline and writing checkpoints, dev embeddings, trials, and cosine scores
 - `scripts/run_eres2netv2_baseline.py` for training the repo-native ERes2NetV2 baseline and writing checkpoints, dev embeddings, trials, and cosine scores
+- `scripts/production_dataloader_smoke.py` for inspecting the balanced/resumable production train dataloader against a real train manifest
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
 - `scripts/normalize_audio_dataset.py` for deterministic 16 kHz mono normalization, manifest rewriting, and quarantine reporting
 - `scripts/prepare_ffsvc2022_surrogate.py` for building manifests, quarantine lists, trials, speaker-disjoint splits, and checksum inventory from the surrogate bundle

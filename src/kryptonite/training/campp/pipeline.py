@@ -8,7 +8,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
 
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
@@ -25,18 +24,16 @@ from kryptonite.repro import build_reproducibility_snapshot, set_global_seed
 from kryptonite.tracking import build_tracker, create_run_id
 
 from ..manifest_speaker_data import (
-    ManifestSpeakerDataset,
     build_speaker_index,
-    collate_training_examples,
     load_manifest_rows,
 )
+from ..production_dataloader import build_production_train_dataloader
 from ..speaker_baseline import (
     REPRODUCIBILITY_FILE_NAME,
     SCORE_SUMMARY_FILE_NAME,
     TRAINING_SUMMARY_FILE_NAME,
     SpeakerBaselineRunArtifacts,
     TrainingSummary,
-    build_fixed_train_chunking_request,
     export_dev_embeddings,
     load_or_generate_trials,
     prepare_demo_artifacts_if_needed,
@@ -90,33 +87,13 @@ def run_campp_baseline(
     )
     speaker_to_index = build_speaker_index(train_rows)
 
-    audio_request = AudioLoadRequest.from_config(
-        config.project.normalization,
-        vad=config.project.vad,
-    )
     feature_request = FbankExtractionRequest.from_config(config.project.features)
-    chunking_request = build_fixed_train_chunking_request(
-        chunking=config.project.chunking,
-        baseline_name="CAM++",
-    )
-
-    train_dataset = ManifestSpeakerDataset(
+    train_dataset, train_sampler, train_loader = build_production_train_dataloader(
         rows=train_rows,
         speaker_to_index=speaker_to_index,
-        project_root=project_root,
-        audio_request=audio_request,
-        feature_request=feature_request,
-        chunking_request=chunking_request,
-        seed=config.project.runtime.seed,
-    )
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.project.training.batch_size,
-        shuffle=True,
-        num_workers=config.project.runtime.num_workers,
+        project=config.project,
+        total_epochs=config.project.training.max_epochs,
         pin_memory=device.type == "cuda",
-        collate_fn=collate_training_examples,
-        drop_last=False,
     )
 
     tracker_run = None
@@ -162,6 +139,7 @@ def run_campp_baseline(
         scheduler=scheduler,
         loader=train_loader,
         dataset=train_dataset,
+        sampler=train_sampler,
         device=device,
         max_epochs=config.project.training.max_epochs,
         grad_clip_norm=config.optimization.grad_clip_norm,
@@ -200,7 +178,10 @@ def run_campp_baseline(
         rows=dev_rows,
         manifest_path=config.data.dev_manifest,
         project_root=project_root,
-        audio_request=audio_request,
+        audio_request=AudioLoadRequest.from_config(
+            config.project.normalization,
+            vad=config.project.vad,
+        ),
         feature_request=feature_request,
         chunking=config.project.chunking,
         device=device,

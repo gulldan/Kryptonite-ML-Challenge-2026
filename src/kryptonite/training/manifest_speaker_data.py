@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import torch
@@ -19,6 +19,20 @@ from kryptonite.features import (
     chunk_utterance,
 )
 
+from .augmentation_runtime import TrainingAugmentationRuntime
+from .augmentation_scheduler import ScheduledAugmentation
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingSampleRequest:
+    row_index: int
+    request_seed: int
+    crop_seconds: float | None = None
+    clean_sample: bool = True
+    recipe_stage: str = "steady"
+    recipe_intensity: str = "clean"
+    augmentations: tuple[ScheduledAugmentation, ...] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class TrainingExample:
@@ -26,6 +40,11 @@ class TrainingExample:
     label: int
     speaker_id: str
     utterance_id: str | None
+    clean_sample: bool = True
+    crop_seconds: float | None = None
+    recipe_stage: str | None = None
+    recipe_intensity: str | None = None
+    augmentation_trace: tuple[dict[str, object], ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +53,11 @@ class TrainingBatch:
     labels: torch.Tensor
     speaker_ids: tuple[str, ...]
     utterance_ids: tuple[str | None, ...]
+    clean_sample_mask: torch.Tensor
+    crop_seconds: tuple[float | None, ...] = field(default_factory=tuple)
+    recipe_stages: tuple[str | None, ...] = field(default_factory=tuple)
+    recipe_intensities: tuple[str | None, ...] = field(default_factory=tuple)
+    augmentation_traces: tuple[tuple[dict[str, object], ...], ...] = field(default_factory=tuple)
 
 
 def load_manifest_rows(
@@ -84,6 +108,7 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         feature_request: FbankExtractionRequest,
         chunking_request: UtteranceChunkingRequest,
         seed: int,
+        augmentation_runtime: TrainingAugmentationRuntime | None = None,
     ) -> None:
         self._rows = list(rows)
         self._speaker_to_index = dict(speaker_to_index)
@@ -94,6 +119,7 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         self._seed = seed
         self._epoch = 0
         self._extractor: FbankExtractor | None = None
+        self._augmentation_runtime = augmentation_runtime
 
     def __len__(self) -> int:
         return len(self._rows)
@@ -101,19 +127,53 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
     def set_epoch(self, epoch: int) -> None:
         self._epoch = epoch
 
-    def __getitem__(self, index: int) -> TrainingExample:
-        row = self._rows[index]
+    def __getitem__(self, index: int | TrainingSampleRequest) -> TrainingExample:
+        request = index if isinstance(index, TrainingSampleRequest) else None
+        row_index: int
+        if request is None:
+            assert isinstance(index, int)
+            row_index = index
+        else:
+            row_index = request.row_index
+        row = self._rows[row_index]
         loaded = load_manifest_audio(
             row,
             project_root=self._project_root,
             request=self._audio_request,
         )
-        rng = random.Random(self._seed + (self._epoch * len(self._rows)) + index)
+        rng = random.Random(
+            request.request_seed
+            if request is not None
+            else self._seed + (self._epoch * len(self._rows)) + row_index
+        )
+        waveform = loaded.audio.waveform
+        sample_rate_hz = loaded.audio.sample_rate_hz
+        augmentation_trace: tuple[dict[str, object], ...] = ()
+        if request is not None and request.augmentations:
+            if self._augmentation_runtime is None:
+                raise ValueError("Augmentation request received without an augmentation runtime.")
+            (
+                waveform,
+                sample_rate_hz,
+                augmentation_trace,
+            ) = self._augmentation_runtime.apply_augmentations(
+                waveform=waveform,
+                sample_rate_hz=sample_rate_hz,
+                augmentations=request.augmentations,
+                rng=rng,
+            )
+        chunking_request = self._chunking_request
+        if request is not None and request.crop_seconds is not None:
+            chunking_request = replace(
+                self._chunking_request,
+                train_min_crop_seconds=request.crop_seconds,
+                train_max_crop_seconds=request.crop_seconds,
+            )
         chunk_batch = chunk_utterance(
-            loaded.audio.waveform,
-            sample_rate_hz=loaded.audio.sample_rate_hz,
+            waveform,
+            sample_rate_hz=sample_rate_hz,
             stage="train",
-            request=self._chunking_request,
+            request=chunking_request,
             rng=rng,
         )
         if len(chunk_batch.chunks) != 1:
@@ -124,13 +184,18 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         chunk = chunk_batch.chunks[0]
         features = self._get_extractor().extract(
             chunk.waveform,
-            sample_rate_hz=loaded.audio.sample_rate_hz,
+            sample_rate_hz=sample_rate_hz,
         )
         return TrainingExample(
             features=features,
             label=self._speaker_to_index[row.speaker_id],
             speaker_id=row.speaker_id,
             utterance_id=row.utterance_id,
+            clean_sample=True if request is None else request.clean_sample,
+            crop_seconds=chunk.duration_seconds,
+            recipe_stage=None if request is None else request.recipe_stage,
+            recipe_intensity=None if request is None else request.recipe_intensity,
+            augmentation_trace=augmentation_trace,
         )
 
     def _get_extractor(self) -> FbankExtractor:
@@ -154,4 +219,12 @@ def collate_training_examples(batch: list[TrainingExample]) -> TrainingBatch:
         labels=torch.tensor([example.label for example in batch], dtype=torch.long),
         speaker_ids=tuple(example.speaker_id for example in batch),
         utterance_ids=tuple(example.utterance_id for example in batch),
+        clean_sample_mask=torch.tensor(
+            [example.clean_sample for example in batch],
+            dtype=torch.bool,
+        ),
+        crop_seconds=tuple(example.crop_seconds for example in batch),
+        recipe_stages=tuple(example.recipe_stage for example in batch),
+        recipe_intensities=tuple(example.recipe_intensity for example in batch),
+        augmentation_traces=tuple(example.augmentation_trace for example in batch),
     )

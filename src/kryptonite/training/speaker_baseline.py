@@ -45,6 +45,10 @@ class EpochAwareDataset(Protocol):
     def set_epoch(self, epoch: int) -> None: ...
 
 
+class EpochAwareBatchSampler(Protocol):
+    def set_epoch(self, epoch: int) -> None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class EpochSummary:
     epoch: int
@@ -219,6 +223,7 @@ def train_epochs(
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     loader: Iterable[TrainingBatch],
     dataset: EpochAwareDataset,
+    sampler: EpochAwareBatchSampler | None,
     device: torch.device,
     max_epochs: int,
     grad_clip_norm: float | None,
@@ -227,6 +232,8 @@ def train_epochs(
     summaries: list[EpochSummary] = []
     for epoch in range(max_epochs):
         dataset.set_epoch(epoch)
+        if sampler is not None:
+            sampler.set_epoch(epoch)
         model.train()
         classifier.train()
         total_loss = 0.0

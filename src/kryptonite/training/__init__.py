@@ -14,12 +14,15 @@ from .eres2netv2 import (
     load_eres2netv2_baseline_config,
     run_eres2netv2_baseline,
 )
+from .production_dataloader import BalancedSpeakerBatchSampler, build_production_train_dataloader
 
 __all__ = [
     "AugmentationScheduler",
+    "BalancedSpeakerBatchSampler",
     "CAMPPlusRunArtifacts",
     "ERes2NetV2RunArtifacts",
     "build_augmentation_scheduler_report",
+    "build_production_train_dataloader",
     "build_training_artifact_report",
     "build_training_environment_report",
     "load_campp_baseline_config",
