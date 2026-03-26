@@ -165,6 +165,104 @@ class _CorruptedSuiteEntry:
     trial_manifest_paths: tuple[str, ...]
 
 
+def load_campp_sweep_shortlist_report(
+    *,
+    report_path: Path | str,
+) -> SweepShortlistRunArtifacts:
+    """Load a previously written shortlist leaderboard JSON report."""
+
+    payload = json.loads(Path(report_path).read_text())
+    summary_payload = _require_report_mapping(payload.get("summary"), field_name="summary")
+    candidate_payloads = payload.get("candidates")
+    if not isinstance(candidate_payloads, list) or not candidate_payloads:
+        raise ValueError("Shortlist report must contain a non-empty candidates list.")
+
+    summary = SweepShortlistSummary(
+        generated_at=_require_report_string(
+            summary_payload.get("generated_at"),
+            field_name="summary.generated_at",
+        ),
+        config_path=_require_report_string(
+            summary_payload.get("config_path"),
+            field_name="summary.config_path",
+        ),
+        base_stage3_config_path=_require_report_string(
+            summary_payload.get("base_stage3_config_path"),
+            field_name="summary.base_stage3_config_path",
+        ),
+        output_root=_require_report_string(
+            summary_payload.get("output_root"),
+            field_name="summary.output_root",
+        ),
+        stage2_checkpoint=_require_report_string(
+            summary_payload.get("stage2_checkpoint"),
+            field_name="summary.stage2_checkpoint",
+        ),
+        run_clean_dev=_require_report_bool(
+            summary_payload.get("run_clean_dev"),
+            field_name="summary.run_clean_dev",
+        ),
+        corrupted_suite_ids=_require_report_string_tuple(
+            summary_payload.get("corrupted_suite_ids"),
+            field_name="summary.corrupted_suite_ids",
+        ),
+        clean_weight=_require_report_float(
+            summary_payload.get("clean_weight"),
+            field_name="summary.clean_weight",
+        ),
+        corrupted_weight=_require_report_float(
+            summary_payload.get("corrupted_weight"),
+            field_name="summary.corrupted_weight",
+        ),
+        eer_weight=_require_report_float(
+            summary_payload.get("eer_weight"),
+            field_name="summary.eer_weight",
+        ),
+        min_dcf_weight=_require_report_float(
+            summary_payload.get("min_dcf_weight"),
+            field_name="summary.min_dcf_weight",
+        ),
+        configured_candidate_count=_require_report_int(
+            summary_payload.get("configured_candidate_count"),
+            field_name="summary.configured_candidate_count",
+        ),
+        executed_candidate_count=_require_report_int(
+            summary_payload.get("executed_candidate_count"),
+            field_name="summary.executed_candidate_count",
+        ),
+        max_candidates_budget=_require_report_int(
+            summary_payload.get("max_candidates_budget"),
+            field_name="summary.max_candidates_budget",
+        ),
+        budget_notes=_require_report_string_tuple(
+            summary_payload.get("budget_notes"),
+            field_name="summary.budget_notes",
+        ),
+        winner_candidate_id=_require_report_string(
+            summary_payload.get("winner_candidate_id"),
+            field_name="summary.winner_candidate_id",
+        ),
+        winner_selection_score=_require_report_float(
+            summary_payload.get("winner_selection_score"),
+            field_name="summary.winner_selection_score",
+        ),
+    )
+    candidates = tuple(_load_candidate_report_entry(item) for item in candidate_payloads)
+    return SweepShortlistRunArtifacts(
+        output_root=_require_report_string(payload.get("output_root"), field_name="output_root"),
+        report_json_path=_require_report_string(
+            payload.get("report_json_path"),
+            field_name="report_json_path",
+        ),
+        report_markdown_path=_require_report_string(
+            payload.get("report_markdown_path"),
+            field_name="report_markdown_path",
+        ),
+        summary=summary,
+        candidates=candidates,
+    )
+
+
 def run_campp_sweep_shortlist(
     config: CAMPPlusSweepShortlistConfig,
     *,
@@ -415,6 +513,171 @@ def _select_candidates(
     if candidate_limit is not None:
         selected = selected[:candidate_limit]
     return tuple(selected)
+
+
+def _load_candidate_report_entry(payload: object) -> SweepCandidateResult:
+    candidate_payload = _require_report_mapping(payload, field_name="candidates[]")
+    suite_payloads = candidate_payload.get("suites")
+    if not isinstance(suite_payloads, list) or not suite_payloads:
+        raise ValueError("candidates[].suites must be a non-empty list.")
+    return SweepCandidateResult(
+        candidate_id=_require_report_string(
+            candidate_payload.get("candidate_id"),
+            field_name="candidates[].candidate_id",
+        ),
+        description=_require_report_string(
+            candidate_payload.get("description"),
+            field_name="candidates[].description",
+        ),
+        rank=_require_report_int(candidate_payload.get("rank"), field_name="candidates[].rank"),
+        selection_score=_require_report_float(
+            candidate_payload.get("selection_score"),
+            field_name="candidates[].selection_score",
+        ),
+        weighted_eer=_require_report_float(
+            candidate_payload.get("weighted_eer"),
+            field_name="candidates[].weighted_eer",
+        ),
+        weighted_min_dcf=_require_report_float(
+            candidate_payload.get("weighted_min_dcf"),
+            field_name="candidates[].weighted_min_dcf",
+        ),
+        clean_eer=_require_optional_report_float(
+            candidate_payload.get("clean_eer"),
+            field_name="candidates[].clean_eer",
+        ),
+        clean_min_dcf=_require_optional_report_float(
+            candidate_payload.get("clean_min_dcf"),
+            field_name="candidates[].clean_min_dcf",
+        ),
+        robust_eer=_require_report_float(
+            candidate_payload.get("robust_eer"),
+            field_name="candidates[].robust_eer",
+        ),
+        robust_min_dcf=_require_report_float(
+            candidate_payload.get("robust_min_dcf"),
+            field_name="candidates[].robust_min_dcf",
+        ),
+        train_batch_size=_require_report_int(
+            candidate_payload.get("train_batch_size"),
+            field_name="candidates[].train_batch_size",
+        ),
+        gradient_accumulation_steps=_require_report_int(
+            candidate_payload.get("gradient_accumulation_steps"),
+            field_name="candidates[].gradient_accumulation_steps",
+        ),
+        effective_batch_size=_require_report_int(
+            candidate_payload.get("effective_batch_size"),
+            field_name="candidates[].effective_batch_size",
+        ),
+        eval_pooling=_require_report_string(
+            candidate_payload.get("eval_pooling"),
+            field_name="candidates[].eval_pooling",
+        ),
+        crop_start_seconds=_require_report_float(
+            candidate_payload.get("crop_start_seconds"),
+            field_name="candidates[].crop_start_seconds",
+        ),
+        crop_end_seconds=_require_report_float(
+            candidate_payload.get("crop_end_seconds"),
+            field_name="candidates[].crop_end_seconds",
+        ),
+        margin_start=_require_report_float(
+            candidate_payload.get("margin_start"),
+            field_name="candidates[].margin_start",
+        ),
+        margin_end=_require_report_float(
+            candidate_payload.get("margin_end"),
+            field_name="candidates[].margin_end",
+        ),
+        max_epochs=_require_report_int(
+            candidate_payload.get("max_epochs"),
+            field_name="candidates[].max_epochs",
+        ),
+        final_train_loss=_require_report_float(
+            candidate_payload.get("final_train_loss"),
+            field_name="candidates[].final_train_loss",
+        ),
+        final_train_accuracy=_require_report_float(
+            candidate_payload.get("final_train_accuracy"),
+            field_name="candidates[].final_train_accuracy",
+        ),
+        checkpoint_path=_require_report_string(
+            candidate_payload.get("checkpoint_path"),
+            field_name="candidates[].checkpoint_path",
+        ),
+        run_output_root=_require_report_string(
+            candidate_payload.get("run_output_root"),
+            field_name="candidates[].run_output_root",
+        ),
+        run_report_path=_require_report_string(
+            candidate_payload.get("run_report_path"),
+            field_name="candidates[].run_report_path",
+        ),
+        tracking_run_dir=_require_optional_report_string(
+            candidate_payload.get("tracking_run_dir"),
+            field_name="candidates[].tracking_run_dir",
+        ),
+        project_overrides=_require_report_string_tuple(
+            candidate_payload.get("project_overrides"),
+            field_name="candidates[].project_overrides",
+        ),
+        notes=_require_report_string_tuple(
+            candidate_payload.get("notes"),
+            field_name="candidates[].notes",
+        ),
+        suites=tuple(_load_suite_report_entry(item) for item in suite_payloads),
+    )
+
+
+def _load_suite_report_entry(payload: object) -> SweepSuiteEvaluation:
+    suite_payload = _require_report_mapping(payload, field_name="candidates[].suites[]")
+    return SweepSuiteEvaluation(
+        suite_id=_require_report_string(
+            suite_payload.get("suite_id"),
+            field_name="candidates[].suites[].suite_id",
+        ),
+        label=_require_report_string(
+            suite_payload.get("label"),
+            field_name="candidates[].suites[].label",
+        ),
+        family=_require_report_string(
+            suite_payload.get("family"),
+            field_name="candidates[].suites[].family",
+        ),
+        manifest_path=_require_report_string(
+            suite_payload.get("manifest_path"),
+            field_name="candidates[].suites[].manifest_path",
+        ),
+        trials_path=_require_report_string(
+            suite_payload.get("trials_path"),
+            field_name="candidates[].suites[].trials_path",
+        ),
+        output_root=_require_report_string(
+            suite_payload.get("output_root"),
+            field_name="candidates[].suites[].output_root",
+        ),
+        report_markdown_path=_require_report_string(
+            suite_payload.get("report_markdown_path"),
+            field_name="candidates[].suites[].report_markdown_path",
+        ),
+        trial_count=_require_report_int(
+            suite_payload.get("trial_count"),
+            field_name="candidates[].suites[].trial_count",
+        ),
+        eer=_require_report_float(
+            suite_payload.get("eer"),
+            field_name="candidates[].suites[].eer",
+        ),
+        min_dcf=_require_report_float(
+            suite_payload.get("min_dcf"),
+            field_name="candidates[].suites[].min_dcf",
+        ),
+        score_gap=_require_optional_report_float(
+            suite_payload.get("score_gap"),
+            field_name="candidates[].suites[].score_gap",
+        ),
+    )
 
 
 def _load_corrupted_suites(
@@ -853,6 +1116,61 @@ def _utc_now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+def _require_report_mapping(payload: object, *, field_name: str) -> dict[str, object]:
+    if not isinstance(payload, dict):
+        raise ValueError(f"{field_name} must be an object.")
+    return cast(dict[str, object], payload)
+
+
+def _require_report_string(payload: object, *, field_name: str) -> str:
+    if not isinstance(payload, str) or not payload.strip():
+        raise ValueError(f"{field_name} must be a non-empty string.")
+    return payload
+
+
+def _require_optional_report_string(payload: object, *, field_name: str) -> str | None:
+    if payload is None:
+        return None
+    return _require_report_string(payload, field_name=field_name)
+
+
+def _require_report_bool(payload: object, *, field_name: str) -> bool:
+    if not isinstance(payload, bool):
+        raise ValueError(f"{field_name} must be a boolean.")
+    return payload
+
+
+def _require_report_int(payload: object, *, field_name: str) -> int:
+    if not isinstance(payload, int):
+        raise ValueError(f"{field_name} must be an integer.")
+    return payload
+
+
+def _require_report_float(payload: object, *, field_name: str) -> float:
+    if isinstance(payload, bool) or not isinstance(payload, int | float):
+        raise ValueError(f"{field_name} must be a number.")
+    return float(payload)
+
+
+def _require_optional_report_float(payload: object, *, field_name: str) -> float | None:
+    if payload is None:
+        return None
+    return _require_report_float(payload, field_name=field_name)
+
+
+def _require_report_string_tuple(payload: object, *, field_name: str) -> tuple[str, ...]:
+    if payload is None:
+        return ()
+    if not isinstance(payload, list):
+        raise ValueError(f"{field_name} must be a list of strings.")
+    values: list[str] = []
+    for index, item in enumerate(payload):
+        if not isinstance(item, str):
+            raise ValueError(f"{field_name}[{index}] must be a string.")
+        values.append(item)
+    return tuple(values)
+
+
 __all__ = [
     "SHORTLIST_REPORT_JSON_NAME",
     "SHORTLIST_REPORT_MARKDOWN_NAME",
@@ -860,6 +1178,7 @@ __all__ = [
     "SweepShortlistRunArtifacts",
     "SweepShortlistSummary",
     "SweepSuiteEvaluation",
+    "load_campp_sweep_shortlist_report",
     "render_campp_sweep_shortlist_markdown",
     "run_campp_sweep_shortlist",
 ]

@@ -1,0 +1,17 @@
+# CAM++ stage-3 final model selection for KRYP-046.
+#
+# Fill in the shortlist report path produced by KRYP-045. The selector keeps
+# the shortlist ranking objective as the source of truth and optionally evaluates
+# uniform checkpoint averages over the top-ranked compatible candidates.
+#
+# EMA is intentionally not configured here: the current training checkpoints do
+# not carry an EMA shadow model, so the repo-native post-processing step is
+# checkpoint averaging only.
+
+shortlist_report_path = "artifacts/sweeps/campp-stage3-shortlist/<run-id>/campp_stage3_sweep_shortlist_report.json"
+output_root = "artifacts/model-selection/campp-stage3"
+
+[averaging]
+enabled = true
+candidate_counts = [2, 3]
+weights = "uniform"
