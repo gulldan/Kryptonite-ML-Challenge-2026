@@ -17,10 +17,20 @@ emits a full offline report with:
 
 ## CLI
 
-Use the existing score-evaluation entrypoint:
+Use the existing score-evaluation entrypoint when you only need the shared verification report:
 
 ```bash
 uv run python scripts/evaluate_verification_scores.py \
+  --scores artifacts/baselines/eres2netv2/<run-id>/dev_scores.jsonl \
+  --trials artifacts/baselines/eres2netv2/<run-id>/dev_trials.jsonl \
+  --metadata artifacts/baselines/eres2netv2/<run-id>/dev_embedding_metadata.parquet
+```
+
+Use the threshold-calibration entrypoint when you also need named demo/production operating
+points:
+
+```bash
+uv run python scripts/calibrate_verification_thresholds.py \
   --scores artifacts/baselines/eres2netv2/<run-id>/dev_scores.jsonl \
   --trials artifacts/baselines/eres2netv2/<run-id>/dev_trials.jsonl \
   --metadata artifacts/baselines/eres2netv2/<run-id>/dev_embedding_metadata.parquet
@@ -46,6 +56,11 @@ The report writer produces these files:
 
 Baseline pipelines now emit the same files automatically into each run directory next to
 `score_summary.json`.
+
+The dedicated threshold-calibration workflow additionally writes:
+
+- `verification_threshold_calibration.json`
+- `verification_threshold_calibration.md`
 
 ## Error Analysis
 
@@ -82,6 +97,7 @@ corruption-aware fields such as `noise_slice`, and `duration_bucket`.
 
 The calibration section fits a lightweight logistic transform over the provided score file only.
 That makes it useful for offline diagnostics and relative comparisons between runs, but it is not a
-replacement for a held-out calibration protocol or a production scorer. The dedicated scoring /
-calibration backend task can later plug in stricter train-calibrate-eval splits on top of this
-artifact contract.
+replacement for a held-out calibration protocol or a production scorer.
+
+For named thresholds and deployment-oriented operating points, use the dedicated calibration
+workflow documented in [threshold-calibration.md](./threshold-calibration.md).

@@ -88,6 +88,7 @@ See [docs/campp-stage2-training.md](./docs/campp-stage2-training.md) and [docs/c
 See [docs/campp-hyperparameter-sweep-shortlist.md](./docs/campp-hyperparameter-sweep-shortlist.md) and [docs/campp-model-selection.md](./docs/campp-model-selection.md) for the bounded stage-3 shortlist plus the final-candidate selection and checkpoint-averaging flow.
 See [docs/clean-room-fallback-baseline.md](./docs/clean-room-fallback-baseline.md) for the restricted-rules fallback baseline that stays fully train-from-scratch.
 See [docs/evaluation-package.md](./docs/evaluation-package.md) for the shared offline verification report contract, ROC/DET artifacts, calibration bins, and per-slice breakdown flow.
+See [docs/threshold-calibration.md](./docs/threshold-calibration.md) for the named `balanced/min_dcf/demo/production` threshold profiles and the slice-aware calibration bundle workflow.
 See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
 
 ## Naming Conventions
