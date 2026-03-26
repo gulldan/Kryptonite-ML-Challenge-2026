@@ -36,6 +36,7 @@ class Stage2BatchSampler(Sampler[list[TrainingSampleRequest]]):
         batch_size: int,
         seed: int,
         chunking_request: UtteranceChunkingRequest,
+        hard_negative_fraction: float = 0.5,
         batches_per_epoch: int | None = None,
         augmentation_runtime: TrainingAugmentationRuntime | None = None,
     ) -> None:
@@ -43,11 +44,14 @@ class Stage2BatchSampler(Sampler[list[TrainingSampleRequest]]):
             raise ValueError("batch_size must be positive")
         if chunking_request.train_num_crops != 1:
             raise ValueError("Stage2BatchSampler currently supports train_num_crops=1 only.")
+        if not (0.0 <= hard_negative_fraction <= 1.0):
+            raise ValueError("hard_negative_fraction must be in [0, 1]")
 
         self._rows = rows
         self._batch_size = batch_size
         self._seed = seed
         self._chunking_request = chunking_request
+        self._hard_negative_fraction = hard_negative_fraction
         self._augmentation_runtime = augmentation_runtime
         self._speaker_to_row_indices = _group_rows_by_speaker(rows)
         self._speaker_ids = sorted(self._speaker_to_row_indices)
@@ -71,13 +75,14 @@ class Stage2BatchSampler(Sampler[list[TrainingSampleRequest]]):
         """Replace sampling weights.  Unknown speakers are silently ignored."""
         for speaker_id in self._speaker_ids:
             weight = speaker_weights.get(speaker_id)
-            if weight is not None:
-                if weight <= 0.0:
-                    raise ValueError(
-                        f"Speaker weight must be positive, got {weight!r} "
-                        f"for speaker {speaker_id!r}"
-                    )
-                self._speaker_weights[speaker_id] = weight
+            if weight is None:
+                self._speaker_weights[speaker_id] = 1.0
+                continue
+            if weight <= 0.0:
+                raise ValueError(
+                    f"Speaker weight must be positive, got {weight!r} for speaker {speaker_id!r}"
+                )
+            self._speaker_weights[speaker_id] = weight
 
     def state_dict(self) -> dict[str, int]:
         return {
@@ -100,12 +105,15 @@ class Stage2BatchSampler(Sampler[list[TrainingSampleRequest]]):
         epoch_number = epoch + 1
         epoch_rng = random.Random(_stable_seed(self._seed, "epoch", str(epoch_number)))
 
-        speaker_order = _expand_speaker_order_by_weights(
+        speaker_order = list(self._speaker_ids)
+        epoch_rng.shuffle(speaker_order)
+        hard_negative_order = _expand_speaker_order_by_weights(
             speaker_ids=self._speaker_ids,
             weights=self._speaker_weights,
             rng=epoch_rng,
         )
         speaker_cursor = 0
+        hard_negative_cursor = 0
         row_orders = {
             speaker_id: _shuffled_row_indices(
                 self._speaker_to_row_indices[speaker_id],
@@ -119,19 +127,42 @@ class Stage2BatchSampler(Sampler[list[TrainingSampleRequest]]):
         batches: list[list[TrainingSampleRequest]] = []
         for batch_index in range(self._batches_per_epoch):
             crop_seconds = _sample_crop_seconds(epoch_rng, self._chunking_request)
+            unique_slots = min(self._batch_size, len(self._speaker_ids))
+            target_hard_slots = min(
+                self._batch_size,
+                round(self._batch_size * self._hard_negative_fraction),
+            )
+
             batch_speakers: list[str] = []
             selected_speakers: set[str] = set()
-            unique_slots = min(self._batch_size, len(self._speaker_ids))
-            while len(batch_speakers) < unique_slots:
-                speaker_id, speaker_cursor = _next_speaker_id(
-                    speaker_order=speaker_order,
-                    speaker_cursor=speaker_cursor,
+            hard_slots_filled = 0
+
+            hard_negative_cursor, hard_slots_filled = _append_unique_speakers(
+                batch_speakers=batch_speakers,
+                selected_speakers=selected_speakers,
+                target_slots=min(unique_slots, target_hard_slots),
+                speaker_order=hard_negative_order,
+                speaker_cursor=hard_negative_cursor,
+                epoch_rng=epoch_rng,
+            )
+            speaker_cursor, _ = _append_unique_speakers(
+                batch_speakers=batch_speakers,
+                selected_speakers=selected_speakers,
+                target_slots=unique_slots - len(batch_speakers),
+                speaker_order=speaker_order,
+                speaker_cursor=speaker_cursor,
+                epoch_rng=epoch_rng,
+            )
+
+            remaining_hard_slots = max(0, target_hard_slots - hard_slots_filled)
+            while len(batch_speakers) < self._batch_size and remaining_hard_slots > 0:
+                speaker_id, hard_negative_cursor = _next_speaker_id(
+                    speaker_order=hard_negative_order,
+                    speaker_cursor=hard_negative_cursor,
                     epoch_rng=epoch_rng,
                 )
-                if speaker_id in selected_speakers:
-                    continue
-                selected_speakers.add(speaker_id)
                 batch_speakers.append(speaker_id)
+                remaining_hard_slots -= 1
             while len(batch_speakers) < self._batch_size:
                 speaker_id, speaker_cursor = _next_speaker_id(
                     speaker_order=speaker_order,
@@ -219,6 +250,30 @@ def _expand_speaker_order_by_weights(
         expanded.extend([speaker_id] * repeats)
     rng.shuffle(expanded)
     return expanded
+
+
+def _append_unique_speakers(
+    *,
+    batch_speakers: list[str],
+    selected_speakers: set[str],
+    target_slots: int,
+    speaker_order: list[str],
+    speaker_cursor: int,
+    epoch_rng: random.Random,
+) -> tuple[int, int]:
+    added = 0
+    while added < target_slots:
+        speaker_id, speaker_cursor = _next_speaker_id(
+            speaker_order=speaker_order,
+            speaker_cursor=speaker_cursor,
+            epoch_rng=epoch_rng,
+        )
+        if speaker_id in selected_speakers:
+            continue
+        selected_speakers.add(speaker_id)
+        batch_speakers.append(speaker_id)
+        added += 1
+    return speaker_cursor, added
 
 
 def _group_rows_by_speaker(rows: list[ManifestRow]) -> dict[str, list[int]]:

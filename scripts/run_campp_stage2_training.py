@@ -7,21 +7,23 @@ then trained with:
   - Hard-negative speaker mining every N epochs
   - Short-utterance curriculum (1.5 s → 4.0 s across three training phases)
 
-Example usage (dry-run with demo data):
+Example usage (dry-run with demo data after a compatible stage-1 smoke run):
   uv run python scripts/run_campp_stage2_training.py \\
-      --config configs/training/campp-stage2.toml \\
-      --project-override 'training.max_epochs=1' \\
-      --project-override 'runtime.num_workers=0' \\
+      --config configs/training/campp-stage2-smoke.toml \\
+      --stage1-checkpoint artifacts/baselines/campp/<run-id> \\
       --device cpu
 
 Production run on gpu-server (after approval):
   uv run python scripts/run_campp_stage2_training.py \\
-      --config configs/training/campp-stage2.toml
+      --config configs/training/campp-stage2.toml \\
+      --stage1-checkpoint \\
+      /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/campp-stage1/<run-id>
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import typer
@@ -52,6 +54,13 @@ _DEVICE = typer.Option(
     "--device",
     help="Force device: 'cpu', 'cuda', 'mps'. Defaults to auto-detect.",
 )
+_STAGE1_CHECKPOINT = typer.Option(
+    None,
+    "--stage1-checkpoint",
+    help=(
+        "Override the stage-1 warm-start source with a checkpoint file or completed run directory."
+    ),
+)
 _OUTPUT = typer.Option(
     "text",
     "--output",
@@ -65,6 +74,7 @@ def main(
     env_file: Path = _ENV_FILE,
     project_override: list[str] | None = _PROJECT_OVERRIDE,
     device: str | None = _DEVICE,
+    stage1_checkpoint: Path | None = _STAGE1_CHECKPOINT,
     output: str = _OUTPUT,
 ) -> None:
     stage2_config = load_campp_stage2_config(
@@ -72,6 +82,14 @@ def main(
         env_file=env_file,
         project_overrides=project_override or [],
     )
+    if stage1_checkpoint is not None:
+        stage2_config = replace(
+            stage2_config,
+            stage2=replace(
+                stage2_config.stage2,
+                stage1_checkpoint=stage1_checkpoint.as_posix(),
+            ),
+        )
     artifacts = run_campp_stage2(
         stage2_config,
         config_path=config,

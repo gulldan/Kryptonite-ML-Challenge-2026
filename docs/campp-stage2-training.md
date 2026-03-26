@@ -1,7 +1,7 @@
 # CAM++ Stage-2: Heavy Multi-Condition Training
 
 **Ticket:** KRYP-042
-**Depends on:** KRYP-041 (stage-1 pretraining — `campp_stage1_encoder.pt`)
+**Depends on:** KRYP-041 (stage-1 pretraining run directory or checkpoint)
 
 ## Overview
 
@@ -24,6 +24,7 @@ harder acoustic conditions.  Three mechanisms are active simultaneously:
 | `src/kryptonite/training/campp/stage2_sampler.py` | `Stage2BatchSampler` (hard-negative-aware) |
 | `src/kryptonite/training/campp/stage2_pipeline.py` | `run_campp_stage2()` training loop |
 | `configs/training/campp-stage2.toml` | Production config |
+| `configs/training/campp-stage2-smoke.toml` | Local/demo smoke config |
 | `scripts/run_campp_stage2_training.py` | CLI entry point |
 
 ### Config sections
@@ -32,7 +33,7 @@ harder acoustic conditions.  Three mechanisms are active simultaneously:
 
 ```toml
 [stage2]
-stage1_checkpoint = "artifacts/baselines/campp-stage1/campp_stage1_encoder.pt"
+stage1_checkpoint = "artifacts/baselines/campp-stage1/<run-id>"
 
 [stage2.hard_negative]
 enabled                    = true
@@ -79,13 +80,19 @@ Every `mining_interval_epochs` epochs the pipeline:
 6. Calls `Stage2BatchSampler.update_speaker_weights()` to expand the round-robin pool
    proportionally — confusable speakers appear more often in each batch.
 
+`hard_negative_fraction` controls how much of each batch is drawn from the
+hard-negative-biased speaker pool.  The remaining slots stay on the uniform
+speaker rotation, so stage-2 can bias toward confusable speakers without
+collapsing the full batch onto mined identities.
+
 Mining results are logged to `<output_root>/hard_negative_mining_log.jsonl`.
 
 ## Utterance Curriculum
 
-Training is divided into three equal-length phases:
+Training uses three ordered crop phases, but each phase length is driven by
+`curriculum_epochs` instead of always splitting the run into equal thirds:
 
-| Phase | Epochs (20-epoch run) | Crop size |
+| Phase | Epochs (`curriculum_epochs = 7`, `max_epochs = 20`) | Crop size |
 |-------|----------------------|-----------|
 | 0     | 0–6                  | 1.5 s     |
 | 1     | 7–13                 | 2.75 s    |
@@ -99,21 +106,34 @@ same shape (compatible with `collate_training_examples`).
 
 ### Dry run (local Mac, demo data)
 
+1. Produce a compatible stage-1 smoke run:
+
 ```bash
-uv run python scripts/run_campp_stage2_training.py \
-    --config configs/training/campp-stage2.toml \
-    --project-override 'training.max_epochs=1' \
-    --project-override 'runtime.num_workers=0' \
-    --project-override 'data.generate_demo_artifacts_if_missing=true' \
+uv run python scripts/run_campp_baseline.py \
+    --config configs/training/campp-baseline.toml \
     --device cpu
 ```
+
+2. Use the reported stage-1 run directory as the warm-start source:
+
+```bash
+uv run python scripts/run_campp_stage2_training.py \
+    --config configs/training/campp-stage2-smoke.toml \
+    --stage1-checkpoint artifacts/baselines/campp/<run-id> \
+    --device cpu
+```
+
+The smoke config is intentionally structural: it validates warm start, stage-2
+curriculum/mining wiring, embedding export, and scoring without requiring the
+full corruption-bank stack on a fresh local checkout.
 
 ### Production run (gpu-server, after approval)
 
 ```bash
 # On gpu-server: /mnt/storage/Kryptonite-ML-Challenge-2026
 uv run python scripts/run_campp_stage2_training.py \
-    --config configs/training/campp-stage2.toml
+    --config configs/training/campp-stage2.toml \
+    --stage1-checkpoint /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/campp-stage1/<run-id>
 ```
 
 ## Output Contract

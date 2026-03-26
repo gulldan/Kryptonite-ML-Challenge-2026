@@ -82,7 +82,10 @@ notes = [
 ]
 
 [stage2]
-stage1_checkpoint = "artifacts/baselines/campp-stage1/campp_stage1_encoder.pt"
+# Set this to the completed stage-1 run directory or to the checkpoint file itself.
+# For ad hoc runs prefer the CLI override:
+#   --stage1-checkpoint /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/campp-stage1/<run-id>
+stage1_checkpoint = "artifacts/baselines/campp-stage1/<run-id>"
 
 [stage2.hard_negative]
 enabled                    = true

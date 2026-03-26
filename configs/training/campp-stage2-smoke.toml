@@ -1,0 +1,79 @@
+# CAM++ stage-2 smoke config.
+#
+# Use this for local/demo validation after producing a compatible stage-1 smoke run.
+# Pass the completed stage-1 run directory (or the checkpoint file itself) via:
+#   --stage1-checkpoint artifacts/baselines/campp/<run-id>
+
+base_config = "configs/base.toml"
+
+project_overrides = [
+  'tracking.enabled=false',
+  'runtime.num_workers=0',
+  'training.batch_size=4',
+  'training.eval_batch_size=4',
+  'training.max_epochs=1',
+  # Structural smoke only: validate warm start, curriculum, mining, export path.
+  # Full heavy corruption coverage is checked with the production config on gpu-server.
+  'augmentation_scheduler.enabled=false',
+  'silence_augmentation.enabled=false',
+]
+
+[data]
+train_manifest = "artifacts/manifests/demo_manifest.jsonl"
+dev_manifest   = "artifacts/manifests/demo_manifest.jsonl"
+output_root    = "artifacts/baselines/campp-stage2-smoke"
+trials_manifest = ""
+checkpoint_name = "campp_stage2_encoder.pt"
+generate_demo_artifacts_if_missing = true
+
+[model]
+embedding_size   = 512
+growth_rate      = 32
+bottleneck_scale = 4
+init_channels    = 128
+head_channels    = 32
+head_res_blocks  = [2, 2]
+block_layers     = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations  = [1, 2, 2]
+memory_efficient = true
+
+[objective]
+classifier_blocks     = 0
+classifier_hidden_dim = 512
+scale      = 32.0
+margin     = 0.3
+easy_margin = false
+
+[optimization]
+learning_rate     = 0.01
+min_learning_rate = 0.00001
+momentum          = 0.9
+weight_decay      = 0.0001
+warmup_epochs     = 0
+grad_clip_norm    = 5.0
+
+[provenance]
+ruleset        = "standard"
+initialization = "pretrained"
+pretrained_resources = ["campp_stage1_encoder.pt"]
+notes = [
+  "KRYP-042: stage-2 smoke validation",
+  "Initialised from a completed CAM++ stage-1 smoke run",
+]
+
+[stage2]
+stage1_checkpoint = "artifacts/baselines/campp/<run-id>"
+
+[stage2.hard_negative]
+enabled                    = true
+mining_interval_epochs     = 1
+top_k_per_speaker          = 10
+hard_negative_fraction     = 0.5
+max_train_rows_for_mining  = 200
+
+[stage2.utterance_curriculum]
+enabled             = true
+short_crop_seconds  = 1.5
+long_crop_seconds   = 3.0
+curriculum_epochs   = 1

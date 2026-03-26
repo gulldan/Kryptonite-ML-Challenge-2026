@@ -184,7 +184,11 @@ def run_campp_stage2(
     loader: DataLoader[TrainingBatch] | None = None
 
     for epoch in range(max_epochs):
-        phase_index = _phase_for_epoch(epoch, n_phases=len(chunking_phases), max_epochs=max_epochs)
+        phase_index = _phase_for_epoch(
+            epoch,
+            curriculum=config.stage2.utterance_curriculum,
+            n_phases=len(chunking_phases),
+        )
         if phase_index != current_phase_index:
             current_phase_index = phase_index
             chunking_request = chunking_phases[phase_index]
@@ -195,6 +199,7 @@ def run_campp_stage2(
                 chunking_request=chunking_request,
                 active_runtime=active_runtime,
                 device=device,
+                hard_negative_fraction=config.stage2.hard_negative.hard_negative_fraction,
             )
             logger.info(
                 "Stage-2 phase %d: fixed crop %.2f s (epoch %d/%d)",
@@ -423,11 +428,10 @@ def _load_stage1_checkpoint(
     classifier: nn.Module,
     project_root: Path,
 ) -> None:
-    resolved = resolve_project_path(str(project_root), checkpoint_path)
-    if not resolved.exists():
-        raise FileNotFoundError(
-            f"Stage-1 checkpoint not found at {resolved}. Run stage-1 pretraining first (KRYP-041)."
-        )
+    resolved = _resolve_stage1_checkpoint_path(
+        checkpoint_path=checkpoint_path,
+        project_root=project_root,
+    )
     checkpoint = torch.load(resolved, map_location="cpu", weights_only=True)
     model.load_state_dict(checkpoint["model_state_dict"])
     if "classifier_state_dict" in checkpoint:
@@ -439,6 +443,27 @@ def _load_stage1_checkpoint(
                 "(speaker count mismatch?). Initialising classifier from scratch."
             )
     logger.info("Loaded stage-1 checkpoint from %s", resolved)
+
+
+def _resolve_stage1_checkpoint_path(*, checkpoint_path: str, project_root: Path) -> Path:
+    resolved = resolve_project_path(str(project_root), checkpoint_path)
+    if resolved.is_file():
+        return resolved
+    if resolved.is_dir():
+        for candidate_name in ("campp_stage1_encoder.pt", "campp_encoder.pt"):
+            candidate = resolved / candidate_name
+            if candidate.is_file():
+                return candidate
+        expected_stage1 = resolved / "campp_stage1_encoder.pt"
+        expected_baseline = resolved / "campp_encoder.pt"
+        raise FileNotFoundError(
+            "Stage-1 run directory does not contain a known checkpoint file. "
+            f"Expected one of: {expected_stage1}, {expected_baseline}."
+        )
+    raise FileNotFoundError(
+        f"Stage-1 checkpoint not found at {resolved}. Provide either a checkpoint file "
+        "or a completed stage-1 run directory."
+    )
 
 
 def _mine_hard_negatives(
@@ -547,6 +572,7 @@ def _build_stage2_dataloader(
     chunking_request: UtteranceChunkingRequest,
     active_runtime: TrainingAugmentationRuntime | None,
     device: torch.device,
+    hard_negative_fraction: float,
 ) -> tuple[ManifestSpeakerDataset, Stage2BatchSampler, DataLoader[TrainingBatch]]:
     from typing import cast
 
@@ -569,6 +595,7 @@ def _build_stage2_dataloader(
         batch_size=project.training.batch_size,
         seed=project.runtime.seed,
         chunking_request=chunking_request,
+        hard_negative_fraction=hard_negative_fraction,
         augmentation_runtime=active_runtime,
     )
     loader_kwargs: dict[str, Any] = {
@@ -679,12 +706,18 @@ def _build_chunking_phases(
     ]
 
 
-def _phase_for_epoch(epoch: int, *, n_phases: int, max_epochs: int) -> int:
+def _phase_for_epoch(
+    epoch: int,
+    *,
+    curriculum: Stage2UtteranceCurriculumConfig,
+    n_phases: int,
+) -> int:
     """Map an epoch index to its curriculum phase index (0-based)."""
     if n_phases <= 1:
         return 0
-    phase_size = math.ceil(max_epochs / n_phases)
-    return min(n_phases - 1, epoch // phase_size)
+    if not curriculum.enabled or curriculum.curriculum_epochs <= 0:
+        return 0
+    return min(n_phases - 1, epoch // curriculum.curriculum_epochs)
 
 
 def _build_lr_lambda(config: CAMPPlusStage2Config):
