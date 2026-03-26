@@ -61,6 +61,8 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert Path(artifacts.scores_path).is_file()
     assert Path(artifacts.score_summary_path).is_file()
     assert Path(artifacts.report_path).is_file()
+    cohort_summary_path = Path(artifacts.output_root) / "cohort_summary.json"
+    assert cohort_summary_path.is_file()
     assert artifacts.verification_report is not None
     assert Path(artifacts.verification_report.report_json_path).is_file()
     assert Path(artifacts.verification_report.report_markdown_path).is_file()
@@ -93,8 +95,14 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert "# ERes2NetV2 Baseline Report" in report_text
     assert "- Ruleset: `standard`" in report_text
     assert "## Verification Eval" in report_text
+    assert "## Cohort Bank" in report_text
     assert "Slice dashboard:" in report_text
     assert "Error analysis:" in report_text
+    cohort_summary = json.loads(cohort_summary_path.read_text())
+    assert cohort_summary["selected_row_count"] == 4
+    assert cohort_summary["selected_speaker_count"] == 2
+    assert cohort_summary["trial_overlap_fallback_used"] is True
+    assert cohort_summary["overlapping_validation_speakers"] == []
 
 
 def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manifest: Path) -> Path:
@@ -184,10 +192,10 @@ def _write_manifest_fixtures(tmp_path: Path) -> tuple[Path, Path]:
         )
 
     dev_specs = [
-        ("speaker_alpha", "enrollment", "dev_a_enroll.wav", 241.0),
-        ("speaker_alpha", "test", "dev_a_test.wav", 251.0),
-        ("speaker_bravo", "enrollment", "dev_b_enroll.wav", 361.0),
-        ("speaker_bravo", "test", "dev_b_test.wav", 371.0),
+        ("speaker_charlie", "enrollment", "dev_c_enroll.wav", 241.0),
+        ("speaker_charlie", "test", "dev_c_test.wav", 251.0),
+        ("speaker_delta", "enrollment", "dev_d_enroll.wav", 361.0),
+        ("speaker_delta", "test", "dev_d_test.wav", 371.0),
     ]
     for speaker_id, role, file_name, frequency in dev_specs:
         _write_tone(dataset_root / file_name, frequency_hz=frequency)

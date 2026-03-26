@@ -37,6 +37,7 @@ from ..speaker_baseline import (
     EpochSummary,
     SpeakerBaselineRunArtifacts,
     TrainingSummary,
+    build_default_cohort_bank,
     export_dev_embeddings,
     load_or_generate_trials,
     prepare_demo_artifacts_if_needed,
@@ -290,6 +291,13 @@ def run_campp_stage2(
         metadata_rows=metadata_rows,
         project_root=project_root,
     )
+    cohort_bank = build_default_cohort_bank(
+        output_root=output_root,
+        embedding_summary=embedding_summary,
+        train_manifest_path=config.data.train_manifest,
+        trials_path=trials_path,
+        project_root=project_root,
+    )
     score_summary = score_trials(
         output_root=output_root,
         trials_path=trials_path,
@@ -350,6 +358,10 @@ def run_campp_stage2(
             Path(embedding_summary.embeddings_path),
             Path(embedding_summary.metadata_jsonl_path),
             Path(embedding_summary.metadata_parquet_path),
+            Path(cohort_bank.embeddings_path),
+            Path(cohort_bank.metadata_jsonl_path),
+            Path(cohort_bank.metadata_parquet_path),
+            Path(cohort_bank.summary_path),
             Path(trials_path),
             Path(score_summary.scores_path),
             score_summary_path,

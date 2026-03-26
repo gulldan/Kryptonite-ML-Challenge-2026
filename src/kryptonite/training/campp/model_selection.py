@@ -26,6 +26,7 @@ from kryptonite.tracking import create_run_id
 from ..manifest_speaker_data import load_manifest_rows
 from ..speaker_baseline import (
     SCORE_SUMMARY_FILE_NAME,
+    build_default_cohort_bank,
     export_dev_embeddings,
     relative_to_project,
     resolve_device,
@@ -586,6 +587,13 @@ def _evaluate_variant_suites(
         )
         trials_path = resolve_project_path(str(project_root), suite.trials_path)
         trial_rows = [dict(row) for row in load_verification_trial_rows(trials_path)]
+        build_default_cohort_bank(
+            output_root=suite_output_root,
+            embedding_summary=embedding_summary,
+            train_manifest_path=winner_config.data.train_manifest,
+            trials_path=trials_path,
+            project_root=project_root,
+        )
         score_summary = score_trials(
             output_root=suite_output_root,
             trials_path=trials_path,

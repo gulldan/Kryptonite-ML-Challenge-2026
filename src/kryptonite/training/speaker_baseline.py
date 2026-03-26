@@ -19,7 +19,12 @@ from kryptonite.config import ChunkingConfig, ProjectConfig
 from kryptonite.data import AudioLoadRequest, ManifestRow, load_manifest_audio
 from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.deployment import resolve_project_path
-from kryptonite.eval import WrittenVerificationEvaluationReport
+from kryptonite.eval import (
+    COHORT_SUMMARY_JSON_NAME,
+    CohortEmbeddingBankSelection,
+    WrittenVerificationEvaluationReport,
+    build_cohort_embedding_bank,
+)
 from kryptonite.features import (
     FbankExtractionRequest,
     FbankExtractor,
@@ -583,6 +588,31 @@ def mean_or_none(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 6)
 
 
+def build_default_cohort_bank(
+    *,
+    output_root: Path,
+    embedding_summary: EmbeddingExportSummary,
+    train_manifest_path: str,
+    trials_path: Path,
+    project_root: Path,
+):
+    return build_cohort_embedding_bank(
+        project_root=project_root,
+        output_root=output_root,
+        embeddings_path=embedding_summary.embeddings_path,
+        metadata_path=embedding_summary.metadata_parquet_path,
+        selection=CohortEmbeddingBankSelection(
+            trial_paths=(str(trials_path),),
+            validation_manifest_paths=(train_manifest_path,),
+            strict_speaker_disjointness=True,
+            allow_trial_overlap_fallback=True,
+            point_id_field="atlas_point_id",
+            embeddings_key="embeddings",
+            ids_key="point_ids",
+        ),
+    )
+
+
 def render_markdown_report(
     *,
     title: str,
@@ -692,6 +722,7 @@ def render_markdown_report(
         )
         if relative_error_analysis_report is not None:
             lines.append(f"- Error analysis: `{relative_error_analysis_report}`")
+    lines.extend(_render_cohort_bank_section(output_root=output_root, project_root=project_root))
     return "\n".join(lines) + "\n"
 
 
@@ -700,3 +731,30 @@ def relative_to_project(path: Path, *, project_root: Path) -> str:
         return str(path.resolve().relative_to(project_root.resolve()))
     except ValueError:
         return str(path.resolve())
+
+
+def _render_cohort_bank_section(*, output_root: Path, project_root: Path) -> list[str]:
+    summary_path = output_root / COHORT_SUMMARY_JSON_NAME
+    if not summary_path.is_file():
+        return []
+
+    payload = json.loads(summary_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return []
+
+    overlap = payload.get("overlapping_validation_speakers")
+    if isinstance(overlap, list) and overlap:
+        overlap_text = ", ".join(str(value) for value in overlap)
+    else:
+        overlap_text = "none"
+
+    return [
+        "",
+        "## Cohort Bank",
+        "",
+        f"- Summary: `{relative_to_project(summary_path, project_root=project_root)}`",
+        f"- Selected embeddings: `{payload.get('selected_row_count', '?')}`",
+        f"- Selected speakers: `{payload.get('selected_speaker_count', '?')}`",
+        f"- Trial-overlap fallback used: `{payload.get('trial_overlap_fallback_used', False)}`",
+        f"- Validation speaker overlap: `{overlap_text}`",
+    ]

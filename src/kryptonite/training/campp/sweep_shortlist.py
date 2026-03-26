@@ -25,6 +25,7 @@ from kryptonite.tracking import create_run_id
 from ..manifest_speaker_data import load_manifest_rows
 from ..speaker_baseline import (
     SCORE_SUMMARY_FILE_NAME,
+    build_default_cohort_bank,
     export_dev_embeddings,
     load_or_generate_trials,
     relative_to_project,
@@ -914,6 +915,13 @@ def _evaluate_corrupted_suite(
         suite=suite,
         output_root=suite_output_root,
         metadata_rows=metadata_rows,
+        project_root=project_root,
+    )
+    build_default_cohort_bank(
+        output_root=suite_output_root,
+        embedding_summary=embedding_summary,
+        train_manifest_path=candidate_config.data.train_manifest,
+        trials_path=trials_path,
         project_root=project_root,
     )
     score_summary = score_trials(
