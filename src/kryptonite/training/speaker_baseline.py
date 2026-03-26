@@ -604,7 +604,7 @@ def build_default_cohort_bank(
         selection=CohortEmbeddingBankSelection(
             trial_paths=(str(trials_path),),
             validation_manifest_paths=(train_manifest_path,),
-            strict_speaker_disjointness=True,
+            strict_speaker_disjointness=False,
             allow_trial_overlap_fallback=True,
             point_id_field="atlas_point_id",
             embeddings_key="embeddings",

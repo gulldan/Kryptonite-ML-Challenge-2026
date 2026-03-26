@@ -32,12 +32,15 @@ Default policy:
 
 1. start from the exported dev embedding artifact
 2. try to exclude utterances that appear in the active verification trials
-3. validate speaker disjointness against the configured train manifest
+3. record speaker overlap against the configured train manifest in the summary/report
 4. if trial exclusion would empty the bank entirely, keep the pre-exclusion rows and record
    `trial_overlap_fallback_used = true` in `cohort_summary.json`
 
-That fallback is there for tiny smoke/demo runs. On real surrogate or challenge-sized splits, the
-expected path is that the bank stays non-empty without reusing evaluation trial utterances.
+That fallback is there for tiny smoke/demo runs. The automatic run-integrated build is intentionally
+non-strict on speaker overlap so checked-in smoke/demo configs keep working. On real surrogate or
+challenge-sized splits, use the standalone builder with
+`--validate-disjoint-speakers-against ...` and keep strict speaker disjointness enabled; that is
+the enforcement path for non-leaky background banks.
 
 ## Standalone Builder
 
