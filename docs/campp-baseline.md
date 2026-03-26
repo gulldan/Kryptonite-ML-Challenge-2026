@@ -46,7 +46,8 @@ By default the run will:
 - `[data]`: train/dev manifests, output root, optional explicit trials manifest
 - `[model]`: CAM++ width/depth knobs
 - `[objective]`: cosine classifier and ArcMargin settings
-- `[optimization]`: SGD + warmup/cosine scheduling knobs
+- `[optimization]`: optimizer/scheduler/gradient-accumulation knobs shared with the later CAM++
+  stages
 
 For a real dataset run, the usual overrides are:
 
@@ -108,10 +109,13 @@ uv run python scripts/build_embedding_atlas.py \
 
 ## Current Limits
 
-- training currently supports `fp32` only; mixed precision is deferred to the optimizer/scheduler
+- AMP is enabled only on CUDA; local CPU/MPS runs fall back to `fp32`
 - the default trial generation is intentionally simple and deterministic; richer scoring backends
   and held-out calibration protocols still come later
 - the default config is a smoke baseline, not a claim of production-ready recipe quality
+
+See [training optimization runtime](./training-optimization-runtime.md) for the shared
+optimizer/scheduler/precision contract and the 4090-oriented defaults used by the CAM++ stages.
 
 See [clean-room fallback baseline](./clean-room-fallback-baseline.md) for the explicit restricted
 fallback scope, commands, and artifact location.

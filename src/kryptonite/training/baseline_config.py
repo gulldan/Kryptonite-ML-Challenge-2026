@@ -52,14 +52,29 @@ class BaselineObjectiveConfig:
 
 @dataclass(frozen=True, slots=True)
 class BaselineOptimizationConfig:
+    optimizer_name: str = "sgd"
+    scheduler_name: str = "cosine"
     learning_rate: float = 0.1
     min_learning_rate: float = 1e-4
     momentum: float = 0.9
     weight_decay: float = 1e-4
     warmup_epochs: int = 0
+    gradient_accumulation_steps: int = 1
     grad_clip_norm: float | None = 5.0
+    adam_beta1: float = 0.9
+    adam_beta2: float = 0.999
+    adam_epsilon: float = 1e-8
+    plateau_factor: float = 0.5
+    plateau_patience_epochs: int = 1
+    plateau_threshold: float = 1e-4
 
     def __post_init__(self) -> None:
+        normalized_optimizer = self.optimizer_name.strip().lower()
+        if normalized_optimizer not in {"sgd", "adamw"}:
+            raise ValueError("optimizer_name must be one of: sgd, adamw")
+        normalized_scheduler = self.scheduler_name.strip().lower()
+        if normalized_scheduler not in {"constant", "cosine", "plateau"}:
+            raise ValueError("scheduler_name must be one of: constant, cosine, plateau")
         if self.learning_rate <= 0.0:
             raise ValueError("learning_rate must be positive")
         if self.min_learning_rate < 0.0:
@@ -72,8 +87,22 @@ class BaselineOptimizationConfig:
             raise ValueError("weight_decay must be non-negative")
         if self.warmup_epochs < 0:
             raise ValueError("warmup_epochs must be non-negative")
+        if self.gradient_accumulation_steps <= 0:
+            raise ValueError("gradient_accumulation_steps must be positive")
         if self.grad_clip_norm is not None and self.grad_clip_norm <= 0.0:
             raise ValueError("grad_clip_norm must be positive when provided")
+        if not 0.0 <= self.adam_beta1 < 1.0:
+            raise ValueError("adam_beta1 must be within [0.0, 1.0)")
+        if not 0.0 <= self.adam_beta2 < 1.0:
+            raise ValueError("adam_beta2 must be within [0.0, 1.0)")
+        if self.adam_epsilon <= 0.0:
+            raise ValueError("adam_epsilon must be positive")
+        if not 0.0 < self.plateau_factor < 1.0:
+            raise ValueError("plateau_factor must be within (0.0, 1.0)")
+        if self.plateau_patience_epochs < 0:
+            raise ValueError("plateau_patience_epochs must be non-negative")
+        if self.plateau_threshold < 0.0:
+            raise ValueError("plateau_threshold must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)

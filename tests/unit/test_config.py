@@ -10,6 +10,7 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.runtime.seed == 42
     assert config.reproducibility.deterministic is True
     assert config.reproducibility.pythonhashseed == 42
+    assert config.training.precision == "fp32"
     assert config.backends.allow_tensorrt is False
     assert config.tracking.backend == "local"
     assert config.normalization.target_sample_rate_hz == 16000
@@ -66,6 +67,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
         overrides=[
             "runtime.seed=7",
             "training.batch_size=8",
+            'training.precision="bf16"',
             "backends.allow_tensorrt=true",
             "runtime.log_level=DEBUG",
             "normalization.output_format=flac",
@@ -97,6 +99,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
 
     assert config.runtime.seed == 7
     assert config.training.batch_size == 8
+    assert config.training.precision == "bf16"
     assert config.runtime.log_level == "DEBUG"
     assert config.backends.allow_tensorrt is True
     assert config.normalization.output_format == "flac"

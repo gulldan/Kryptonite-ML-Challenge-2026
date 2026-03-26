@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,6 +27,10 @@ from ..manifest_speaker_data import (
     ManifestSpeakerDataset,
     TrainingBatch,
     collate_training_examples,
+)
+from ..optimization_runtime import (
+    TrainingOptimizationRuntime,
+    run_classification_batches,
 )
 from ..speaker_baseline import EpochSummary
 from .stage2_sampler import Stage2BatchSampler
@@ -234,43 +237,25 @@ def train_one_epoch(
     model: nn.Module,
     classifier: nn.Module,
     criterion: nn.Module,
-    optimizer: torch.optim.Optimizer,
+    training_runtime: TrainingOptimizationRuntime,
     loader: DataLoader[TrainingBatch],
     device: torch.device,
-    grad_clip_norm: float | None,
     tracker_run: Any | None,
     extra_metrics: dict[str, float] | None = None,
 ) -> EpochSummary:
-    model.train()
-    classifier.train()
-    total_loss = 0.0
-    total_correct = 0
-    total_examples = 0
-
-    for batch in loader:
-        features = batch.features.to(device=device, dtype=torch.float32)
-        labels = batch.labels.to(device=device)
-        optimizer.zero_grad(set_to_none=True)
-        embeddings = model(features)
-        logits = classifier(embeddings)
-        loss = criterion(logits, labels)
-        loss.backward()
-        if grad_clip_norm is not None:
-            nn.utils.clip_grad_norm_(
-                list(model.parameters()) + list(classifier.parameters()),
-                max_norm=grad_clip_norm,
-            )
-        optimizer.step()
-
-        batch_size = int(labels.shape[0])
-        total_loss += float(loss.item()) * batch_size
-        total_correct += int((logits.argmax(dim=1) == labels).sum().item())
-        total_examples += batch_size
+    total_loss, total_correct, total_examples = run_classification_batches(
+        model=model,
+        classifier=classifier,
+        criterion=criterion,
+        training_runtime=training_runtime,
+        loader=loader,
+        device=device,
+    )
 
     if total_examples == 0:
         raise ValueError("Training loader produced zero examples.")
 
-    learning_rate = round(float(optimizer.param_groups[0]["lr"]), 8)
+    learning_rate = round(training_runtime.current_learning_rate(), 8)
     summary = EpochSummary(
         epoch=epoch + 1,
         mean_loss=round(total_loss / total_examples, 6),
@@ -328,29 +313,6 @@ def phase_for_epoch(
     return min(n_phases - 1, epoch // curriculum_epochs)
 
 
-def build_cosine_lr_lambda(
-    *,
-    max_epochs: int,
-    warmup_epochs: int,
-    learning_rate: float,
-    min_learning_rate: float,
-) -> Any:
-    min_ratio = min_learning_rate / learning_rate
-
-    def _lambda(epoch_index: int) -> float:
-        if warmup_epochs == 0 and epoch_index == 0:
-            return 1.0
-        current_epoch = epoch_index + 1
-        if warmup_epochs > 0 and current_epoch <= warmup_epochs:
-            return max(min_ratio, current_epoch / warmup_epochs)
-        cosine_steps = max(1, max_epochs - warmup_epochs)
-        progress = min(1.0, max(0.0, (current_epoch - warmup_epochs) / cosine_steps))
-        cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
-        return min_ratio + ((1.0 - min_ratio) * cosine)
-
-    return _lambda
-
-
 def margin_for_epoch(
     epoch: int,
     *,
@@ -368,7 +330,6 @@ def margin_for_epoch(
 
 
 __all__ = [
-    "build_cosine_lr_lambda",
     "build_fixed_crop_phases",
     "build_stage_finetune_dataloader",
     "load_warm_start_checkpoint",

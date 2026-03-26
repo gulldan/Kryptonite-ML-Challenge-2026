@@ -4,6 +4,7 @@ project_overrides = [
   'tracking.experiment="campp-restricted-rules"',
   'tracking.run_name_prefix="campp-restricted"',
   'runtime.num_workers=8',
+  'training.precision="bf16"',
   'training.batch_size=16',
   'training.eval_batch_size=16',
   'training.max_epochs=10',
@@ -40,11 +41,14 @@ margin = 0.2
 easy_margin = false
 
 [optimization]
-learning_rate = 0.1
-min_learning_rate = 0.0001
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.0015
+min_learning_rate = 0.00005
 momentum = 0.9
 weight_decay = 0.0001
-warmup_epochs = 0
+warmup_epochs = 1
+gradient_accumulation_steps = 2
 grad_clip_norm = 5.0
 
 [provenance]

@@ -7,7 +7,7 @@
 #   - Moves to a more target-like augmentation mix with low heavy-corruption probability
 #   - Increases fixed crop size from 4.0 s to 6.0 s across three phases
 #   - Ramps ArcMargin from 0.30 to 0.45 during the early fine-tuning epochs
-#   - Uses a smaller learning rate for stability
+#   - Uses AdamW + cosine decay in bf16 with accumulation=2 (effective batch 48)
 
 base_config = "configs/base.toml"
 
@@ -16,7 +16,9 @@ project_overrides = [
   'tracking.experiment="campp-stage3"',
   'tracking.run_name_prefix="campp-s3"',
   'runtime.num_workers=4',
-  'training.batch_size=48',
+  'training.precision="bf16"',
+  # 24 micro-batches x accumulation 2 => effective batch size 48
+  'training.batch_size=24',
   'training.eval_batch_size=24',
   'training.max_epochs=8',
   'augmentation_scheduler.max_augmentations_per_sample=2',
@@ -59,11 +61,14 @@ margin     = 0.3
 easy_margin = false
 
 [optimization]
-learning_rate     = 0.005
-min_learning_rate = 0.000005
+optimizer_name    = "adamw"
+scheduler_name    = "cosine"
+learning_rate     = 0.0004
+min_learning_rate = 0.00002
 momentum          = 0.9
 weight_decay      = 0.0001
 warmup_epochs     = 1
+gradient_accumulation_steps = 2
 grad_clip_norm    = 5.0
 
 [provenance]

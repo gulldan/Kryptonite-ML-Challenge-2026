@@ -8,8 +8,6 @@ import math
 from dataclasses import asdict
 from pathlib import Path
 
-import torch
-
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
 from kryptonite.eval import (
@@ -24,6 +22,7 @@ from kryptonite.tracking import build_tracker, create_run_id
 
 from ..augmentation_runtime import TrainingAugmentationRuntime
 from ..manifest_speaker_data import build_speaker_index, load_manifest_rows
+from ..optimization_runtime import build_training_runtime, validate_training_precision
 from ..speaker_baseline import (
     REPRODUCIBILITY_FILE_NAME,
     SCORE_SUMMARY_FILE_NAME,
@@ -37,11 +36,9 @@ from ..speaker_baseline import (
     render_markdown_report,
     resolve_device,
     score_trials,
-    validate_fp32_only,
     write_checkpoint,
 )
 from .finetune_common import (
-    build_cosine_lr_lambda,
     build_fixed_crop_phases,
     build_stage_finetune_dataloader,
     load_warm_start_checkpoint,
@@ -73,7 +70,7 @@ def run_campp_stage3(
         dev_manifest=config.data.dev_manifest,
         enabled=config.data.generate_demo_artifacts_if_missing,
     )
-    validate_fp32_only(config.project.training.precision, baseline_name="CAM++ stage-3")
+    validate_training_precision(config.project.training.precision, baseline_name="CAM++ stage-3")
     if config.project.training.max_epochs <= 0:
         raise ValueError("training.max_epochs must be positive for CAM++ stage-3 runs.")
     seed_state = set_global_seed(
@@ -145,21 +142,12 @@ def run_campp_stage3(
         margin=initial_margin,
         easy_margin=config.objective.easy_margin,
     )
-    optimizer = torch.optim.SGD(
-        list(model.parameters()) + list(classifier.parameters()),
-        lr=config.optimization.learning_rate,
-        momentum=config.optimization.momentum,
-        nesterov=True,
-        weight_decay=config.optimization.weight_decay,
-    )
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=build_cosine_lr_lambda(
-            max_epochs=max_epochs,
-            warmup_epochs=config.optimization.warmup_epochs,
-            learning_rate=config.optimization.learning_rate,
-            min_learning_rate=config.optimization.min_learning_rate,
-        ),
+    training_runtime = build_training_runtime(
+        parameters=[*model.parameters(), *classifier.parameters()],
+        optimization_config=config.optimization,
+        precision=config.project.training.precision,
+        device=device,
+        max_epochs=max_epochs,
     )
 
     augmentation_runtime = TrainingAugmentationRuntime.from_project_config(
@@ -287,10 +275,9 @@ def run_campp_stage3(
             model=model,
             classifier=classifier,
             criterion=criterion,
-            optimizer=optimizer,
+            training_runtime=training_runtime,
             loader=loader,
             device=device,
-            grad_clip_norm=config.optimization.grad_clip_norm,
             tracker_run=tracker_run,
             extra_metrics={
                 "margin": round(float(current_margin), 6),
@@ -298,7 +285,7 @@ def run_campp_stage3(
             },
         )
         epoch_summaries.append(summary)
-        lr_scheduler.step()
+        training_runtime.step_scheduler(mean_loss=summary.mean_loss)
 
     checkpoint_path = output_root / config.data.checkpoint_name
     write_checkpoint(

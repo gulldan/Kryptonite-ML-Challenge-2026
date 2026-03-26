@@ -46,7 +46,8 @@ By default the run will:
 - `[data]`: train/dev manifests, output root, optional explicit trials manifest
 - `[model]`: ERes2NetV2 depth/width/pooling knobs
 - `[objective]`: cosine classifier and ArcMargin settings
-- `[optimization]`: SGD + warmup/cosine scheduling knobs
+- `[optimization]`: optimizer/scheduler/gradient-accumulation knobs shared with the baseline
+  training runtime
 
 For a real dataset run, the usual overrides are:
 
@@ -112,7 +113,10 @@ uv run python scripts/evaluate_verification_scores.py \
 
 ## Current Limits
 
-- training currently supports `fp32` only; mixed precision is deferred to the optimizer/scheduler
+- AMP is enabled only on CUDA; local CPU/MPS runs fall back to `fp32`
 - the default trial generation is intentionally simple and deterministic; richer scoring backends
   and held-out calibration protocols still come later
 - the default config is a smoke baseline, not a claim of production-ready recipe quality
+
+See [training optimization runtime](./training-optimization-runtime.md) for the shared
+optimizer/scheduler/precision contract and the current 4090-oriented CAM++ defaults.

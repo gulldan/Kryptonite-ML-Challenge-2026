@@ -9,6 +9,7 @@ base_config = "configs/base.toml"
 project_overrides = [
   'tracking.enabled=false',
   'runtime.num_workers=0',
+  'training.precision="bf16"',
   'training.batch_size=4',
   'training.eval_batch_size=4',
   'training.max_epochs=1',
@@ -46,11 +47,14 @@ margin     = 0.3
 easy_margin = false
 
 [optimization]
-learning_rate     = 0.01
-min_learning_rate = 0.00001
+optimizer_name    = "adamw"
+scheduler_name    = "cosine"
+learning_rate     = 0.0008
+min_learning_rate = 0.00005
 momentum          = 0.9
 weight_decay      = 0.0001
 warmup_epochs     = 0
+gradient_accumulation_steps = 2
 grad_clip_norm    = 5.0
 
 [provenance]

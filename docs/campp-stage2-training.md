@@ -14,6 +14,19 @@ harder acoustic conditions.  Three mechanisms are active simultaneously:
 | Hard-negative speaker mining | Better discrimination between confusable speakers |
 | Short-utterance curriculum | Generalisation to short test segments |
 
+## 4090 Runtime Defaults
+
+The checked-in stage-2 config is now tuned around a 24 GB RTX 4090-style budget:
+
+- `training.precision = "bf16"` on CUDA, with automatic `fp32` fallback on CPU smoke runs
+- `optimizer_name = "adamw"` with cosine decay
+- `training.batch_size = 32` and `gradient_accumulation_steps = 2` for an effective batch size of
+  64 without pushing the per-step memory footprint back to the previous fp32 level
+- CAM++ keeps `memory_efficient = true`, so Dense-TDNN blocks still use gradient checkpointing
+
+See [training optimization runtime](./training-optimization-runtime.md) for the shared runtime
+contract and scheduler behavior.
+
 ## Components
 
 ### Code

@@ -14,6 +14,20 @@ target-like operating regime. The main changes are:
 | Margin schedule | Tighten class separation without jumping straight to a large margin |
 | Target-like augmentation mix | Retain some robustness while reducing train/infer mismatch |
 
+## 4090 Runtime Defaults
+
+The checked-in stage-3 config narrows the per-step footprint to match longer crops on a 24 GB RTX
+4090-class GPU:
+
+- `training.precision = "bf16"` on CUDA, with automatic `fp32` fallback on CPU smoke runs
+- `optimizer_name = "adamw"` with cosine decay
+- `training.batch_size = 24` and `gradient_accumulation_steps = 2` for an effective batch size of
+  48 while preserving headroom for the longer 4.0 -> 6.0 second crop curriculum
+- CAM++ keeps `memory_efficient = true`, so Dense-TDNN blocks still use gradient checkpointing
+
+See [training optimization runtime](./training-optimization-runtime.md) for the shared runtime
+contract and scheduler behavior.
+
 ## Components
 
 | File | Role |

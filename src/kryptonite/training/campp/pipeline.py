@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-import math
 from dataclasses import asdict
 from pathlib import Path
-
-import torch
 
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
@@ -27,6 +24,7 @@ from ..manifest_speaker_data import (
     build_speaker_index,
     load_manifest_rows,
 )
+from ..optimization_runtime import build_training_runtime, validate_training_precision
 from ..production_dataloader import build_production_train_dataloader
 from ..speaker_baseline import (
     REPRODUCIBILITY_FILE_NAME,
@@ -41,7 +39,6 @@ from ..speaker_baseline import (
     resolve_device,
     score_trials,
     train_epochs,
-    validate_fp32_only,
     write_checkpoint,
 )
 from .config import CAMPPlusBaselineConfig
@@ -62,7 +59,7 @@ def run_campp_baseline(
         dev_manifest=config.data.dev_manifest,
         enabled=config.data.generate_demo_artifacts_if_missing,
     )
-    validate_fp32_only(config.project.training.precision, baseline_name="CAM++")
+    validate_training_precision(config.project.training.precision, baseline_name="CAM++")
     if config.project.training.max_epochs <= 0:
         raise ValueError("training.max_epochs must be positive for CAM++ baseline runs.")
     seed_state = set_global_seed(
@@ -119,30 +116,24 @@ def run_campp_baseline(
         margin=config.objective.margin,
         easy_margin=config.objective.easy_margin,
     )
-    optimizer = torch.optim.SGD(
-        list(model.parameters()) + list(classifier.parameters()),
-        lr=config.optimization.learning_rate,
-        momentum=config.optimization.momentum,
-        nesterov=True,
-        weight_decay=config.optimization.weight_decay,
-    )
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=_build_lr_lambda(config),
+    training_runtime = build_training_runtime(
+        parameters=[*model.parameters(), *classifier.parameters()],
+        optimization_config=config.optimization,
+        precision=config.project.training.precision,
+        device=device,
+        max_epochs=config.project.training.max_epochs,
     )
 
     epoch_summaries = train_epochs(
         model=model,
         classifier=classifier,
         criterion=criterion,
-        optimizer=optimizer,
-        scheduler=scheduler,
+        training_runtime=training_runtime,
         loader=train_loader,
         dataset=train_dataset,
         sampler=train_sampler,
         device=device,
         max_epochs=config.project.training.max_epochs,
-        grad_clip_norm=config.optimization.grad_clip_norm,
         tracker_run=tracker_run,
     )
     checkpoint_path = output_root / config.data.checkpoint_name
@@ -299,24 +290,3 @@ def run_campp_baseline(
         verification_report=verification_report,
         tracking_run_dir=(None if tracker_run is None else str(tracker_run.run_dir)),
     )
-
-
-def _build_lr_lambda(config: CAMPPlusBaselineConfig):
-    max_epochs = config.project.training.max_epochs
-    warmup_epochs = config.optimization.warmup_epochs
-    max_lr = config.optimization.learning_rate
-    min_lr = config.optimization.min_learning_rate
-    min_ratio = min_lr / max_lr
-
-    def _lambda(epoch_index: int) -> float:
-        if warmup_epochs == 0 and epoch_index == 0:
-            return 1.0
-        current_epoch = epoch_index + 1
-        if warmup_epochs > 0 and current_epoch <= warmup_epochs:
-            return max(min_ratio, current_epoch / warmup_epochs)
-        cosine_steps = max(1, max_epochs - warmup_epochs)
-        progress = min(1.0, max(0.0, (current_epoch - warmup_epochs) / cosine_steps))
-        cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
-        return min_ratio + ((1.0 - min_ratio) * cosine)
-
-    return _lambda

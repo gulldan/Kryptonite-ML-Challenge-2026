@@ -30,6 +30,10 @@ from kryptonite.features import (
 
 from .baseline_config import BaselineProvenanceConfig
 from .manifest_speaker_data import TrainingBatch
+from .optimization_runtime import (
+    TrainingOptimizationRuntime,
+    run_classification_batches,
+)
 
 EMBEDDINGS_FILE_NAME = "dev_embeddings.npz"
 EMBEDDING_METADATA_JSONL_NAME = "dev_embedding_metadata.jsonl"
@@ -174,15 +178,6 @@ def prepare_demo_artifacts_if_needed(
     generate_demo_artifacts(config=project)
 
 
-def validate_fp32_only(precision: str, *, baseline_name: str) -> None:
-    normalized = precision.lower()
-    if normalized not in {"fp32", "float32"}:
-        raise ValueError(
-            f"{baseline_name} baseline currently supports fp32 only; mixed precision "
-            "will be added separately."
-        )
-
-
 def resolve_device(requested: str) -> torch.device:
     normalized = requested.lower()
     if normalized == "auto":
@@ -219,14 +214,12 @@ def train_epochs(
     model: nn.Module,
     classifier: nn.Module,
     criterion: nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scheduler: torch.optim.lr_scheduler.LRScheduler,
+    training_runtime: TrainingOptimizationRuntime,
     loader: Iterable[TrainingBatch],
     dataset: EpochAwareDataset,
     sampler: EpochAwareBatchSampler | None,
     device: torch.device,
     max_epochs: int,
-    grad_clip_norm: float | None,
     tracker_run: Any | None,
 ) -> list[EpochSummary]:
     summaries: list[EpochSummary] = []
@@ -234,36 +227,19 @@ def train_epochs(
         dataset.set_epoch(epoch)
         if sampler is not None:
             sampler.set_epoch(epoch)
-        model.train()
-        classifier.train()
-        total_loss = 0.0
-        total_correct = 0
-        total_examples = 0
-
-        for batch in loader:
-            features = batch.features.to(device=device, dtype=torch.float32)
-            labels = batch.labels.to(device=device)
-            optimizer.zero_grad(set_to_none=True)
-            embeddings = model(features)
-            logits = classifier(embeddings)
-            loss = criterion(logits, labels)
-            loss.backward()
-            if grad_clip_norm is not None:
-                nn.utils.clip_grad_norm_(
-                    list(model.parameters()) + list(classifier.parameters()),
-                    max_norm=grad_clip_norm,
-                )
-            optimizer.step()
-
-            batch_size = int(labels.shape[0])
-            total_loss += float(loss.item()) * batch_size
-            total_correct += int((logits.argmax(dim=1) == labels).sum().item())
-            total_examples += batch_size
+        total_loss, total_correct, total_examples = run_classification_batches(
+            model=model,
+            classifier=classifier,
+            criterion=criterion,
+            training_runtime=training_runtime,
+            loader=loader,
+            device=device,
+        )
 
         if total_examples == 0:
             raise ValueError("Training loader produced zero examples.")
 
-        learning_rate = round(float(optimizer.param_groups[0]["lr"]), 8)
+        learning_rate = round(training_runtime.current_learning_rate(), 8)
         summary = EpochSummary(
             epoch=epoch + 1,
             mean_loss=round(total_loss / total_examples, 6),
@@ -280,7 +256,7 @@ def train_epochs(
                 },
                 step=summary.epoch,
             )
-        scheduler.step()
+        training_runtime.step_scheduler(mean_loss=summary.mean_loss)
     return summaries
 
 

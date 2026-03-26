@@ -9,7 +9,7 @@
 #   - max_augmentations_per_sample raised to 3
 #   - Short-utterance curriculum: 1.5 s → 2.75 s → 4.0 s across three training phases
 #   - Hard-negative speaker mining every 2 epochs
-#   - Lower learning rate (0.01) with cosine decay; higher ArcMargin margin (0.3)
+#   - AdamW + cosine decay in bf16 with accumulation=2 (effective batch 64 on 4090-class GPUs)
 
 base_config = "configs/base.toml"
 
@@ -18,7 +18,9 @@ project_overrides = [
   'tracking.experiment="campp-stage2"',
   'tracking.run_name_prefix="campp-s2"',
   'runtime.num_workers=4',
-  'training.batch_size=64',
+  'training.precision="bf16"',
+  # 32 micro-batches x accumulation 2 => effective batch size 64
+  'training.batch_size=32',
   'training.eval_batch_size=32',
   'training.max_epochs=20',
   # Heavy augmentation from epoch 1 — skip warmup and ramp entirely
@@ -65,11 +67,14 @@ margin     = 0.3
 easy_margin = false
 
 [optimization]
-learning_rate     = 0.01
-min_learning_rate = 0.00001
+optimizer_name    = "adamw"
+scheduler_name    = "cosine"
+learning_rate     = 0.0008
+min_learning_rate = 0.00005
 momentum          = 0.9
 weight_decay      = 0.0001
-warmup_epochs     = 0
+warmup_epochs     = 1
+gradient_accumulation_steps = 2
 grad_clip_norm    = 5.0
 
 [provenance]
