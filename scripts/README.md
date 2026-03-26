@@ -24,7 +24,7 @@ Current entrypoints include:
 - `scripts/build_embedding_atlas.py` for projecting precomputed embeddings into an interactive HTML atlas with nearest neighbors and optional media preview
 - `scripts/build_cohort_embedding_bank.py` for freezing one normalized cohort/impostor embedding bank from exported embeddings plus metadata with explicit trial-exclusion and speaker-disjoint provenance
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
-- `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report (ROC/DET curves, histogram, calibration bins, slice breakdowns, slice dashboard HTML, thresholded error analysis)
+- `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report, with optional `AS-norm` score normalization backed by exported eval embeddings and a frozen cohort bank
 - `scripts/run_campp_baseline.py` for training the repo-native CAM++ baseline and writing checkpoints, dev embeddings, trials, and cosine scores
 - `scripts/run_campp_sweep_shortlist.py` for running the bounded CAM++ stage-3 shortlist and ranking candidates on clean + corrupted dev suites
 - `scripts/run_campp_model_selection.py` for selecting the final CAM++ stage-3 candidate from a shortlist report and evaluating optional checkpoint averages

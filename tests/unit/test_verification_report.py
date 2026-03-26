@@ -17,6 +17,7 @@ from kryptonite.eval import (
     VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME,
     VERIFICATION_SLICE_DASHBOARD_HTML_NAME,
     build_verification_evaluation_report,
+    render_verification_evaluation_markdown,
     write_verification_evaluation_report,
 )
 
@@ -205,6 +206,33 @@ def test_write_verification_evaluation_report_writes_error_analysis_when_identif
     assert "# Verification Error Analysis" in markdown
     assert "Priority Weak Spots" in markdown
     assert "speaker_alpha" in markdown
+
+
+def test_render_verification_evaluation_markdown_includes_score_normalization_inputs(
+    tmp_path: Path,
+) -> None:
+    report = build_verification_evaluation_report(
+        [
+            {"left_id": "utt-a", "right_id": "utt-b", "label": 1, "score": 0.8},
+            {"left_id": "utt-a", "right_id": "utt-c", "label": 0, "score": 0.1},
+        ],
+        scores_path=tmp_path / "verification_scores_as_norm.jsonl",
+        raw_scores_path=tmp_path / "dev_scores.jsonl",
+        score_normalization="as-norm",
+        score_normalization_summary_path=tmp_path / "verification_score_normalization_summary.json",
+        embeddings_path=tmp_path / "dev_embeddings.npz",
+        cohort_bank_path=tmp_path / "cohort-bank",
+        histogram_bins=2,
+        calibration_bins=2,
+    )
+
+    markdown = render_verification_evaluation_markdown(report)
+
+    assert "- Raw scores: `" in markdown
+    assert "- Score normalization: `as-norm`" in markdown
+    assert "- Score-normalization summary: `" in markdown
+    assert "- Embeddings: `" in markdown
+    assert "- Cohort bank: `" in markdown
 
 
 def _write_eval_fixtures(tmp_path: Path) -> tuple[Path, Path, Path]:

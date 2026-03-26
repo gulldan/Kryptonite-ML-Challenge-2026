@@ -80,6 +80,11 @@ class VerificationReportInputs:
     scores_path: str
     trials_path: str | None = None
     metadata_path: str | None = None
+    raw_scores_path: str | None = None
+    score_normalization: str | None = None
+    score_normalization_summary_path: str | None = None
+    embeddings_path: str | None = None
+    cohort_bank_path: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -263,6 +268,11 @@ def build_verification_evaluation_report(
     scores_path: Path | str,
     trials_path: Path | str | None = None,
     metadata_path: Path | str | None = None,
+    raw_scores_path: Path | str | None = None,
+    score_normalization: str | None = None,
+    score_normalization_summary_path: Path | str | None = None,
+    embeddings_path: Path | str | None = None,
+    cohort_bank_path: Path | str | None = None,
     trial_rows: list[dict[str, Any]] | None = None,
     metadata_rows: list[dict[str, Any]] | None = None,
     slice_fields: tuple[str, ...] = DEFAULT_SLICE_FIELDS,
@@ -339,6 +349,15 @@ def build_verification_evaluation_report(
             scores_path=str(scores_path),
             trials_path=(None if trials_path is None else str(trials_path)),
             metadata_path=(None if metadata_path is None else str(metadata_path)),
+            raw_scores_path=(None if raw_scores_path is None else str(raw_scores_path)),
+            score_normalization=score_normalization,
+            score_normalization_summary_path=(
+                None
+                if score_normalization_summary_path is None
+                else str(score_normalization_summary_path)
+            ),
+            embeddings_path=(None if embeddings_path is None else str(embeddings_path)),
+            cohort_bank_path=(None if cohort_bank_path is None else str(cohort_bank_path)),
         ),
         summary=summary,
         histogram=histogram,
@@ -439,31 +458,47 @@ def render_verification_evaluation_markdown(report: VerificationEvaluationReport
         f"- Scores: `{report.inputs.scores_path}`",
         f"- Trials: `{report.inputs.trials_path}`",
         f"- Metadata: `{report.inputs.metadata_path}`",
-        "",
-        "## Metrics",
-        "",
-        f"- Trials: `{metrics.trial_count}`",
-        f"- Positives: `{metrics.positive_count}`",
-        f"- Negatives: `{metrics.negative_count}`",
-        f"- EER: `{metrics.eer}` at threshold `{metrics.eer_threshold}`",
-        f"- MinDCF: `{metrics.min_dcf}` at threshold `{metrics.min_dcf_threshold}`",
-        "",
-        "## Score Distribution",
-        "",
-        f"- Score range: `{score_statistics.min_score}` to `{score_statistics.max_score}`",
-        f"- Mean score: `{score_statistics.mean_score}`",
-        f"- Score std: `{score_statistics.score_std}`",
-        f"- Mean positive score: `{score_statistics.mean_positive_score}`",
-        f"- Mean negative score: `{score_statistics.mean_negative_score}`",
-        f"- Score gap: `{score_statistics.score_gap}`",
-        "",
-        "## Calibration",
-        "",
-        f"- Platt coefficient: `{calibration.coefficient}`",
-        f"- Platt intercept: `{calibration.intercept}`",
-        f"- Brier score: `{calibration.brier_score}`",
-        f"- Log loss: `{calibration.log_loss}`",
     ]
+    if report.inputs.raw_scores_path is not None:
+        lines.append(f"- Raw scores: `{report.inputs.raw_scores_path}`")
+    if report.inputs.score_normalization is not None:
+        lines.append(f"- Score normalization: `{report.inputs.score_normalization}`")
+    if report.inputs.score_normalization_summary_path is not None:
+        lines.append(
+            f"- Score-normalization summary: `{report.inputs.score_normalization_summary_path}`"
+        )
+    if report.inputs.embeddings_path is not None:
+        lines.append(f"- Embeddings: `{report.inputs.embeddings_path}`")
+    if report.inputs.cohort_bank_path is not None:
+        lines.append(f"- Cohort bank: `{report.inputs.cohort_bank_path}`")
+    lines.extend(
+        [
+            "",
+            "## Metrics",
+            "",
+            f"- Trials: `{metrics.trial_count}`",
+            f"- Positives: `{metrics.positive_count}`",
+            f"- Negatives: `{metrics.negative_count}`",
+            f"- EER: `{metrics.eer}` at threshold `{metrics.eer_threshold}`",
+            f"- MinDCF: `{metrics.min_dcf}` at threshold `{metrics.min_dcf_threshold}`",
+            "",
+            "## Score Distribution",
+            "",
+            f"- Score range: `{score_statistics.min_score}` to `{score_statistics.max_score}`",
+            f"- Mean score: `{score_statistics.mean_score}`",
+            f"- Score std: `{score_statistics.score_std}`",
+            f"- Mean positive score: `{score_statistics.mean_positive_score}`",
+            f"- Mean negative score: `{score_statistics.mean_negative_score}`",
+            f"- Score gap: `{score_statistics.score_gap}`",
+            "",
+            "## Calibration",
+            "",
+            f"- Platt coefficient: `{calibration.coefficient}`",
+            f"- Platt intercept: `{calibration.intercept}`",
+            f"- Brier score: `{calibration.brier_score}`",
+            f"- Log loss: `{calibration.log_loss}`",
+        ]
+    )
     if report.slice_breakdown:
         lines.extend(["", "## Slice Breakdown", ""])
         for field_name in dict.fromkeys(row.field_name for row in report.slice_breakdown):

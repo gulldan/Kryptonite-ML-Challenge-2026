@@ -1,5 +1,14 @@
 """Metrics, reports, and benchmark logic."""
 
+from .as_norm import (
+    DEFAULT_AS_NORM_STD_EPSILON,
+    DEFAULT_AS_NORM_TOP_K,
+    VERIFICATION_AS_NORM_SCORES_JSONL_NAME,
+    VERIFICATION_SCORE_NORMALIZATION_SUMMARY_JSON_NAME,
+    AdaptiveScoreNormalizationResult,
+    AdaptiveScoreNormalizationSummary,
+    apply_as_norm_to_verification_scores,
+)
 from .cohort_bank import (
     COHORT_BANK_FORMAT_VERSION,
     COHORT_EMBEDDINGS_NPZ_NAME,
@@ -103,6 +112,8 @@ __all__ = [
     "CorruptedDevSuitesPlan",
     "CorruptedDevSuitesReport",
     "DistanceFieldWeights",
+    "DEFAULT_AS_NORM_STD_EPSILON",
+    "DEFAULT_AS_NORM_TOP_K",
     "COHORT_BANK_FORMAT_VERSION",
     "COHORT_EMBEDDINGS_NPZ_NAME",
     "COHORT_METADATA_JSONL_NAME",
@@ -129,12 +140,16 @@ __all__ = [
     "VERIFICATION_DET_CURVE_JSONL_NAME",
     "VERIFICATION_ERROR_ANALYSIS_JSON_NAME",
     "VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME",
+    "VERIFICATION_AS_NORM_SCORES_JSONL_NAME",
     "VERIFICATION_HISTOGRAM_JSON_NAME",
     "VERIFICATION_REPORT_JSON_NAME",
     "VERIFICATION_REPORT_MARKDOWN_NAME",
     "VERIFICATION_ROC_CURVE_JSONL_NAME",
+    "VERIFICATION_SCORE_NORMALIZATION_SUMMARY_JSON_NAME",
     "VERIFICATION_SLICE_DASHBOARD_HTML_NAME",
     "VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME",
+    "AdaptiveScoreNormalizationResult",
+    "AdaptiveScoreNormalizationSummary",
     "CohortEmbeddingBankSelection",
     "CohortEmbeddingBankSummary",
     "VerificationDomainFailure",
@@ -162,6 +177,7 @@ __all__ = [
     "build_cohort_embedding_bank",
     "build_corrupted_dev_suites",
     "build_embedding_atlas",
+    "apply_as_norm_to_verification_scores",
     "load_cohort_embedding_bank",
     "build_verification_error_analysis",
     "build_verification_evaluation_report",
