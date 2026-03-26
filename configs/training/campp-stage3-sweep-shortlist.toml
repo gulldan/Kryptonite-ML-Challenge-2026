@@ -1,0 +1,205 @@
+# CAM++ stage-3 shortlist for KRYP-045.
+#
+# The shortlist intentionally stays bounded: six candidates that cover the main
+# decision axes without turning the task into an unconstrained grid search.
+#
+# All candidates reuse the same stage-2 warm-start checkpoint and are ranked by
+# a robust-dev objective where corrupted suites outweigh clean dev.
+
+base_stage3_config_path = "configs/training/campp-stage3.toml"
+output_root = "artifacts/sweeps/campp-stage3-shortlist"
+
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-stage3-sweep-shortlist"',
+  'tracking.run_name_prefix="campp-sweep"',
+]
+
+[selection]
+clean_weight = 0.25
+corrupted_weight = 0.75
+eer_weight = 0.70
+min_dcf_weight = 0.30
+
+[budget]
+max_candidates = 6
+notes = [
+  "Six stage-3 candidates keep the sweep bounded on a single 4090-class machine.",
+  "Winner selection is robust-first: corrupted suites outweigh clean dev in the final objective.",
+]
+
+[corrupted_suites]
+catalog_path = "artifacts/eval/corrupted-dev-suites/corrupted_dev_suites_catalog.json"
+run_clean_dev = true
+suite_ids = [
+  "dev_snr",
+  "dev_reverb",
+  "dev_codec",
+  "dev_distance",
+  "dev_channel",
+  "dev_silence",
+]
+
+[[candidates]]
+candidate_id = "balanced_mean"
+description = "Reference stage-3 recipe: mean pooling, 6 s eval chunks, default target-like corruption mix."
+project_overrides = [
+  'training.batch_size=24',
+  'training.eval_batch_size=24',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.0',
+  'chunking.eval_pooling="mean"',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.30
+end_margin = 0.45
+ramp_epochs = 6
+
+[candidates.crop_curriculum]
+start_crop_seconds = 4.0
+end_crop_seconds = 6.0
+curriculum_epochs = 3
+
+[[candidates]]
+candidate_id = "stable_5s"
+description = "Lower-margin, slightly shorter 5 s regime with larger micro-batches and a cleaner augmentation mix."
+project_overrides = [
+  'training.batch_size=32',
+  'training.eval_batch_size=32',
+  'chunking.eval_max_full_utterance_seconds=5.0',
+  'chunking.eval_chunk_seconds=5.0',
+  'chunking.eval_chunk_overlap_seconds=1.0',
+  'chunking.eval_pooling="mean"',
+  'augmentation_scheduler.clean_probability_start=0.60',
+  'augmentation_scheduler.clean_probability_end=0.50',
+  'augmentation_scheduler.light_probability_start=0.28',
+  'augmentation_scheduler.light_probability_end=0.35',
+  'augmentation_scheduler.medium_probability_start=0.10',
+  'augmentation_scheduler.medium_probability_end=0.12',
+  'augmentation_scheduler.heavy_probability_start=0.02',
+  'augmentation_scheduler.heavy_probability_end=0.03',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.30
+end_margin = 0.40
+ramp_epochs = 4
+
+[candidates.crop_curriculum]
+start_crop_seconds = 4.0
+end_crop_seconds = 5.0
+curriculum_epochs = 3
+
+[[candidates]]
+candidate_id = "robust_5p5"
+description = "Keeps stronger medium/heavy corruption pressure while staying on mean pooling and 5.5 s eval chunks."
+project_overrides = [
+  'training.batch_size=24',
+  'training.eval_batch_size=24',
+  'chunking.eval_max_full_utterance_seconds=5.5',
+  'chunking.eval_chunk_seconds=5.5',
+  'chunking.eval_chunk_overlap_seconds=1.0',
+  'chunking.eval_pooling="mean"',
+  'augmentation_scheduler.clean_probability_start=0.45',
+  'augmentation_scheduler.clean_probability_end=0.35',
+  'augmentation_scheduler.light_probability_start=0.30',
+  'augmentation_scheduler.light_probability_end=0.35',
+  'augmentation_scheduler.medium_probability_start=0.18',
+  'augmentation_scheduler.medium_probability_end=0.20',
+  'augmentation_scheduler.heavy_probability_start=0.07',
+  'augmentation_scheduler.heavy_probability_end=0.10',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.30
+end_margin = 0.45
+ramp_epochs = 6
+
+[candidates.crop_curriculum]
+start_crop_seconds = 4.0
+end_crop_seconds = 5.5
+curriculum_epochs = 3
+
+[[candidates]]
+candidate_id = "sharp_max"
+description = "Sharper margin schedule with max pooling and tighter micro-batches to test more peaky verification scores."
+project_overrides = [
+  'training.batch_size=16',
+  'training.eval_batch_size=16',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="max"',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.32
+end_margin = 0.50
+ramp_epochs = 6
+
+[candidates.crop_curriculum]
+start_crop_seconds = 4.5
+end_crop_seconds = 6.0
+curriculum_epochs = 3
+
+[[candidates]]
+candidate_id = "compact_mean"
+description = "Shorter crops and 4.5 s evaluation windows to see whether a more compact regime improves stability."
+project_overrides = [
+  'training.batch_size=32',
+  'training.eval_batch_size=32',
+  'chunking.eval_max_full_utterance_seconds=4.5',
+  'chunking.eval_chunk_seconds=4.5',
+  'chunking.eval_chunk_overlap_seconds=0.75',
+  'chunking.eval_pooling="mean"',
+  'augmentation_scheduler.clean_probability_start=0.58',
+  'augmentation_scheduler.clean_probability_end=0.48',
+  'augmentation_scheduler.light_probability_start=0.28',
+  'augmentation_scheduler.light_probability_end=0.34',
+  'augmentation_scheduler.medium_probability_start=0.11',
+  'augmentation_scheduler.medium_probability_end=0.14',
+  'augmentation_scheduler.heavy_probability_start=0.03',
+  'augmentation_scheduler.heavy_probability_end=0.04',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.28
+end_margin = 0.40
+ramp_epochs = 4
+
+[candidates.crop_curriculum]
+start_crop_seconds = 3.5
+end_crop_seconds = 4.5
+curriculum_epochs = 3
+
+[[candidates]]
+candidate_id = "aggressive_max"
+description = "High-margin robust candidate with max pooling and stronger corruption pressure for worst-case slices."
+project_overrides = [
+  'training.batch_size=16',
+  'training.eval_batch_size=16',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="max"',
+  'augmentation_scheduler.clean_probability_start=0.40',
+  'augmentation_scheduler.clean_probability_end=0.30',
+  'augmentation_scheduler.light_probability_start=0.30',
+  'augmentation_scheduler.light_probability_end=0.30',
+  'augmentation_scheduler.medium_probability_start=0.20',
+  'augmentation_scheduler.medium_probability_end=0.25',
+  'augmentation_scheduler.heavy_probability_start=0.10',
+  'augmentation_scheduler.heavy_probability_end=0.15',
+]
+
+[candidates.margin_schedule]
+start_margin = 0.35
+end_margin = 0.55
+ramp_epochs = 6
+
+[candidates.crop_curriculum]
+start_crop_seconds = 5.0
+end_crop_seconds = 6.0
+curriculum_epochs = 3

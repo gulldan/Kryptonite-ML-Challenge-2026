@@ -25,6 +25,7 @@ Current entrypoints include:
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
 - `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report (ROC/DET curves, histogram, calibration bins, slice breakdowns, slice dashboard HTML, thresholded error analysis)
 - `scripts/run_campp_baseline.py` for training the repo-native CAM++ baseline and writing checkpoints, dev embeddings, trials, and cosine scores
+- `scripts/run_campp_sweep_shortlist.py` for running the bounded CAM++ stage-3 shortlist and ranking candidates on clean + corrupted dev suites
 - `scripts/run_eres2netv2_baseline.py` for training the repo-native ERes2NetV2 baseline and writing checkpoints, dev embeddings, trials, and cosine scores
 - `scripts/production_dataloader_smoke.py` for inspecting the balanced/resumable production train dataloader against a real train manifest
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
