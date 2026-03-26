@@ -55,9 +55,7 @@ def main(
 
     # Load trials once — shared by both scored passes.
     trial_rows = [
-        json.loads(line)
-        for line in trials.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in trials.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
     def eval_pass(
@@ -126,9 +124,21 @@ def main(
 
     typer.echo("")
     typer.echo(f"Gating rule : {comparison.gating_rule}")
-    typer.echo(f"Score-gap   : {init_summary.score_gap:.6f} → {final_summary.score_gap:.6f}  improved={comparison.score_gap_improved}")
-    typer.echo(f"EER         : {init_summary.eer:.6f} → {final_summary.eer:.6f}  improved={comparison.eer_improved}")
-    typer.echo(f"MinDCF      : {init_summary.min_dcf:.6f} → {final_summary.min_dcf:.6f}  improved={comparison.min_dcf_improved}")
+    typer.echo(
+        "Score-gap   : "
+        f"{init_summary.score_gap:.6f} → {final_summary.score_gap:.6f}  "
+        f"improved={comparison.score_gap_improved}"
+    )
+    typer.echo(
+        "EER         : "
+        f"{init_summary.eer:.6f} → {final_summary.eer:.6f}  "
+        f"improved={comparison.eer_improved}"
+    )
+    typer.echo(
+        "MinDCF      : "
+        f"{init_summary.min_dcf:.6f} → {final_summary.min_dcf:.6f}  "
+        f"improved={comparison.min_dcf_improved}"
+    )
     typer.echo(f"Gate passed : {comparison.passed}")
 
     if not dry_run:
