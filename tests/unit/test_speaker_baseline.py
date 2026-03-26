@@ -15,7 +15,7 @@ def test_score_trials_resolves_bare_audio_names_from_metadata_audio_paths(tmp_pa
     embeddings_path = output_root / "dev_embeddings.npz"
     np.savez(
         embeddings_path,
-        embeddings=np.asarray([[1.0, 0.0], [1.0, 0.0]], dtype=np.float32),
+        embeddings=np.asarray([[3.0, 0.0], [7.0, 0.0]], dtype=np.float32),
         point_ids=np.asarray(["utt-00000", "utt-00001"], dtype=str),
     )
 

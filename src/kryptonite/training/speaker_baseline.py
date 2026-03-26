@@ -27,6 +27,7 @@ from kryptonite.features import (
     chunk_utterance,
     pool_chunk_tensors,
 )
+from kryptonite.models import cosine_score_pairs
 
 from .baseline_config import BaselineProvenanceConfig
 from .manifest_speaker_data import TrainingBatch
@@ -506,6 +507,9 @@ def score_trials(
     scored_rows: list[dict[str, Any]] = []
     positive_scores: list[float] = []
     negative_scores: list[float] = []
+    scored_trial_rows: list[dict[str, Any]] = []
+    left_embeddings: list[np.ndarray] = []
+    right_embeddings: list[np.ndarray] = []
     missing_embedding_count = 0
     for row in trial_rows:
         left_id = str(row.get("left_id", row.get("left_audio", "")))
@@ -515,18 +519,37 @@ def score_trials(
         if left_embedding is None or right_embedding is None:
             missing_embedding_count += 1
             continue
-        score = float(np.dot(left_embedding, right_embedding))
-        label = int(row["label"])
-        if label == 1:
-            positive_scores.append(score)
-        else:
-            negative_scores.append(score)
-        scored_rows.append(
+        scored_trial_rows.append(
             {
                 **row,
                 "left_id": left_id,
                 "right_id": right_id,
-                "score": round(score, 8),
+            }
+        )
+        left_embeddings.append(np.asarray(left_embedding, dtype=np.float64))
+        right_embeddings.append(np.asarray(right_embedding, dtype=np.float64))
+
+    pairwise_scores: np.ndarray
+    if left_embeddings:
+        pairwise_scores = cosine_score_pairs(
+            np.stack(left_embeddings, axis=0),
+            np.stack(right_embeddings, axis=0),
+            normalize=True,
+        )
+    else:
+        pairwise_scores = np.empty((0,), dtype=np.float64)
+
+    for row, score in zip(scored_trial_rows, pairwise_scores, strict=True):
+        label = int(row["label"])
+        score_value = float(score)
+        if label == 1:
+            positive_scores.append(score_value)
+        else:
+            negative_scores.append(score_value)
+        scored_rows.append(
+            {
+                **row,
+                "score": round(score_value, 8),
             }
         )
 

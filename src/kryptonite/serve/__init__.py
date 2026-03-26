@@ -8,8 +8,12 @@ from .runtime import (
     build_service_metadata,
     render_serve_runtime_report,
 )
+from .scoring_service import EnrollmentNotFoundError, EnrollmentRecord, ScoringService
 
 __all__ = [
+    "EnrollmentNotFoundError",
+    "EnrollmentRecord",
+    "ScoringService",
     "ServeRuntimeReport",
     "build_infer_artifact_report",
     "build_service_metadata",
