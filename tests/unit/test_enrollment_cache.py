@@ -64,6 +64,11 @@ def test_create_http_server_rejects_incompatible_enrollment_cache(
     metadata_path.write_text(json.dumps(metadata_payload, indent=2, sort_keys=True))
 
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")

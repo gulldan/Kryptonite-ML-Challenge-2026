@@ -210,6 +210,31 @@ uv run python scripts/triton_infer_smoke.py \
   --server-url http://127.0.0.1:8000
 ```
 
+## INT8 Feasibility Gate
+
+`KVA-543` does not claim that INT8 is production-ready. Instead it adds one
+reproducible decision report that says `go` only after the promoted FP16 path
+is real and measured.
+
+Build the report from the checked-in config:
+
+```bash
+uv run python scripts/build_int8_feasibility_report.py \
+  --config configs/release/int8-feasibility.toml
+```
+
+The report checks:
+
+- whether the current model bundle is still a structural stub;
+- whether a reference FP16 TensorRT engine exists;
+- whether the ONNX path has a saved parity report;
+- whether matched FP16 and INT8 verification/stress reports exist;
+- whether the saved calibration-set selection covers clean, duration-extreme,
+  and corruption traffic without pulling silence-only samples into calibration.
+
+The checked-in config intentionally returns `no_go` until those prerequisites
+and measurements exist.
+
 ## Scope Decisions
 
 - Base image versions are pinned in the Dockerfiles via explicit `PYTHON_VERSION` and `UV_IMAGE` arguments.
