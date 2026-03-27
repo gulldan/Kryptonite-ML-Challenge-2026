@@ -154,6 +154,7 @@ def build_service_metadata(
     config: ProjectConfig,
     report: ServeRuntimeReport,
     artifact_report: ArtifactReport,
+    enrollment_cache: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "service": "kryptonite-infer",
@@ -172,6 +173,7 @@ def build_service_metadata(
         },
         "artifacts": artifact_report.to_dict(),
         "backends": [probe.to_dict() for probe in report.probes],
+        "enrollment_cache": dict(enrollment_cache or {}),
     }
 
 

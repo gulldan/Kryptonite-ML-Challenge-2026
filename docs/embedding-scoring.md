@@ -2,6 +2,9 @@
 
 Shared L2 normalization and cosine scoring now live in `src/kryptonite/models/scoring.py`.
 
+For the offline cache that now seeds runtime enrollment state, see
+[docs/enrollment-embedding-cache.md](./enrollment-embedding-cache.md).
+
 The goal is to keep one contract for:
 
 - offline verification scoring in baseline/training pipelines;
@@ -89,7 +92,9 @@ Stores an in-memory enrollment embedding by:
 2. averaging them;
 3. L2-normalizing the pooled enrollment vector.
 
-This endpoint is intentionally ephemeral and process-local. It exists to validate the scorer/backend contract before the later full service/runtime work lands.
+The runtime now starts from the offline enrollment cache when one is present and compatible with
+the active model bundle metadata. `POST /enroll` remains intentionally process-local so smoke tests
+and manual probes can inject or override entries without mutating the checked-in cache artifacts.
 
 ### `POST /verify`
 
@@ -102,5 +107,6 @@ Lists the current in-memory enrollment records.
 ## Current Scope Limits
 
 - The HTTP adapter still does not embed raw audio. That belongs to the later serving/runtime task.
-- Enrollment state is in-memory only and resets on process restart.
+- The checked-in runtime path expects enrollment centroids to be computed offline and loaded at
+  startup; manual `POST /enroll` calls still reset on process restart.
 - These endpoints are for contract validation and smoke/integration coverage, not final production transport.

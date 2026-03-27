@@ -13,7 +13,9 @@ import onnx
 from onnx import TensorProto, checker, helper
 
 from kryptonite.config import ProjectConfig
+from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
+from kryptonite.features import FbankExtractionRequest, UtteranceChunkingRequest
 
 from .data.manifest_artifacts import (
     build_file_artifact,
@@ -21,6 +23,7 @@ from .data.manifest_artifacts import (
     write_tabular_artifact,
 )
 from .data.schema import ManifestRow
+from .serve.enrollment_cache import build_enrollment_embedding_cache
 
 DEFAULT_SAMPLE_RATE = 16_000
 DEFAULT_DURATION_SECONDS = 1.0
@@ -40,11 +43,14 @@ class GeneratedDemoArtifacts:
     manifests_root: str
     demo_subset_root: str
     model_bundle_root: str
+    enrollment_cache_root: str
     manifest_file: str
     manifest_inventory_file: str
     subset_file: str
     model_file: str
     metadata_file: str
+    enrollment_embeddings_file: str
+    enrollment_summary_file: str
     clip_count: int
 
     def to_dict(self) -> dict[str, object]:
@@ -53,11 +59,14 @@ class GeneratedDemoArtifacts:
             "manifests_root": self.manifests_root,
             "demo_subset_root": self.demo_subset_root,
             "model_bundle_root": self.model_bundle_root,
+            "enrollment_cache_root": self.enrollment_cache_root,
             "manifest_file": self.manifest_file,
             "manifest_inventory_file": self.manifest_inventory_file,
             "subset_file": self.subset_file,
             "model_file": self.model_file,
             "metadata_file": self.metadata_file,
+            "enrollment_embeddings_file": self.enrollment_embeddings_file,
+            "enrollment_summary_file": self.enrollment_summary_file,
             "clip_count": self.clip_count,
         }
 
@@ -83,6 +92,10 @@ def generate_demo_artifacts(
     manifests_root = resolve_project_path(project_root, config.paths.manifests_root)
     demo_subset_root = resolve_project_path(project_root, config.deployment.demo_subset_root)
     model_bundle_root = resolve_project_path(project_root, config.deployment.model_bundle_root)
+    enrollment_cache_root = resolve_project_path(
+        project_root,
+        config.deployment.enrollment_cache_root,
+    )
 
     dataset_demo_root = dataset_root / "demo-speaker-recognition"
     manifest_file = manifests_root / "demo_manifest.jsonl"
@@ -158,6 +171,7 @@ def generate_demo_artifacts(
                 "input_name": "audio",
                 "output_name": "embedding",
                 "sample_rate_hz": sample_rate,
+                "enrollment_cache_compatibility_id": "demo-speaker-recognition-cache-v1",
                 "description": (
                     "Synthetic ONNX demo bundle for strict container smoke checks. "
                     "This is a packaging/runtime validation artifact, not a production SV model."
@@ -181,17 +195,32 @@ def generate_demo_artifacts(
             ),
         ),
     )
+    enrollment_cache = build_enrollment_embedding_cache(
+        project_root=project_root,
+        manifest_path=manifest_file,
+        output_root=enrollment_cache_root,
+        model_metadata_path=metadata_file,
+        audio_request=AudioLoadRequest.from_config(config.normalization, vad=config.vad),
+        fbank_request=FbankExtractionRequest.from_config(config.features),
+        chunking_request=UtteranceChunkingRequest.from_config(config.chunking),
+        stage="demo",
+        embedding_mode="mean_std",
+        device=config.runtime.device,
+    )
 
     return GeneratedDemoArtifacts(
         dataset_root=str(dataset_root),
         manifests_root=str(manifests_root),
         demo_subset_root=str(demo_subset_root),
         model_bundle_root=str(model_bundle_root),
+        enrollment_cache_root=str(enrollment_cache_root),
         manifest_file=str(manifest_file),
         manifest_inventory_file=str(manifest_inventory),
         subset_file=str(subset_file),
         model_file=str(model_file),
         metadata_file=str(metadata_file),
+        enrollment_embeddings_file=enrollment_cache.embeddings_path,
+        enrollment_summary_file=enrollment_cache.summary_path,
         clip_count=len(DEMO_CLIPS),
     )
 

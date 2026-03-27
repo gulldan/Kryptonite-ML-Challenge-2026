@@ -54,6 +54,7 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.chunking.demo_pooling == "mean"
     assert config.deployment.model_bundle_root == "artifacts/model-bundle"
     assert config.deployment.demo_subset_root == "artifacts/demo-subset"
+    assert config.deployment.enrollment_cache_root == "artifacts/enrollment-cache"
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] is None
 
@@ -125,6 +126,7 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.chunking.train_short_utterance_policy == "zero_pad"
     assert config.chunking.eval_chunk_overlap_seconds == 0.5
     assert config.chunking.demo_pooling == "max"
+    assert config.deployment.enrollment_cache_root == "artifacts/enrollment-cache"
     assert config.deployment.require_artifacts is False
     assert config.resolved_secrets["wandb_api_key"] == "test-wandb-token"
 

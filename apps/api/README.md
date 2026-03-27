@@ -10,6 +10,7 @@ Current adapter scope:
 
 - `GET /healthz` and `GET /readyz` for runtime/artifact metadata
 - `POST /score/pairwise` and `POST /score/one-to-many` for embedding-based cosine scoring
-- `POST /enroll`, `POST /verify`, and `GET /enrollments` for the current in-memory verification flow
+- startup-time loading of the offline enrollment cache plus `POST /verify` and `GET /enrollments`
+- `POST /enroll` as a process-local override for smoke tests and manual contract checks
 
 See `docs/embedding-scoring.md` for request/response examples and scope limits.

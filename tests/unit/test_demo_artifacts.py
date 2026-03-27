@@ -29,6 +29,8 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     subset_file = Path(generated.subset_file)
     model_file = Path(generated.model_file)
     metadata_file = Path(generated.metadata_file)
+    enrollment_embeddings_file = Path(generated.enrollment_embeddings_file)
+    enrollment_summary_file = Path(generated.enrollment_summary_file)
 
     assert generated.clip_count == 6
     assert manifest_file.is_file()
@@ -37,6 +39,8 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert subset_file.is_file()
     assert model_file.is_file()
     assert metadata_file.is_file()
+    assert enrollment_embeddings_file.is_file()
+    assert enrollment_summary_file.is_file()
     assert len(manifest_file.read_text().splitlines()) == 6
 
     first_manifest_row = json.loads(manifest_file.read_text().splitlines()[0])
@@ -53,6 +57,7 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert manifest_inventory["auxiliary_files"][0]["path"].endswith("demo_subset.json")
     assert len(subset_payload["enrollment"]) == 4
     assert len(subset_payload["test"]) == 2
+    assert json.loads(metadata_file.read_text())["enrollment_cache_compatibility_id"]
 
 
 def test_generated_demo_artifacts_satisfy_strict_preflight(tmp_path: Path) -> None:

@@ -8,11 +8,12 @@ from urllib.request import urlopen
 
 import kryptonite.serve.runtime as serve_runtime
 from kryptonite.config import load_project_config
+from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.serve import create_http_server
 
 
-def test_health_endpoint_reports_selected_backend(monkeypatch) -> None:
-    config = load_project_config(config_path=Path("configs/deployment/infer.toml"))
+def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -> None:
+    config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
         if module_name == "onnxruntime":
@@ -38,3 +39,21 @@ def test_health_endpoint_reports_selected_backend(monkeypatch) -> None:
     assert payload["status"] == "ok"
     assert payload["artifacts"]["scope"] == "infer"
     assert payload["artifacts"]["strict"] is False
+    assert payload["enrollment_cache"]["loaded"] is True
+    assert payload["enrollment_cache"]["enrollment_count"] == 2
+
+
+def _build_demo_config(tmp_path: Path):
+    config = load_project_config(
+        config_path=Path("configs/deployment/infer.toml"),
+        overrides=[
+            f'paths.project_root="{tmp_path}"',
+            'paths.dataset_root="datasets"',
+            'paths.manifests_root="artifacts/manifests"',
+            'deployment.model_bundle_root="artifacts/model-bundle"',
+            'deployment.demo_subset_root="artifacts/demo-subset"',
+            'deployment.enrollment_cache_root="artifacts/enrollment-cache"',
+        ],
+    )
+    generate_demo_artifacts(config=config)
+    return config

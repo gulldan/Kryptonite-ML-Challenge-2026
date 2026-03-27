@@ -23,6 +23,7 @@ Current entrypoints include:
 - `scripts/build_corrupted_dev_suites.py` for freezing deterministic `dev_snr` / `dev_reverb` / `dev_codec` / `dev_distance` / `dev_channel` / `dev_silence` evaluation bundles from one clean dev manifest
 - `scripts/build_embedding_atlas.py` for projecting precomputed embeddings into an interactive HTML atlas with nearest neighbors and optional media preview
 - `scripts/build_cohort_embedding_bank.py` for freezing one normalized cohort/impostor embedding bank from exported embeddings plus metadata with explicit trial-exclusion and speaker-disjoint provenance
+- `scripts/build_enrollment_cache.py` for precomputing one runtime-ready enrollment centroid cache from an enrollment manifest plus model-bundle compatibility metadata
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
 - `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report, with optional `AS-norm` score normalization backed by exported eval embeddings and a frozen cohort bank
 - `scripts/calibrate_verification_thresholds.py` for generating the full offline verification report plus named `balanced/min_dcf/demo/production` thresholds and optional slice-aware calibration bundles

@@ -10,11 +10,12 @@ from urllib.request import Request, urlopen
 
 import kryptonite.serve.runtime as serve_runtime
 from kryptonite.config import load_project_config
+from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.serve import create_http_server
 
 
-def test_pairwise_scoring_endpoint_returns_cosine_scores(monkeypatch) -> None:
-    server, thread = _start_server(monkeypatch)
+def test_pairwise_scoring_endpoint_returns_cosine_scores(monkeypatch, tmp_path: Path) -> None:
+    server, thread = _start_server(monkeypatch, tmp_path)
     try:
         status, payload = _post_json(
             f"http://127.0.0.1:{server.server_address[1]}/score/pairwise",
@@ -32,8 +33,11 @@ def test_pairwise_scoring_endpoint_returns_cosine_scores(monkeypatch) -> None:
     assert payload["scores"] == [1.0, 0.0]
 
 
-def test_one_to_many_scoring_endpoint_returns_ranked_matches(monkeypatch) -> None:
-    server, thread = _start_server(monkeypatch)
+def test_one_to_many_scoring_endpoint_returns_ranked_matches(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    server, thread = _start_server(monkeypatch, tmp_path)
     try:
         status, payload = _post_json(
             f"http://127.0.0.1:{server.server_address[1]}/score/one-to-many",
@@ -62,13 +66,18 @@ def test_one_to_many_scoring_endpoint_returns_ranked_matches(monkeypatch) -> Non
     ]
 
 
-def test_enroll_and_verify_endpoints_share_the_same_scoring_state(monkeypatch) -> None:
-    server, thread = _start_server(monkeypatch)
+def test_enroll_and_verify_endpoints_share_the_same_scoring_state(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    server, thread = _start_server(monkeypatch, tmp_path)
     try:
+        with urlopen(f"http://127.0.0.1:{server.server_address[1]}/enrollments") as response:
+            initial_enrollments_payload = json.loads(response.read().decode("utf-8"))
         enroll_status, enroll_payload = _post_json(
             f"http://127.0.0.1:{server.server_address[1]}/enroll",
             {
-                "enrollment_id": "speaker-alpha",
+                "enrollment_id": "speaker-charlie",
                 "embeddings": [[2.0, 0.0], [6.0, 0.0]],
                 "metadata": {"source": "integration-test"},
             },
@@ -78,7 +87,7 @@ def test_enroll_and_verify_endpoints_share_the_same_scoring_state(monkeypatch) -
         verify_status, verify_payload = _post_json(
             f"http://127.0.0.1:{server.server_address[1]}/verify",
             {
-                "enrollment_id": "speaker-alpha",
+                "enrollment_id": "speaker-charlie",
                 "probe": [1.0, 0.0],
                 "threshold": 0.9,
             },
@@ -88,16 +97,24 @@ def test_enroll_and_verify_endpoints_share_the_same_scoring_state(monkeypatch) -
 
     assert enroll_status == 201
     assert enroll_payload["sample_count"] == 2
-    assert enrollments_payload["enrollment_count"] == 1
-    assert enrollments_payload["enrollments"][0]["enrollment_id"] == "speaker-alpha"
+    assert initial_enrollments_payload["enrollment_count"] == 2
+    assert enrollments_payload["enrollment_count"] == 3
+    assert {enrollment["enrollment_id"] for enrollment in enrollments_payload["enrollments"]} == {
+        "speaker_alpha",
+        "speaker_bravo",
+        "speaker-charlie",
+    }
     assert verify_status == 200
     assert verify_payload["mode"] == "verify"
     assert verify_payload["scores"] == [1.0]
     assert verify_payload["decisions"] == [True]
 
 
-def _start_server(monkeypatch) -> tuple[ThreadingHTTPServer, threading.Thread]:
-    config = load_project_config(config_path=Path("configs/deployment/infer.toml"))
+def _start_server(
+    monkeypatch,
+    tmp_path: Path,
+) -> tuple[ThreadingHTTPServer, threading.Thread]:
+    config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
         if module_name == "onnxruntime":
@@ -111,6 +128,22 @@ def _start_server(monkeypatch) -> tuple[ThreadingHTTPServer, threading.Thread]:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, thread
+
+
+def _build_demo_config(tmp_path: Path):
+    config = load_project_config(
+        config_path=Path("configs/deployment/infer.toml"),
+        overrides=[
+            f'paths.project_root="{tmp_path}"',
+            'paths.dataset_root="datasets"',
+            'paths.manifests_root="artifacts/manifests"',
+            'deployment.model_bundle_root="artifacts/model-bundle"',
+            'deployment.demo_subset_root="artifacts/demo-subset"',
+            'deployment.enrollment_cache_root="artifacts/enrollment-cache"',
+        ],
+    )
+    generate_demo_artifacts(config=config)
+    return config
 
 
 def _stop_server(server: ThreadingHTTPServer, thread: threading.Thread) -> None:

@@ -40,9 +40,16 @@ class EnrollmentRecord:
 
 
 class ScoringService:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        initial_enrollments: Mapping[str, EnrollmentRecord] | None = None,
+    ) -> None:
         self._lock = Lock()
-        self._enrollments: dict[str, EnrollmentRecord] = {}
+        self._enrollments = {
+            enrollment_id: _clone_enrollment_record(record)
+            for enrollment_id, record in (initial_enrollments or {}).items()
+        }
 
     def list_enrollments(self) -> dict[str, Any]:
         with self._lock:
@@ -221,6 +228,16 @@ def _coerce_metadata(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
     if not isinstance(metadata, Mapping):
         raise ValueError("metadata must be a JSON object when provided.")
     return dict(metadata)
+
+
+def _clone_enrollment_record(record: EnrollmentRecord) -> EnrollmentRecord:
+    return EnrollmentRecord(
+        enrollment_id=record.enrollment_id,
+        sample_count=record.sample_count,
+        embedding_dim=record.embedding_dim,
+        embedding=np.asarray(record.embedding, dtype=np.float64).copy(),
+        metadata=dict(record.metadata),
+    )
 
 
 def _round_scores(scores: np.ndarray) -> list[float]:

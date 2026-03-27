@@ -50,4 +50,5 @@ huggingface_hub_token = "HUGGINGFACE_HUB_TOKEN"
 [deployment]
 model_bundle_root = "artifacts/model-bundle"
 demo_subset_root = "artifacts/demo-subset"
+enrollment_cache_root = "artifacts/enrollment-cache"
 require_artifacts = false

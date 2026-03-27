@@ -9,15 +9,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
 from kryptonite.config import ProjectConfig
-from kryptonite.deployment import render_artifact_report
+from kryptonite.deployment import render_artifact_report, resolve_project_path
 
 from .deployment import build_infer_artifact_report
+from .enrollment_cache import (
+    ENROLLMENT_SUMMARY_JSON_NAME,
+    MODEL_BUNDLE_METADATA_NAME,
+    load_enrollment_embedding_cache,
+    load_model_bundle_metadata,
+    validate_enrollment_cache_compatibility,
+)
 from .runtime import (
     build_serve_runtime_report,
     build_service_metadata,
     render_serve_runtime_report,
 )
-from .scoring_service import EnrollmentNotFoundError, ScoringService
+from .scoring_service import EnrollmentNotFoundError, EnrollmentRecord, ScoringService
 
 
 def create_http_server(
@@ -35,8 +42,28 @@ def create_http_server(
     if not artifact_report.passed:
         raise RuntimeError(render_artifact_report(artifact_report))
 
-    payload = build_service_metadata(config=config, report=report, artifact_report=artifact_report)
-    return ThreadingHTTPServer((host, port), _build_handler(payload, ScoringService()))
+    model_metadata_path = (
+        resolve_project_path(config.paths.project_root, config.deployment.model_bundle_root)
+        / MODEL_BUNDLE_METADATA_NAME
+    )
+    model_metadata = (
+        load_model_bundle_metadata(model_metadata_path) if model_metadata_path.exists() else None
+    )
+    try:
+        scoring_service, enrollment_cache_payload = _build_scoring_service(
+            config=config,
+            model_metadata=model_metadata,
+        )
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+    payload = build_service_metadata(
+        config=config,
+        report=report,
+        artifact_report=artifact_report,
+        enrollment_cache=enrollment_cache_payload,
+    )
+    return ThreadingHTTPServer((host, port), _build_handler(payload, scoring_service))
 
 
 def run_http_server(
@@ -293,3 +320,73 @@ def _build_handler(
             self.wfile.write(body)
 
     return Handler
+
+
+def _build_scoring_service(
+    *,
+    config: ProjectConfig,
+    model_metadata: Mapping[str, object] | None,
+) -> tuple[ScoringService, dict[str, object]]:
+    cache_root = resolve_project_path(
+        config.paths.project_root,
+        config.deployment.enrollment_cache_root,
+    )
+    summary_path = cache_root / ENROLLMENT_SUMMARY_JSON_NAME
+    if not summary_path.exists():
+        return (
+            ScoringService(),
+            {
+                "loaded": False,
+                "cache_root": str(cache_root),
+                "enrollment_count": 0,
+            },
+        )
+
+    if model_metadata is None:
+        raise ValueError(
+            "Enrollment cache exists, but model bundle metadata is missing; "
+            "cannot validate compatibility."
+        )
+
+    loaded_cache = load_enrollment_embedding_cache(cache_root)
+    validate_enrollment_cache_compatibility(
+        summary=loaded_cache.summary,
+        model_metadata=model_metadata,
+    )
+
+    initial_enrollments = {
+        enrollment_id: EnrollmentRecord(
+            enrollment_id=enrollment_id,
+            sample_count=int(metadata_row["sample_count"]),
+            embedding_dim=int(embedding.shape[0]),
+            embedding=embedding,
+            metadata=dict(metadata_row),
+        )
+        for enrollment_id, embedding, metadata_row in zip(
+            _resolve_enrollment_ids(loaded_cache.metadata_rows),
+            loaded_cache.embeddings,
+            loaded_cache.metadata_rows,
+            strict=True,
+        )
+    }
+    return (
+        ScoringService(initial_enrollments=initial_enrollments),
+        {
+            "loaded": True,
+            "cache_root": str(cache_root),
+            "enrollment_count": loaded_cache.summary.enrollment_count,
+            "compatibility_id": loaded_cache.summary.compatibility_id,
+            "format_version": loaded_cache.summary.format_version,
+            "source_manifest_path": loaded_cache.summary.source_manifest_path,
+        },
+    )
+
+
+def _resolve_enrollment_ids(metadata_rows: list[dict[str, object]]) -> list[str]:
+    enrollment_ids: list[str] = []
+    for row in metadata_rows:
+        enrollment_id = row.get("enrollment_id")
+        if not isinstance(enrollment_id, str) or not enrollment_id.strip():
+            raise ValueError("Enrollment cache metadata rows must define non-empty enrollment_id.")
+        enrollment_ids.append(enrollment_id)
+    return enrollment_ids

@@ -4,6 +4,11 @@ from pathlib import Path
 
 from kryptonite.config import load_project_config
 from kryptonite.serve.deployment import build_infer_artifact_report
+from kryptonite.serve.enrollment_cache import (
+    ENROLLMENT_EMBEDDINGS_NPZ_NAME,
+    ENROLLMENT_METADATA_PARQUET_NAME,
+    ENROLLMENT_SUMMARY_JSON_NAME,
+)
 from kryptonite.training.deployment import build_training_artifact_report
 
 
@@ -27,11 +32,13 @@ def test_infer_artifact_report_requires_real_paths_in_strict_mode(tmp_path: Path
     manifests_root = tmp_path / "manifests"
     model_bundle_root = tmp_path / "model-bundle"
     demo_subset_root = tmp_path / "demo-subset"
+    enrollment_cache_root = tmp_path / "enrollment-cache"
     enrollment_root = demo_subset_root / "enrollment"
     test_root = demo_subset_root / "test"
 
     manifests_root.mkdir()
     model_bundle_root.mkdir()
+    enrollment_cache_root.mkdir()
     enrollment_root.mkdir(parents=True)
     test_root.mkdir(parents=True)
 
@@ -41,6 +48,9 @@ def test_infer_artifact_report_requires_real_paths_in_strict_mode(tmp_path: Path
     (enrollment_root / "speaker-a-enroll.wav").write_text("fake-audio")
     (test_root / "speaker-a-test.wav").write_text("fake-audio")
     (demo_subset_root / "demo_subset.json").write_text("{}")
+    (enrollment_cache_root / ENROLLMENT_EMBEDDINGS_NPZ_NAME).write_text("fake-embeddings")
+    (enrollment_cache_root / ENROLLMENT_METADATA_PARQUET_NAME).write_text("fake-metadata")
+    (enrollment_cache_root / ENROLLMENT_SUMMARY_JSON_NAME).write_text("{}")
 
     config = load_project_config(
         config_path=Path("configs/deployment/infer.toml"),
@@ -49,6 +59,7 @@ def test_infer_artifact_report_requires_real_paths_in_strict_mode(tmp_path: Path
             'paths.manifests_root="manifests"',
             'deployment.model_bundle_root="model-bundle"',
             'deployment.demo_subset_root="demo-subset"',
+            'deployment.enrollment_cache_root="enrollment-cache"',
         ],
     )
 

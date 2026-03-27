@@ -5,6 +5,12 @@ from __future__ import annotations
 from kryptonite.config import ProjectConfig
 from kryptonite.deployment import ArtifactReport, ArtifactSpec, build_artifact_report
 
+from .enrollment_cache import (
+    ENROLLMENT_EMBEDDINGS_NPZ_NAME,
+    ENROLLMENT_METADATA_PARQUET_NAME,
+    ENROLLMENT_SUMMARY_JSON_NAME,
+)
+
 
 def build_infer_artifact_report(
     *,
@@ -74,6 +80,42 @@ def build_infer_artifact_report(
             path_type="file",
             require_non_empty=True,
             description="Subset metadata that maps enrollment/test samples for the demo run.",
+        ),
+        ArtifactSpec(
+            name="enrollment_cache_root",
+            configured_path=config.deployment.enrollment_cache_root,
+            path_type="dir",
+            require_non_empty=True,
+            description="Offline enrollment cache consumed by the runtime verify flow.",
+        ),
+        ArtifactSpec(
+            name="enrollment_embeddings_file",
+            configured_path=(
+                f"{config.deployment.enrollment_cache_root}/{ENROLLMENT_EMBEDDINGS_NPZ_NAME}"
+            ),
+            path_type="file",
+            require_non_empty=True,
+            description=(
+                "Normalized enrollment embedding centroids prepared before runtime startup."
+            ),
+        ),
+        ArtifactSpec(
+            name="enrollment_metadata_file",
+            configured_path=(
+                f"{config.deployment.enrollment_cache_root}/{ENROLLMENT_METADATA_PARQUET_NAME}"
+            ),
+            path_type="file",
+            require_non_empty=True,
+            description="Enrollment cache metadata aligned with the stored centroid table.",
+        ),
+        ArtifactSpec(
+            name="enrollment_summary_file",
+            configured_path=(
+                f"{config.deployment.enrollment_cache_root}/{ENROLLMENT_SUMMARY_JSON_NAME}"
+            ),
+            path_type="file",
+            require_non_empty=True,
+            description="Enrollment cache provenance and model-bundle compatibility summary.",
         ),
     ]
     return build_artifact_report(

@@ -251,6 +251,7 @@ class SecretRefs:
 class DeploymentConfig:
     model_bundle_root: str
     demo_subset_root: str
+    enrollment_cache_root: str
     require_artifacts: bool
 
 
@@ -442,6 +443,7 @@ def load_project_config(
                 {
                     "model_bundle_root": "artifacts/model-bundle",
                     "demo_subset_root": "artifacts/demo-subset",
+                    "enrollment_cache_root": "artifacts/enrollment-cache",
                     "require_artifacts": False,
                 },
             )

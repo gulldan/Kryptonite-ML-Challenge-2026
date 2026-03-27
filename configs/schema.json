@@ -348,10 +348,16 @@
         },
         "deployment": {
             "type": "object",
-            "required": ["model_bundle_root", "demo_subset_root", "require_artifacts"],
+            "required": [
+                "model_bundle_root",
+                "demo_subset_root",
+                "enrollment_cache_root",
+                "require_artifacts"
+            ],
             "properties": {
                 "model_bundle_root": {"type": "string"},
                 "demo_subset_root": {"type": "string"},
+                "enrollment_cache_root": {"type": "string"},
                 "require_artifacts": {"type": "boolean"},
             },
             "additionalProperties": false,
