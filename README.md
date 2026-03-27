@@ -102,6 +102,7 @@ See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
 See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
 See [docs/web-demo.md](./docs/web-demo.md) for the browser demo flow and compose-based launch path.
 See [docs/dataset-inventory.md](./docs/dataset-inventory.md) for the repository-level policy on approved, conditional, and blocked data resources.
+See [docs/dataton-rules-matrix.md](./docs/dataton-rules-matrix.md) for the competition-facing allow/deny/unknown matrix that sits on top of the repo-internal dataset policy.
 See [docs/ffsvc2022-surrogate.md](./docs/ffsvc2022-surrogate.md) for the current server-only surrogate dataset strategy.
 See [docs/gpu-server-data-sync.md](./docs/gpu-server-data-sync.md) for gpu-server dataset/manifests sync and readiness auditing.
 See [docs/training-environment.md](./docs/training-environment.md) for environment groups and setup commands.
