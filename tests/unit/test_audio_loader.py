@@ -188,6 +188,32 @@ def test_load_audio_rejects_offsets_past_end_of_file(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("path_name", "contents", "expected_message"),
+    (
+        ("missing.wav", None, "Failed to inspect audio file"),
+        ("corrupt.wav", "not actually a wav file\n", "Failed to inspect audio file"),
+    ),
+)
+def test_load_audio_surfaces_missing_or_corrupt_files_as_value_errors(
+    tmp_path: Path,
+    path_name: str,
+    contents: str | None,
+    expected_message: str,
+) -> None:
+    audio_path = tmp_path / "datasets" / "demo" / path_name
+    audio_path.parent.mkdir(parents=True)
+    if contents is not None:
+        audio_path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=expected_message):
+        load_audio(
+            audio_path,
+            project_root=tmp_path,
+            request=AudioLoadRequest(target_sample_rate_hz=16_000, target_channels=1),
+        )
+
+
 def test_load_audio_can_trim_leading_and_trailing_silence(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

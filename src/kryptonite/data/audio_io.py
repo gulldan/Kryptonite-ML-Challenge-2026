@@ -27,25 +27,30 @@ class AudioFileInfo:
 def inspect_audio_file(path: Path) -> AudioFileInfo:
     import soundfile as sf
 
-    with sf.SoundFile(str(path)) as handle:
-        format_name = (handle.format or "").upper()
-        if format_name not in SUPPORTED_AUDIO_FORMATS:
-            supported = ", ".join(sorted(SUPPORTED_AUDIO_FORMATS))
-            raise ValueError(
-                f"Unsupported audio format {format_name or '<unknown>'!r} for {path}; "
-                f"expected one of: {supported}"
+    try:
+        with sf.SoundFile(str(path)) as handle:
+            format_name = (handle.format or "").upper()
+            if format_name not in SUPPORTED_AUDIO_FORMATS:
+                supported = ", ".join(sorted(SUPPORTED_AUDIO_FORMATS))
+                raise ValueError(
+                    f"Unsupported audio format {format_name or '<unknown>'!r} for {path}; "
+                    f"expected one of: {supported}"
+                )
+            if handle.samplerate <= 0:
+                raise ValueError(f"Audio file {path} reports a non-positive sample rate.")
+            if handle.channels <= 0:
+                raise ValueError(f"Audio file {path} reports a non-positive channel count.")
+            return AudioFileInfo(
+                format=format_name,
+                subtype=handle.subtype,
+                sample_rate_hz=int(handle.samplerate),
+                num_channels=int(handle.channels),
+                frame_count=int(handle.frames),
             )
-        if handle.samplerate <= 0:
-            raise ValueError(f"Audio file {path} reports a non-positive sample rate.")
-        if handle.channels <= 0:
-            raise ValueError(f"Audio file {path} reports a non-positive channel count.")
-        return AudioFileInfo(
-            format=format_name,
-            subtype=handle.subtype,
-            sample_rate_hz=int(handle.samplerate),
-            num_channels=int(handle.channels),
-            frame_count=int(handle.frames),
-        )
+    except ValueError:
+        raise
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Failed to inspect audio file {path}: {exc}") from exc
 
 
 def read_audio_file(
@@ -61,31 +66,36 @@ def read_audio_file(
     if frame_count is not None and frame_count <= 0:
         raise ValueError("frame_count must be positive when provided")
 
-    with sf.SoundFile(str(path)) as handle:
-        info = AudioFileInfo(
-            format=(handle.format or "").upper(),
-            subtype=handle.subtype,
-            sample_rate_hz=int(handle.samplerate),
-            num_channels=int(handle.channels),
-            frame_count=int(handle.frames),
-        )
-        if info.format not in SUPPORTED_AUDIO_FORMATS:
-            supported = ", ".join(sorted(SUPPORTED_AUDIO_FORMATS))
-            raise ValueError(
-                f"Unsupported audio format {info.format or '<unknown>'!r} for {path}; "
-                f"expected one of: {supported}"
+    try:
+        with sf.SoundFile(str(path)) as handle:
+            info = AudioFileInfo(
+                format=(handle.format or "").upper(),
+                subtype=handle.subtype,
+                sample_rate_hz=int(handle.samplerate),
+                num_channels=int(handle.channels),
+                frame_count=int(handle.frames),
             )
-        if frame_offset >= info.frame_count:
-            raise ValueError(
-                f"Requested frame_offset={frame_offset} is past EOF for {path} "
-                f"(total frames={info.frame_count})."
+            if info.format not in SUPPORTED_AUDIO_FORMATS:
+                supported = ", ".join(sorted(SUPPORTED_AUDIO_FORMATS))
+                raise ValueError(
+                    f"Unsupported audio format {info.format or '<unknown>'!r} for {path}; "
+                    f"expected one of: {supported}"
+                )
+            if frame_offset >= info.frame_count:
+                raise ValueError(
+                    f"Requested frame_offset={frame_offset} is past EOF for {path} "
+                    f"(total frames={info.frame_count})."
+                )
+            handle.seek(frame_offset)
+            waveform = handle.read(
+                frames=-1 if frame_count is None else frame_count,
+                always_2d=True,
+                dtype="float32",
             )
-        handle.seek(frame_offset)
-        waveform = handle.read(
-            frames=-1 if frame_count is None else frame_count,
-            always_2d=True,
-            dtype="float32",
-        )
+    except ValueError:
+        raise
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"Failed to read audio file {path}: {exc}") from exc
     return waveform.T, info
 
 

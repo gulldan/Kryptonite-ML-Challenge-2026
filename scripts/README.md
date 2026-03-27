@@ -39,6 +39,7 @@ Current entrypoints include:
 - `scripts/vad_trimming_report.py` for comparing `none`, `light`, and `aggressive` loader-time trimming on a manifest-backed dev split
 - `scripts/validate_manifests.py` for enforcing the versioned unified manifest schema on data manifests
 - `scripts/infer_smoke.py` for inference-runtime and API startup smoke validation
+- `scripts/inference_stress_report.py` for release-oriented stress validation across deterministic corrupted/extreme-duration inputs, malformed requests, and batch bursts
 - `scripts/repro_check.py` for reproducibility smoke validation
 - `scripts/show_config.py` for config inspection and overrides
 - `scripts/training_env_smoke.py` for training-environment import checks
