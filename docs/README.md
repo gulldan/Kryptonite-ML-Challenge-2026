@@ -9,6 +9,7 @@ Key serving notes:
 - `docs/model-task-contract.md` for the repository-level ADR that fixes the primary verification task, compatible identification modes, trial semantics, and handoff artifacts
 - `docs/experiment-matrix-v1.md` for the sequenced experiment plan, GPU-hour budget ranges, and the explicit must-have vs stretch split
 - `docs/system-architecture-v1.md` for the end-to-end pipeline diagram, module ownership, interfaces, logging points, and export/serve placement
+- `docs/onnx-export.md` for the real CAM++ encoder-only ONNX bundle, validation scope, and handoff limits before parity promotion
 - `docs/web-demo.md` for the browser demo and runtime entrypoints
 - `docs/triton-deployment.md` for the encoder-boundary Triton model repository, launch flow, and TensorRT handoff constraints
 - `docs/inference-observability.md` for structured logs and Prometheus-compatible metrics

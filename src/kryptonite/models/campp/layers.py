@@ -123,9 +123,11 @@ class ContextAwareMaskingLayer(nn.Module):
             stride=segment_length,
             ceil_mode=True,
         )
-        shape = pooled.shape
-        expanded = pooled.unsqueeze(-1).expand(*shape, segment_length).reshape(*shape[:-1], -1)
-        return expanded[..., : inputs.shape[-1]]
+        # Gather each frame from its segment-average index instead of reshaping an
+        # expanded tensor. This stays symbolically shape-safe for torch.export.
+        frame_indices = torch.arange(inputs.shape[-1], device=inputs.device)
+        segment_indices = torch.div(frame_indices, segment_length, rounding_mode="floor")
+        return pooled.index_select(-1, segment_indices)
 
 
 class CAMDenseTDNNLayer(nn.Module):
