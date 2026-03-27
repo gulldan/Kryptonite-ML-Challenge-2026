@@ -1,0 +1,316 @@
+title = "Kryptonite 2026 Release Postmortem And Backlog v2"
+release_id = "kryptonite-2026-release-v2"
+release_tag = "rel-2026-03-27-release-surface"
+summary = """
+This postmortem captures what the release cycle actually delivered, what
+remains unresolved, and which items should drive the next iteration. The
+central conclusion is simple: release QA, packaging, and operational evidence
+are now reproducible, but the learned export path is still not live, so backlog
+v2 must prioritize export/parity/fallback work before reopening teacher-heavy
+stretch experiments.
+"""
+output_root = "artifacts/release-postmortems/kryptonite-2026-release-v2"
+
+validation_commands = [
+  "uv run python scripts/build_release_postmortem.py --config configs/release/release-postmortem-v2.toml",
+  "uv run pytest tests/unit/test_release_postmortem.py tests/unit/test_release_docs.py",
+]
+
+notes = [
+  "Backlog v2 is intentionally biased toward closing the gap between the production-like runtime contract and the still-stubbed feature_statistics embedding implementation.",
+  "Linear issue ids are recorded directly in the report so the next operator can lift backlog items without reconstructing context from git history.",
+]
+
+[[evidence]]
+label = "benchmark_pack"
+kind = "doc"
+path = "docs/final-benchmark-pack.md"
+description = "Frozen quality, latency, memory, and provenance comparison workflow."
+
+[[evidence]]
+label = "model_card"
+kind = "doc"
+path = "docs/model-card.md"
+description = "Release scope, caveats, and the explicit note that the runtime still uses feature_statistics."
+
+[[evidence]]
+label = "release_runbook"
+kind = "doc"
+path = "docs/release-runbook.md"
+description = "Preflight, rollout, monitoring, and rollback procedures for the current release surface."
+
+[[evidence]]
+label = "submission_bundle"
+kind = "doc"
+path = "docs/submission-release-bundle.md"
+description = "Self-contained handoff packaging plus release freeze snapshot."
+
+[[evidence]]
+label = "inference_wrapper"
+kind = "doc"
+path = "docs/unified-inference-wrapper.md"
+description = "Current backend abstraction boundary and the fact that only feature_statistics is implemented."
+
+[[evidence]]
+label = "inference_backend"
+kind = "code"
+path = "src/kryptonite/serve/inference_backend.py"
+description = "Canonical runtime backend implementation surface."
+
+[[evidence]]
+label = "regression_suite"
+kind = "test"
+path = "tests/e2e/test_inference_regression_suite.py"
+description = "End-to-end serving regression coverage across torch/onnxruntime/tensorrt selections."
+
+[[evidence]]
+label = "stress_suite"
+kind = "test"
+path = "tests/e2e/test_inference_stress_report.py"
+description = "Operational stress and telemetry coverage for the release path."
+
+[[finding]]
+area = "deploy"
+outcome = "worked"
+title = "Release QA and handoff are now reproducible instead of ad hoc"
+detail = """
+The release surface now has a coherent chain from regression suite and stress
+report to benchmark pack, submission bundle, release freeze, and rollback
+runbook. That materially lowers operator risk because promotion and rollback no
+longer depend on reconstructing artifacts by hand.
+"""
+evidence = ["benchmark_pack", "release_runbook", "submission_bundle", "regression_suite", "stress_suite"]
+related_issues = ["KVA-552", "KVA-553", "KVA-554", "KVA-556", "KVA-557"]
+
+[[finding]]
+area = "augments"
+outcome = "worked"
+title = "Robustness evidence moved from one-off checks into reusable release coverage"
+detail = """
+Corruption-oriented QA is now packaged as reusable release evidence through the
+stress suite and benchmark pack, which means augment-related confidence comes
+from repeatable validation artifacts instead of isolated notebook experiments.
+"""
+evidence = ["benchmark_pack", "stress_suite"]
+related_issues = ["KVA-553", "KVA-554"]
+
+[[finding]]
+area = "calibration"
+outcome = "worked"
+title = "Threshold calibration became an explicit release artifact"
+detail = """
+Threshold profiles, their expected bundle location, and the validation path are
+now written down in release-facing docs. That makes calibration part of the
+release contract rather than an implicit local convention.
+"""
+evidence = ["model_card", "release_runbook", "submission_bundle"]
+related_issues = ["KVA-554", "KVA-556", "KVA-557"]
+
+[[finding]]
+area = "export"
+outcome = "missed"
+title = "The learned export path is still not the live runtime implementation"
+detail = """
+The repository now exposes a production-like runtime surface, but the active
+embedding implementation is still feature_statistics. Export-oriented backlog
+items were not landed, so selected_backend can point at onnxruntime or tensorrt
+ while the real embedding path remains a stubbed fallback.
+"""
+evidence = ["model_card", "release_runbook", "inference_wrapper", "inference_backend", "regression_suite"]
+related_issues = ["KVA-538", "KVA-539", "KVA-540", "KVA-541", "KVA-544"]
+
+[[finding]]
+area = "teacher"
+outcome = "missed"
+title = "Teacher and advanced student work never crossed the must-have release boundary"
+detail = """
+Teacher PEFT, distillation, optional ReDimNet exploration, and consistency
+losses remained stretch work. None of them should stay on the next critical
+path until one exportable candidate family and one parity-tested runtime path
+are both real.
+"""
+evidence = ["model_card", "benchmark_pack"]
+related_issues = ["KVA-531", "KVA-533", "KVA-534", "KVA-535", "KVA-536"]
+
+[[finding]]
+area = "augments"
+outcome = "missed"
+title = "Advanced augmentation scope was not tied back to final candidate selection"
+detail = """
+The release cycle shipped corruption coverage and QA, but not a clear proof
+that additional augmentation-heavy or consistency-heavy experiments changed the
+final release decision. Those efforts should stay de-scoped until the export
+path is live and candidate parity can be measured directly.
+"""
+evidence = ["benchmark_pack", "model_card"]
+related_issues = ["KVA-534"]
+
+[[finding]]
+area = "calibration"
+outcome = "risk"
+title = "Threshold activation is still mtime-sensitive"
+detail = """
+The current threshold resolver still prefers the newest visible calibration
+file, which is operationally brittle. The runbook documents the mitigation, but
+the mechanism should move to an explicit release registry or active-version
+pointer before another serious rollout.
+"""
+evidence = ["model_card", "release_runbook"]
+related_issues = ["KVA-558"]
+
+[[backlog_item]]
+title = "Freeze the next export target family before re-running deployment work"
+priority = "P0"
+disposition = "next_iteration"
+area = "teacher"
+rationale = """
+Export, parity, and engine work must target one candidate family; otherwise the
+next iteration will duplicate engineering effort across incompatible bundles.
+"""
+related_issue = "KVA-536"
+dependencies = []
+
+[[backlog_item]]
+title = "Implement PyTorch -> ONNX export for the chosen release candidate"
+priority = "P0"
+disposition = "next_iteration"
+area = "export"
+rationale = """
+The release surface cannot graduate past feature_statistics until one learned
+encoder is exported with stable inputs, outputs, and time-axis behavior.
+"""
+related_issue = "KVA-538"
+dependencies = ["KVA-536"]
+
+[[backlog_item]]
+title = "Build ONNX Runtime parity suite against the current PyTorch path"
+priority = "P0"
+disposition = "next_iteration"
+area = "export"
+rationale = """
+Parity evidence is the minimum gate before promoting ONNX Runtime as anything
+more than a selected backend label in service metadata.
+"""
+related_issue = "KVA-539"
+dependencies = ["KVA-538"]
+
+[[backlog_item]]
+title = "Package the real inference fallback chain after parity is proven"
+priority = "P1"
+disposition = "next_iteration"
+area = "deploy"
+rationale = """
+The service should prefer TRT or ORT only when validated artifacts exist, then
+degrade cleanly to the proven PyTorch path rather than relying on implicit
+runtime assumptions.
+"""
+related_issue = "KVA-544"
+dependencies = ["KVA-538", "KVA-539"]
+
+[[backlog_item]]
+title = "Build a TensorRT FP16 engine for the promoted ONNX candidate"
+priority = "P1"
+disposition = "next_iteration"
+area = "export"
+rationale = """
+TensorRT only becomes meaningful after the ONNX path is stable; at that point
+FP16 is the first engine worth validating for latency and deploy realism.
+"""
+related_issue = "KVA-540"
+dependencies = ["KVA-538", "KVA-539"]
+
+[[backlog_item]]
+title = "Tune dynamic shape profiles around short/mid/long traffic"
+priority = "P1"
+disposition = "next_iteration"
+area = "export"
+rationale = """
+The current release docs already call out operational hard limits. Dynamic
+profiles are the next lever for reducing latency variance and overprovisioned
+engine ranges.
+"""
+related_issue = "KVA-541"
+dependencies = ["KVA-540"]
+
+[[backlog_item]]
+title = "Benchmark PyTorch vs ORT vs TRT only after all three paths are real"
+priority = "P2"
+disposition = "next_iteration"
+area = "deploy"
+rationale = """
+Comparative runtime benchmarking should follow export and parity milestones; it
+is not useful while ONNX and TensorRT remain planned rather than active.
+"""
+related_issue = "KVA-542"
+dependencies = ["KVA-539", "KVA-540", "KVA-544"]
+
+[[backlog_item]]
+title = "Replace mtime-based threshold discovery with an explicit active release pointer"
+priority = "P2"
+disposition = "monitor"
+area = "calibration"
+rationale = """
+The current workaround is documented, but rollout safety still depends on file
+timestamps. This should be fixed before the next external-facing promotion.
+"""
+dependencies = ["KVA-544"]
+
+[[backlog_item]]
+title = "Keep teacher PEFT exploration out of the next must-have release plan"
+priority = "P3"
+disposition = "de_scoped"
+area = "teacher"
+rationale = """
+Teacher work remains interesting, but it does not unblock the immediate gap
+between release-ready operational tooling and a real learned export path.
+"""
+related_issue = "KVA-531"
+dependencies = []
+
+[[backlog_item]]
+title = "De-scope distillation until one exportable student is locked"
+priority = "P3"
+disposition = "de_scoped"
+area = "teacher"
+rationale = """
+Distillation work should resume only after the next cycle has one chosen
+student family and a measurable serving path for it.
+"""
+related_issue = "KVA-533"
+dependencies = ["KVA-536"]
+
+[[backlog_item]]
+title = "De-scope consistency loss experiments from the next delivery milestone"
+priority = "P3"
+disposition = "de_scoped"
+area = "augments"
+rationale = """
+Consistency-loss work is valuable research, but it is not the shortest path to
+closing the runtime/export gap highlighted by this postmortem.
+"""
+related_issue = "KVA-534"
+dependencies = []
+
+[[backlog_item]]
+title = "De-scope optional ReDimNet branch comparison until baseline export is stable"
+priority = "P3"
+disposition = "de_scoped"
+area = "teacher"
+rationale = """
+Alternative families should not re-enter scope until one baseline family has a
+fully validated export and fallback story.
+"""
+related_issue = "KVA-535"
+dependencies = ["KVA-538", "KVA-539"]
+
+[[backlog_item]]
+title = "De-scope INT8 feasibility until FP16 export is production-like"
+priority = "P3"
+disposition = "de_scoped"
+area = "export"
+rationale = """
+INT8 calibration is premature while the release still lacks a promoted FP16
+engine and a stable parity-tested ONNX runtime path.
+"""
+related_issue = "KVA-543"
+dependencies = ["KVA-540"]

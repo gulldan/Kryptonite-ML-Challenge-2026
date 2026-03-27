@@ -133,6 +133,7 @@ See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2Ne
 See [docs/model-card.md](./docs/model-card.md) for the release-oriented model card, training-data classes, and caveats.
 See [docs/release-runbook.md](./docs/release-runbook.md) for the current rollout, smoke, monitoring, and rollback procedures.
 See [docs/submission-release-bundle.md](./docs/submission-release-bundle.md) for the self-contained handoff bundle that stages frozen configs, model artifacts, docs, demo assets, and an optional archive.
+See [docs/release-postmortem.md](./docs/release-postmortem.md) for the release retrospective, backlog v2 priorities, and the reproducible postmortem builder config.
 
 ## Naming Conventions
 
