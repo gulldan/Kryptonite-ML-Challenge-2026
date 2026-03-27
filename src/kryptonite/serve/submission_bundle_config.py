@@ -7,6 +7,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 SUPPORTED_SUBMISSION_BUNDLE_MODES = frozenset({"candidate", "smoke"})
+DEFAULT_SUBMISSION_BUNDLE_CODE_FINGERPRINT_PATHS = (
+    "pyproject.toml",
+    "uv.lock",
+    "src",
+    "apps",
+    "scripts",
+    "configs",
+)
 
 
 def normalize_submission_bundle_mode(value: str) -> str:
@@ -26,12 +34,15 @@ class SubmissionBundleConfig:
     bundle_mode: str
     summary: str
     output_root: str
+    release_tag: str | None
     create_archive: bool
     require_tensorrt_plan: bool
     repository_readme_path: str
     model_card_path: str
     runbook_path: str
     documentation_paths: tuple[str, ...]
+    data_manifest_paths: tuple[str, ...]
+    code_fingerprint_paths: tuple[str, ...]
     benchmark_paths: tuple[str, ...]
     config_paths: tuple[str, ...]
     checkpoint_paths: tuple[str, ...]
@@ -70,9 +81,15 @@ class SubmissionBundleConfig:
             raise ValueError("config_paths must include at least one config file.")
 
         if self.bundle_mode == "candidate":
+            if self.release_tag is None or not self.release_tag.strip():
+                raise ValueError("candidate bundle_mode requires release_tag.")
             if not self.benchmark_paths:
                 raise ValueError(
                     "candidate bundle_mode requires at least one benchmark_paths entry."
+                )
+            if not self.data_manifest_paths:
+                raise ValueError(
+                    "candidate bundle_mode requires at least one data_manifest_paths entry."
                 )
             if self.threshold_calibration_path is None:
                 raise ValueError("candidate bundle_mode requires threshold_calibration_path.")
@@ -89,6 +106,8 @@ class SubmissionBundleConfig:
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
         payload["documentation_paths"] = list(self.documentation_paths)
+        payload["data_manifest_paths"] = list(self.data_manifest_paths)
+        payload["code_fingerprint_paths"] = list(self.code_fingerprint_paths)
         payload["benchmark_paths"] = list(self.benchmark_paths)
         payload["config_paths"] = list(self.config_paths)
         payload["checkpoint_paths"] = list(self.checkpoint_paths)
@@ -103,6 +122,7 @@ def load_submission_bundle_config(*, config_path: Path | str) -> SubmissionBundl
     output_root = str(raw.get("output_root", "")).strip() or (
         f"artifacts/release-bundles/{bundle_id}"
     )
+    release_tag = str(raw.get("release_tag", "")).strip() or None
     tensorrt_plan_path = str(raw.get("tensorrt_plan_path", "")).strip() or None
     threshold_calibration_path = str(raw.get("threshold_calibration_path", "")).strip() or None
     triton_repository_root = str(raw.get("triton_repository_root", "")).strip() or None
@@ -112,6 +132,7 @@ def load_submission_bundle_config(*, config_path: Path | str) -> SubmissionBundl
         bundle_mode=str(raw.get("bundle_mode", "candidate")).strip(),
         summary=str(raw.get("summary", "")).strip(),
         output_root=output_root,
+        release_tag=release_tag,
         create_archive=bool(raw.get("create_archive", True)),
         require_tensorrt_plan=bool(raw.get("require_tensorrt_plan", False)),
         repository_readme_path=str(raw.get("repository_readme_path", "README.md")).strip(),
@@ -119,6 +140,18 @@ def load_submission_bundle_config(*, config_path: Path | str) -> SubmissionBundl
         runbook_path=str(raw.get("runbook_path", "docs/release-runbook.md")).strip(),
         documentation_paths=tuple(
             _coerce_string_list(raw.get("documentation_paths", []), "documentation_paths")
+        ),
+        data_manifest_paths=tuple(
+            _coerce_string_list(raw.get("data_manifest_paths", []), "data_manifest_paths")
+        ),
+        code_fingerprint_paths=tuple(
+            _coerce_string_list(
+                raw.get(
+                    "code_fingerprint_paths",
+                    list(DEFAULT_SUBMISSION_BUNDLE_CODE_FINGERPRINT_PATHS),
+                ),
+                "code_fingerprint_paths",
+            )
         ),
         benchmark_paths=tuple(
             _coerce_string_list(raw.get("benchmark_paths", []), "benchmark_paths")
@@ -161,6 +194,7 @@ def _coerce_string_list(raw: object, field_name: str) -> list[str]:
 
 
 __all__ = [
+    "DEFAULT_SUBMISSION_BUNDLE_CODE_FINGERPRINT_PATHS",
     "SUPPORTED_SUBMISSION_BUNDLE_MODES",
     "SubmissionBundleConfig",
     "load_submission_bundle_config",

@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .release_freeze_models import (
+    SUBMISSION_BUNDLE_RELEASE_FREEZE_JSON_NAME,
+    SUBMISSION_BUNDLE_RELEASE_FREEZE_MARKDOWN_NAME,
+    ReleaseFreezeScope,
+    SubmissionBundleReleaseFreeze,
+)
+
 SUBMISSION_BUNDLE_JSON_NAME = "submission_bundle.json"
 SUBMISSION_BUNDLE_MARKDOWN_NAME = "submission_bundle.md"
 SUBMISSION_BUNDLE_README_NAME = "README.md"
@@ -32,9 +39,11 @@ class SubmissionBundleArtifactRef:
 @dataclass(frozen=True, slots=True)
 class SubmissionBundleSummary:
     bundle_mode: str
+    release_tag: str | None
     model_version: str
     structural_stub: bool
     config_count: int
+    data_manifest_count: int
     benchmark_artifact_count: int
     checkpoint_count: int
     documentation_count: int
@@ -44,13 +53,16 @@ class SubmissionBundleSummary:
     triton_repository_included: bool
     demo_assets_included: bool
     source_artifact_count: int
+    release_freeze_scope_count: int
 
     def to_dict(self) -> dict[str, object]:
         return {
             "bundle_mode": self.bundle_mode,
+            "release_tag": self.release_tag,
             "model_version": self.model_version,
             "structural_stub": self.structural_stub,
             "config_count": self.config_count,
+            "data_manifest_count": self.data_manifest_count,
             "benchmark_artifact_count": self.benchmark_artifact_count,
             "checkpoint_count": self.checkpoint_count,
             "documentation_count": self.documentation_count,
@@ -60,6 +72,7 @@ class SubmissionBundleSummary:
             "triton_repository_included": self.triton_repository_included,
             "demo_assets_included": self.demo_assets_included,
             "source_artifact_count": self.source_artifact_count,
+            "release_freeze_scope_count": self.release_freeze_scope_count,
         }
 
 
@@ -75,6 +88,7 @@ class SubmissionBundleReport:
     warnings: tuple[str, ...]
     summary: SubmissionBundleSummary
     artifacts: tuple[SubmissionBundleArtifactRef, ...]
+    release_freeze: SubmissionBundleReleaseFreeze
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -92,6 +106,7 @@ class SubmissionBundleReport:
             "warnings": list(self.warnings),
             "summary": self.summary.to_dict(),
             "artifacts": [artifact.to_dict() for artifact in self.artifacts],
+            "release_freeze": self.release_freeze.to_dict(),
         }
 
 
@@ -101,6 +116,8 @@ class WrittenSubmissionBundle:
     readme_path: str
     report_json_path: str
     report_markdown_path: str
+    release_freeze_json_path: str
+    release_freeze_markdown_path: str
     archive_path: str | None
     summary: SubmissionBundleSummary
 
@@ -110,17 +127,23 @@ class WrittenSubmissionBundle:
             "readme_path": self.readme_path,
             "report_json_path": self.report_json_path,
             "report_markdown_path": self.report_markdown_path,
+            "release_freeze_json_path": self.release_freeze_json_path,
+            "release_freeze_markdown_path": self.release_freeze_markdown_path,
             "archive_path": self.archive_path,
             "summary": self.summary.to_dict(),
         }
 
 
 __all__ = [
+    "ReleaseFreezeScope",
     "SUBMISSION_BUNDLE_JSON_NAME",
     "SUBMISSION_BUNDLE_MARKDOWN_NAME",
     "SUBMISSION_BUNDLE_README_NAME",
+    "SUBMISSION_BUNDLE_RELEASE_FREEZE_JSON_NAME",
+    "SUBMISSION_BUNDLE_RELEASE_FREEZE_MARKDOWN_NAME",
     "SubmissionBundleArtifactRef",
     "SubmissionBundleReport",
+    "SubmissionBundleReleaseFreeze",
     "SubmissionBundleSummary",
     "WrittenSubmissionBundle",
 ]

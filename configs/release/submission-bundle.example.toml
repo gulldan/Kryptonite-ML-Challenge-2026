@@ -1,6 +1,7 @@
 title = "Kryptonite smoke submission bundle"
 bundle_id = "demo-smoke-v1"
 bundle_mode = "smoke"
+release_tag = "demo-smoke-v1"
 summary = "Self-contained smoke bundle for the current demo/runtime contract. Replace the placeholder paths with frozen release artifacts for a real candidate handoff."
 output_root = "artifacts/release-bundles/demo-smoke-v1"
 create_archive = true
@@ -12,6 +13,17 @@ runbook_path = "docs/release-runbook.md"
 documentation_paths = [
   "docs/final-benchmark-pack.md",
   "docs/triton-deployment.md",
+]
+data_manifest_paths = [
+  "artifacts/demo-subset/demo_subset.json",
+]
+code_fingerprint_paths = [
+  "pyproject.toml",
+  "uv.lock",
+  "src",
+  "apps",
+  "scripts",
+  "configs",
 ]
 benchmark_paths = []
 config_paths = [

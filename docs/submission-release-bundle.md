@@ -32,6 +32,8 @@ It also writes:
 - `README.md` with validation commands and warnings;
 - `submission_bundle.json` manifest with staged paths and checksums;
 - `submission_bundle.md` human-readable summary;
+- `release_freeze.json` with one explicit freeze snapshot for code/data/model/engine;
+- `release_freeze.md` with the same snapshot in operator-friendly Markdown;
 - optional `<bundle-root>.tar.gz` archive.
 
 ## Bundle Modes
@@ -60,11 +62,13 @@ uv run python scripts/build_submission_bundle.py \
 For a real candidate handoff:
 
 1. switch `bundle_mode` to `candidate`;
-2. replace the placeholder smoke paths with frozen benchmark/threshold/checkpoint
+2. set `release_tag` and list the exact `data_manifest_paths` that define the
+   dataset freeze for this candidate;
+3. replace the placeholder smoke paths with frozen benchmark/threshold/checkpoint
    artifacts;
-3. set `tensorrt_plan_path` and `require_tensorrt_plan = true` if the release
+4. set `tensorrt_plan_path` and `require_tensorrt_plan = true` if the release
    explicitly depends on the TensorRT handoff;
-4. rerun the builder.
+5. rerun the builder.
 
 ## Output Layout
 
@@ -73,11 +77,14 @@ One run writes:
 ```text
 artifacts/release-bundles/<bundle-id>/
 ├── README.md
+├── release_freeze.json
+├── release_freeze.md
 ├── submission_bundle.json
 ├── submission_bundle.md
 ├── benchmark/
 ├── checkpoints/
 ├── configs/
+├── data-manifests/
 ├── demo/
 ├── docs/
 ├── model/
@@ -106,6 +113,23 @@ uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml --re
 
 If the bundle includes the Triton repository, also validate it with
 `scripts/triton_infer_smoke.py`.
+
+## Release Freeze
+
+`KRYP-079` extends the bundle with an explicit release-freeze snapshot:
+
+- `code`: fingerprints the repository runtime surface (`pyproject.toml`,
+  `uv.lock`, `src/`, `apps/`, `scripts/`, `configs/`) and records git metadata
+  when available;
+- `data`: stages the declared `data_manifest_paths` and records one aggregate
+  checksum for the manifest freeze;
+- `model`: records the frozen checkpoint and model metadata payload;
+- `engine`: records the ONNX export plus optional TensorRT/Triton handoff
+  artifacts.
+
+Candidate mode now requires both `release_tag` and at least one
+`data_manifest_paths` entry so the handoff always captures an explicit dataset
+freeze instead of only the runtime bundle.
 
 ## Scope Limits
 

@@ -21,15 +21,19 @@ def test_submission_bundle_stages_release_handoff_and_archive(tmp_path: Path) ->
     written = write_submission_bundle(report, create_archive=config.create_archive)
 
     assert report.summary.bundle_mode == "candidate"
+    assert report.summary.release_tag == "rel-2026-03-27-campp-v3"
     assert report.summary.model_version == "campp-prod-v3"
+    assert report.summary.data_manifest_count == 1
     assert report.summary.threshold_calibration_included is True
     assert report.summary.tensorrt_plan_included is True
     assert report.summary.triton_repository_included is True
     assert report.summary.checkpoint_count == 1
     assert report.summary.benchmark_artifact_count == 2
     assert report.summary.structural_stub is False
+    assert report.summary.release_freeze_scope_count == 4
 
     staged_paths = {artifact.staged_path for artifact in report.artifacts}
+    assert "data-manifests/manifest_01_train_manifest.jsonl" in staged_paths
     assert "model/model.onnx" in staged_paths
     assert "model/model.plan" in staged_paths
     assert "thresholds/verification_threshold_calibration.json" in staged_paths
@@ -38,14 +42,18 @@ def test_submission_bundle_stages_release_handoff_and_archive(tmp_path: Path) ->
 
     readme_text = Path(written.readme_path).read_text(encoding="utf-8")
     assert "campp-prod-v3" in readme_text
+    assert "## Release Freeze" in readme_text
     assert "scripts/infer_smoke.py" in readme_text
     assert "scripts/triton_infer_smoke.py" in readme_text
 
     payload = json.loads(Path(written.report_json_path).read_text(encoding="utf-8"))
     assert payload["summary"]["checkpoint_count"] == 1
+    assert payload["release_freeze"]["release_tag"] == "rel-2026-03-27-campp-v3"
     assert payload["summary"]["tensorrt_plan_included"] is True
 
     assert Path(written.report_markdown_path).is_file()
+    assert Path(written.release_freeze_json_path).is_file()
+    assert Path(written.release_freeze_markdown_path).is_file()
     assert written.archive_path is not None
     assert Path(written.archive_path).is_file()
 
@@ -94,6 +102,39 @@ def test_submission_bundle_candidate_config_requires_threshold_and_checkpoint(
         raise AssertionError("candidate mode should require threshold_calibration_path.")
 
 
+def test_submission_bundle_candidate_config_requires_release_tag_and_data_manifests(
+    tmp_path: Path,
+) -> None:
+    paths = _write_candidate_fixture(tmp_path)
+    missing_tag_config_path = _write_config(
+        tmp_path,
+        paths=paths,
+        bundle_mode="candidate",
+        release_tag="",
+    )
+
+    try:
+        load_submission_bundle_config(config_path=missing_tag_config_path)
+    except ValueError as exc:
+        assert "release_tag" in str(exc)
+    else:
+        raise AssertionError("candidate mode should require release_tag.")
+
+    missing_manifests_config_path = _write_config(
+        tmp_path,
+        paths=paths,
+        bundle_mode="candidate",
+        include_data_manifests=False,
+    )
+
+    try:
+        load_submission_bundle_config(config_path=missing_manifests_config_path)
+    except ValueError as exc:
+        assert "data_manifest_paths" in str(exc)
+    else:
+        raise AssertionError("candidate mode should require data_manifest_paths.")
+
+
 def _write_candidate_fixture(tmp_path: Path) -> dict[str, Path]:
     docs_root = tmp_path / "docs"
     configs_root = tmp_path / "configs" / "deployment"
@@ -119,6 +160,12 @@ def _write_candidate_fixture(tmp_path: Path) -> dict[str, Path]:
     benchmark_md.write_text("# Benchmark Pack\n", encoding="utf-8")
     benchmark_json = benchmark_md.with_suffix(".json")
     benchmark_json.write_text('{"winner":"campp"}\n', encoding="utf-8")
+    manifest_root = artifacts_root / "manifests"
+    manifest_root.mkdir(parents=True, exist_ok=True)
+    train_manifest = manifest_root / "train_manifest.jsonl"
+    train_manifest.write_text(
+        '{"audio_path":"sample.wav","speaker_id":"speaker_alpha"}\n', encoding="utf-8"
+    )
     infer_toml = configs_root / "infer.toml"
     infer_toml.write_text('device = "cpu"\n', encoding="utf-8")
     infer_gpu_toml = configs_root / "infer-gpu.toml"
@@ -173,6 +220,7 @@ def _write_candidate_fixture(tmp_path: Path) -> dict[str, Path]:
         "triton_doc": triton_doc,
         "benchmark_md": benchmark_md,
         "benchmark_json": benchmark_json,
+        "train_manifest": train_manifest,
         "infer_toml": infer_toml,
         "infer_gpu_toml": infer_gpu_toml,
         "metadata": metadata,
@@ -191,11 +239,18 @@ def _write_config(
     *,
     paths: dict[str, Path],
     bundle_mode: str,
+    release_tag: str = "rel-2026-03-27-campp-v3",
     include_benchmark: bool = True,
+    include_data_manifests: bool = True,
     include_threshold: bool = True,
     include_checkpoint: bool = True,
     include_tensorrt: bool = True,
 ) -> Path:
+    data_manifest_paths = (
+        f'data_manifest_paths = ["{paths["train_manifest"].as_posix()}"]'
+        if include_data_manifests
+        else "data_manifest_paths = []"
+    )
     benchmark_paths = (
         "benchmark_paths = "
         f'["{paths["benchmark_md"].as_posix()}", "{paths["benchmark_json"].as_posix()}"]'
@@ -225,6 +280,7 @@ def _write_config(
                 'title = "Release bundle"',
                 'bundle_id = "campp-v3"',
                 f'bundle_mode = "{bundle_mode}"',
+                f'release_tag = "{release_tag}"',
                 'summary = "Frozen handoff bundle"',
                 "output_root = "
                 f'"{(tmp_path / "artifacts" / "release-bundles" / "campp-v3").as_posix()}"',
@@ -234,6 +290,7 @@ def _write_config(
                 f'model_card_path = "{paths["model_card"].as_posix()}"',
                 f'runbook_path = "{paths["runbook"].as_posix()}"',
                 f'documentation_paths = ["{paths["triton_doc"].as_posix()}"]',
+                data_manifest_paths,
                 benchmark_paths,
                 (
                     f'config_paths = ["{paths["infer_toml"].as_posix()}", '

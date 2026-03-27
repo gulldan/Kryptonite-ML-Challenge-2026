@@ -17,6 +17,7 @@ from kryptonite.deployment import (
 )
 from kryptonite.project import get_project_layout
 
+from .release_freeze_builder import build_submission_bundle_release_freeze
 from .submission_bundle_config import SubmissionBundleConfig
 from .submission_bundle_models import (
     SubmissionBundleArtifactRef,
@@ -94,6 +95,18 @@ def build_submission_bundle_source_report(
             description="Additional release documentation copied into the bundle.",
         )
         for index, path in enumerate(config.documentation_paths, start=1)
+    )
+    specs.extend(
+        ArtifactSpec(
+            name=f"data_manifest_{index:02d}",
+            configured_path=path,
+            path_type=_infer_artifact_path_type(resolved_project_root, path),
+            require_non_empty=True,
+            description=(
+                "Frozen data manifest or manifest directory staged into the release bundle."
+            ),
+        )
+        for index, path in enumerate(config.data_manifest_paths, start=1)
     )
     specs.extend(
         ArtifactSpec(
@@ -234,6 +247,17 @@ def build_submission_bundle(
         ),
     ]
     artifacts.extend(
+        _copy_path_artifact(
+            source_path=resolve_project_path(str(resolved_project_root), path),
+            destination_path=output_root
+            / "data-manifests"
+            / f"manifest_{index:02d}_{Path(path).name}",
+            output_root=output_root,
+            kind="data_manifest",
+        )
+        for index, path in enumerate(config.data_manifest_paths, start=1)
+    )
+    artifacts.extend(
         _copy_file_artifact(
             source_path=_resolve_file(resolved_project_root, path),
             destination_path=output_root / "docs" / f"supporting_{index:02d}_{Path(path).name}",
@@ -314,16 +338,26 @@ def build_submission_bundle(
 
     warnings = _build_warnings(
         bundle_mode=config.bundle_mode,
+        release_tag=config.release_tag,
         structural_stub=structural_stub,
+        has_data_manifests=bool(config.data_manifest_paths),
         has_threshold=config.threshold_calibration_path is not None,
         has_benchmarks=bool(config.benchmark_paths),
         has_tensorrt=config.tensorrt_plan_path is not None,
     )
+    release_freeze = build_submission_bundle_release_freeze(
+        config=config,
+        project_root=resolved_project_root,
+        model_version=model_version,
+        artifacts=tuple(artifacts),
+    )
     summary = SubmissionBundleSummary(
         bundle_mode=config.bundle_mode,
+        release_tag=release_freeze.release_tag,
         model_version=model_version,
         structural_stub=structural_stub,
         config_count=len(config.config_paths),
+        data_manifest_count=len(config.data_manifest_paths),
         benchmark_artifact_count=len(config.benchmark_paths),
         checkpoint_count=len(config.checkpoint_paths),
         documentation_count=3 + len(config.documentation_paths),
@@ -333,6 +367,7 @@ def build_submission_bundle(
         triton_repository_included=config.triton_repository_root is not None,
         demo_assets_included=True,
         source_artifact_count=len(artifacts) + (1 if source_config_artifact is not None else 0),
+        release_freeze_scope_count=len(release_freeze.scopes),
     )
     return SubmissionBundleReport(
         title=config.title,
@@ -345,13 +380,16 @@ def build_submission_bundle(
         warnings=warnings,
         summary=summary,
         artifacts=tuple(artifacts),
+        release_freeze=release_freeze,
     )
 
 
 def _build_warnings(
     *,
     bundle_mode: str,
+    release_tag: str | None,
     structural_stub: bool,
+    has_data_manifests: bool,
     has_threshold: bool,
     has_benchmarks: bool,
     has_tensorrt: bool,
@@ -362,11 +400,18 @@ def _build_warnings(
             "Smoke mode allows candidate-only artifacts to be omitted; "
             "do not treat this bundle as a final submission."
         )
+    if release_tag is None:
+        warnings.append(
+            "No explicit release_tag was recorded; release freeze metadata falls back to git "
+            "metadata where possible."
+        )
     if structural_stub:
         warnings.append(
             "Model bundle metadata marks the staged encoder as a structural smoke "
             "stub, not a production-grade release artifact."
         )
+    if not has_data_manifests:
+        warnings.append("No frozen data manifests were staged.")
     if not has_threshold:
         warnings.append("No threshold calibration artifact was staged.")
     if not has_benchmarks:
@@ -437,6 +482,30 @@ def _copy_dir_artifact(
     )
 
 
+def _copy_path_artifact(
+    *,
+    source_path: Path,
+    destination_path: Path,
+    output_root: Path,
+    kind: str,
+) -> SubmissionBundleArtifactRef:
+    if source_path.is_dir():
+        return _copy_dir_artifact(
+            source_path=source_path,
+            destination_path=destination_path,
+            output_root=output_root,
+            kind=kind,
+        )
+    if source_path.is_file():
+        return _copy_file_artifact(
+            source_path=source_path,
+            destination_path=destination_path,
+            output_root=output_root,
+            kind=kind,
+        )
+    raise ValueError(f"Expected file or directory at {source_path}, but it does not exist.")
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -459,6 +528,13 @@ def _sha256_dir(path: Path) -> tuple[str, int]:
 
 def _relative_to(path: Path, root: Path) -> str:
     return str(path.relative_to(root))
+
+
+def _infer_artifact_path_type(project_root: Path, configured_path: str) -> str:
+    resolved = resolve_project_path(str(project_root), configured_path)
+    if resolved.is_dir():
+        return "dir"
+    return "file"
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:

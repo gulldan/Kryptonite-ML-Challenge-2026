@@ -49,6 +49,8 @@ def main() -> None:
         f"README: {written.readme_path}",
         f"JSON: {written.report_json_path}",
         f"Markdown: {written.report_markdown_path}",
+        f"Release freeze JSON: {written.release_freeze_json_path}",
+        f"Release freeze Markdown: {written.release_freeze_markdown_path}",
     ]
     if written.archive_path is not None:
         lines.append(f"Archive: {written.archive_path}")

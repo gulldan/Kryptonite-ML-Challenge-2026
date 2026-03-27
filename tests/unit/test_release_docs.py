@@ -26,6 +26,8 @@ def test_release_docs_exist_and_cover_required_topics() -> None:
 
     assert "## Bundle Modes" in submission_bundle_text
     assert "scripts/build_submission_bundle.py" in submission_bundle_text
+    assert "release_freeze.json" in submission_bundle_text
+    assert "data_manifest_paths" in submission_bundle_text
     assert "## Validation" in submission_bundle_text
 
 
