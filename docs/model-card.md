@@ -17,6 +17,10 @@ built through this repository, while also being explicit that the current
 checked-in demo bundle is not itself a production-grade speaker-recognition
 model.
 
+For the repository-level ADR that fixes the primary task formulation, compatible
+identification modes, and expected handoff artifacts, see
+[model-task-contract.md](./model-task-contract.md).
+
 ## System Summary
 
 The repository is organized around one canonical verification flow:

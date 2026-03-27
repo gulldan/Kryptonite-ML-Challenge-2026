@@ -99,6 +99,7 @@ See [docs/repository-layout.md](./docs/repository-layout.md) for module boundari
 See [docs/configuration.md](./docs/configuration.md) for config overrides and secret handling.
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
+See [docs/model-task-contract.md](./docs/model-task-contract.md) for the repository-level ADR that fixes the primary verification task, compatible identification modes, and the expected handoff artifacts.
 See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
 See [docs/web-demo.md](./docs/web-demo.md) for the browser demo flow and compose-based launch path.
 See [docs/dataset-inventory.md](./docs/dataset-inventory.md) for the repository-level policy on approved, conditional, and blocked data resources.
