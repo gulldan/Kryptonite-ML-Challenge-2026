@@ -4,8 +4,12 @@ on:
   pull_request:
   push:
     branches:
+      - develop
       - master
       - codex/**
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -37,6 +41,9 @@ jobs:
 
       - name: Unit tests
         run: uv run pytest
+
+      - name: End-to-end regression suite
+        run: uv run pytest tests/e2e/test_inference_regression_suite.py
 
       - name: Training environment smoke
         run: uv run python scripts/training_env_smoke.py
