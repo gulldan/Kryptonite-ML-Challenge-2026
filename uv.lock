@@ -602,7 +602,9 @@ dev = [
     { name = "ty" },
 ]
 infer = [
+    { name = "fastapi" },
     { name = "onnxruntime" },
+    { name = "uvicorn" },
 ]
 tracking = [
     { name = "mlflow" },
@@ -632,7 +634,11 @@ dev = [
     { name = "ruff", specifier = ">=0.13.0" },
     { name = "ty", specifier = ">=0.0.24" },
 ]
-infer = [{ name = "onnxruntime", specifier = ">=1.24.4" }]
+infer = [
+    { name = "fastapi", specifier = ">=0.135.1" },
+    { name = "onnxruntime", specifier = ">=1.24.4" },
+    { name = "uvicorn", specifier = ">=0.42.0" },
+]
 tracking = [
     { name = "mlflow", specifier = ">=3.10.1" },
     { name = "wandb", specifier = ">=0.25.1" },

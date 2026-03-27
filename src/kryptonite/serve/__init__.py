@@ -7,7 +7,7 @@ from .enrollment_cache import (
     load_enrollment_embedding_cache,
     validate_enrollment_cache_compatibility,
 )
-from .http import create_http_server, run_http_server
+from .http import create_http_app, create_http_server, run_http_server
 from .inferencer import Inferencer
 from .runtime import (
     ServeRuntimeReport,
@@ -29,6 +29,7 @@ __all__ = [
     "build_service_metadata",
     "build_serve_runtime_report",
     "create_http_server",
+    "create_http_app",
     "load_enrollment_embedding_cache",
     "render_serve_runtime_report",
     "run_http_server",

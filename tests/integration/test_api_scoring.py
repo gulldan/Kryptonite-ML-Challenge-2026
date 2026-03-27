@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import threading
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -166,7 +165,7 @@ def test_verify_endpoint_accepts_audio_paths_against_preloaded_cache(
 def _start_server(
     monkeypatch,
     tmp_path: Path,
-) -> tuple[ThreadingHTTPServer, threading.Thread]:
+) -> tuple[Any, threading.Thread]:
     config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
@@ -180,6 +179,7 @@ def _start_server(
     server = create_http_server(host="127.0.0.1", port=0, config=config)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    server.wait_started()
     return server, thread
 
 
@@ -199,7 +199,7 @@ def _build_demo_config(tmp_path: Path):
     return config
 
 
-def _stop_server(server: ThreadingHTTPServer, thread: threading.Thread) -> None:
+def _stop_server(server: Any, thread: threading.Thread) -> None:
     server.shutdown()
     thread.join(timeout=5)
     server.server_close()

@@ -9,7 +9,7 @@ This directory is intentionally separate from `apps/` and `src/` so serving adap
 The repository ships two container build targets under `deployment/docker/`:
 
 - `train.Dockerfile` installs the locked `train` and `tracking` groups and runs `scripts/training_env_smoke.py --config configs/deployment/train.toml` during build.
-- `infer.Dockerfile` installs the locked `infer` group, validates `configs/deployment/infer.toml`, and starts the thin HTTP adapter from `apps/api/main.py`.
+- `infer.Dockerfile` installs the locked `infer` group, validates `configs/deployment/infer.toml`, and starts the FastAPI adapter from `apps/api/main.py`.
 
 The build-stage smoke is intentionally advisory with respect to datasets, manifests, demo subsets, and model bundles. It verifies the container packaging and locked runtime, but it does not claim deploy readiness by itself.
 
@@ -97,10 +97,11 @@ docker run --rm -p 8080:8080 \
   -v /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/model-bundle:/app/artifacts/model-bundle:ro \
   -v /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/demo-subset:/app/artifacts/demo-subset:ro \
   kryptonite-infer
-curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/openapi.json
 ```
 
-The health payload now includes an `artifacts` block so target-machine runs can prove whether startup happened in advisory or strict mode.
+The health payload now includes an `artifacts` block so target-machine runs can prove whether startup happened in advisory or strict mode. The FastAPI service also publishes its request contract through the built-in OpenAPI schema.
 
 ## Scope Decisions
 

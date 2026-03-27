@@ -27,8 +27,11 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        with urlopen(f"http://127.0.0.1:{server.server_address[1]}/healthz") as response:
+        server.wait_started()
+        with urlopen(f"http://127.0.0.1:{server.server_address[1]}/health") as response:
             payload = json.loads(response.read().decode("utf-8"))
+        with urlopen(f"http://127.0.0.1:{server.server_address[1]}/openapi.json") as response:
+            openapi_payload = json.loads(response.read().decode("utf-8"))
     finally:
         server.shutdown()
         thread.join(timeout=5)
@@ -43,6 +46,11 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     assert payload["enrollment_cache"]["enrollment_count"] == 2
     assert payload["inferencer"]["implementation"] == "feature_statistics"
     assert payload["model_bundle"]["loaded"] is True
+    assert "/health" in openapi_payload["paths"]
+    assert "/embed" in openapi_payload["paths"]
+    assert "/enroll" in openapi_payload["paths"]
+    assert "/verify" in openapi_payload["paths"]
+    assert "/benchmark" in openapi_payload["paths"]
 
 
 def _build_demo_config(tmp_path: Path):

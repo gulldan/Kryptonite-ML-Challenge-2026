@@ -45,7 +45,7 @@ Practical effect:
 `Inferencer.from_config(...)` is now the shared entrypoint for:
 
 - local Python embedding / enrollment / verification calls over audio paths;
-- the thin HTTP adapter in `src/kryptonite/serve/http.py`;
+- the FastAPI adapter in `src/kryptonite/serve/http.py`;
 - runtime benchmark smoke checks for the demo subset.
 
 Current implementation details:
@@ -57,7 +57,16 @@ Current implementation details:
 
 ## HTTP Endpoints
 
-The thin adapter in `src/kryptonite/serve/http.py` now exposes embedding-based JSON endpoints in addition to `/healthz` and `/readyz`.
+The FastAPI adapter in `src/kryptonite/serve/http.py` now exposes embedding-based JSON endpoints plus an OpenAPI schema at `/openapi.json` and interactive docs at `/docs`.
+
+Primary health endpoint:
+
+- `GET /health`
+
+Compatibility aliases:
+
+- `GET /healthz`
+- `GET /readyz`
 
 ### `POST /score/pairwise`
 
@@ -148,5 +157,5 @@ Lists the current in-memory enrollment records.
   true exported ONNX/TensorRT speaker encoder yet.
 - Enrollment centroids still load from the offline cache at startup; manual `POST /enroll` calls
   remain process-local and reset on restart.
-- The HTTP adapter is still a thin JSON smoke adapter. Upload transport and FastAPI-specific API
-  ergonomics belong to the next serving task.
+- The FastAPI layer intentionally stays thin: transport, validation, and OpenAPI live here, while
+  inferencer/scoring logic stays in `src/kryptonite/serve/` and adjacent core modules.

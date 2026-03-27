@@ -1,4 +1,4 @@
-"""Run the thin HTTP adapter for the current inference backend."""
+"""Run the FastAPI adapter for the current inference backend."""
 
 from __future__ import annotations
 

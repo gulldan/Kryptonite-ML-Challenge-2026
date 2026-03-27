@@ -1,15 +1,28 @@
-"""Thin HTTP adapter for runtime metadata and unified inference flows."""
+"""FastAPI transport adapter for runtime metadata and unified inference flows."""
 
 from __future__ import annotations
 
-import json
+import asyncio
+import socket
+import time
 from collections.abc import Mapping
-from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from dataclasses import dataclass, field
+from typing import Any
+
+import uvicorn
+from fastapi import FastAPI, Response, status
+from fastapi.responses import JSONResponse
 
 from kryptonite.config import ProjectConfig
 
+from .api_models import (
+    BenchmarkAudioRequest,
+    EmbedAudioRequest,
+    EnrollmentRequest,
+    OneToManyScoringRequest,
+    PairwiseScoringRequest,
+    VerifyRequest,
+)
 from .inferencer import Inferencer
 from .scoring_service import EnrollmentNotFoundError
 
@@ -20,7 +33,16 @@ def create_http_server(
     port: int,
     config: ProjectConfig,
     require_artifacts: bool = False,
-) -> ThreadingHTTPServer:
+) -> FastAPIServerHandle:
+    app = create_http_app(config=config, require_artifacts=require_artifacts)
+    return FastAPIServerHandle(app=app, host=host, port=port)
+
+
+def create_http_app(
+    *,
+    config: ProjectConfig,
+    require_artifacts: bool = False,
+) -> FastAPI:
     try:
         inferencer = Inferencer.from_config(
             config=config,
@@ -28,7 +50,7 @@ def create_http_server(
         )
     except ValueError as exc:
         raise RuntimeError(str(exc)) from exc
-    return ThreadingHTTPServer((host, port), _build_handler(inferencer))
+    return _build_app(inferencer)
 
 
 def run_http_server(
@@ -50,352 +72,178 @@ def run_http_server(
         server.server_close()
 
 
-def _build_handler(inferencer: Inferencer) -> type[BaseHTTPRequestHandler]:
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802
-            path = urlparse(self.path).path
-            if path in {"/", "/healthz", "/readyz"}:
-                self._write_json(HTTPStatus.OK, inferencer.health_payload())
-                return
-            if path == "/enrollments":
-                self._write_json(HTTPStatus.OK, inferencer.list_enrollments())
-                return
-            self._write_not_found(path)
+def _build_app(inferencer: Inferencer) -> FastAPI:
+    app = FastAPI(
+        title="Kryptonite Inference API",
+        version="0.1.0",
+        summary="Thin FastAPI adapter over the unified Kryptonite inferencer.",
+    )
 
-        def do_POST(self) -> None:  # noqa: N802
-            path = urlparse(self.path).path
-            if path not in {
-                "/embed",
-                "/benchmark",
-                "/score/pairwise",
-                "/score/one-to-many",
-                "/enroll",
-                "/verify",
-            }:
-                self._write_not_found(path)
-                return
+    @app.exception_handler(EnrollmentNotFoundError)
+    async def _handle_enrollment_not_found(
+        _request: object,
+        exc: EnrollmentNotFoundError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=404, content=_error_payload(str(exc)))
 
-            try:
-                request = self._read_json_object()
-                status, response = self._dispatch_post(path=path, payload=request)
-            except json.JSONDecodeError as exc:
-                self._write_error(
-                    HTTPStatus.BAD_REQUEST,
-                    "Request body must contain valid JSON.",
-                    details={"error": str(exc)},
-                )
-                return
-            except EnrollmentNotFoundError as exc:
-                self._write_error(HTTPStatus.NOT_FOUND, str(exc))
-                return
-            except ValueError as exc:
-                self._write_error(HTTPStatus.BAD_REQUEST, str(exc))
-                return
+    @app.exception_handler(ValueError)
+    async def _handle_value_error(_request: object, exc: ValueError) -> JSONResponse:
+        return JSONResponse(status_code=400, content=_error_payload(str(exc)))
 
-            self._write_json(status, response)
+    @app.get("/", include_in_schema=False)
+    @app.get("/healthz", include_in_schema=False)
+    @app.get("/readyz", include_in_schema=False)
+    @app.get("/health", tags=["health"])
+    async def health() -> dict[str, Any]:
+        return inferencer.health_payload()
 
-        def log_message(self, format: str, *args: object) -> None:
+    @app.get("/enrollments", tags=["enrollment"])
+    async def enrollments() -> dict[str, Any]:
+        return inferencer.list_enrollments()
+
+    @app.post("/score/pairwise", tags=["scoring"])
+    async def score_pairwise(request: PairwiseScoringRequest) -> dict[str, Any]:
+        return inferencer.score_pairwise(
+            left=request.left,
+            right=request.right,
+            normalize=request.normalize,
+        )
+
+    @app.post("/score/one-to-many", tags=["scoring"])
+    async def score_one_to_many(request: OneToManyScoringRequest) -> dict[str, Any]:
+        return inferencer.score_one_to_many(
+            queries=request.queries,
+            references=request.references,
+            normalize=request.normalize,
+            top_k=request.top_k,
+            query_ids=request.query_ids,
+            reference_ids=request.reference_ids,
+        )
+
+    @app.post("/embed", tags=["inference"])
+    async def embed(request: EmbedAudioRequest) -> dict[str, Any]:
+        return inferencer.embed_audio_paths(
+            audio_paths=request.resolve_audio_paths(),
+            stage=request.stage,
+        )
+
+    @app.post("/benchmark", tags=["inference"])
+    async def benchmark(request: BenchmarkAudioRequest) -> dict[str, Any]:
+        return inferencer.benchmark_audio_paths(
+            audio_paths=request.resolve_audio_paths(),
+            stage=request.stage,
+            iterations=request.iterations,
+            warmup_iterations=request.warmup_iterations,
+        )
+
+    @app.post("/enroll", tags=["enrollment"])
+    async def enroll(request: EnrollmentRequest, response: Response) -> dict[str, Any]:
+        if request.uses_audio_paths:
+            payload = inferencer.enroll_audio_paths(
+                enrollment_id=request.enrollment_id,
+                audio_paths=request.resolve_audio_paths(),
+                stage=request.stage,
+                metadata=request.metadata,
+            )
+        else:
+            payload = inferencer.enroll_embeddings(
+                enrollment_id=request.enrollment_id,
+                embeddings=request.resolve_embeddings(),
+                metadata=request.metadata,
+            )
+        response.status_code = (
+            status.HTTP_200_OK if payload["replaced"] else status.HTTP_201_CREATED
+        )
+        return payload
+
+    @app.post("/verify", tags=["inference"])
+    async def verify(request: VerifyRequest) -> dict[str, Any]:
+        if request.uses_audio_paths:
+            return inferencer.verify_audio_paths(
+                enrollment_id=request.enrollment_id,
+                audio_paths=request.resolve_audio_paths(),
+                stage=request.stage,
+                normalize=request.normalize,
+                threshold=request.threshold,
+            )
+        return inferencer.verify_embeddings(
+            enrollment_id=request.enrollment_id,
+            probes=request.resolve_probes(),
+            normalize=request.normalize,
+            threshold=request.threshold,
+        )
+
+    return app
+
+
+@dataclass(slots=True)
+class FastAPIServerHandle:
+    app: FastAPI
+    host: str
+    port: int
+    server_address: tuple[str, int] = field(init=False)
+    _socket: socket.socket = field(init=False, repr=False)
+    _server: uvicorn.Server = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._socket = socket.create_server((self.host, self.port), backlog=2048)
+        self.server_address = self._socket.getsockname()[:2]
+        config = uvicorn.Config(
+            self.app,
+            host=self.host,
+            port=int(self.server_address[1]),
+            access_log=False,
+            log_level="warning",
+        )
+        self._server = _EmbeddedUvicornServer(config)
+
+    def serve_forever(self) -> None:
+        asyncio.run(self._server.serve(sockets=[self._socket]))
+
+    def shutdown(self) -> None:
+        self._server.should_exit = True
+
+    def server_close(self) -> None:
+        try:
+            self._socket.close()
+        except OSError:
             return
 
-        def _dispatch_post(
-            self,
-            *,
-            path: str,
-            payload: dict[str, object],
-        ) -> tuple[HTTPStatus, dict[str, object]]:
-            if path == "/embed":
-                response = inferencer.embed_audio_paths(
-                    audio_paths=self._resolve_string_list_payload(
-                        payload,
-                        singular_key="audio_path",
-                        plural_key="audio_paths",
-                        field_name="audio_paths",
-                    ),
-                    stage=self._coerce_optional_stage(payload.get("stage")),
-                )
-                return HTTPStatus.OK, response
+    def wait_started(self, timeout_seconds: float = 5.0) -> None:
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            if self.started:
+                return
+            time.sleep(0.01)
+        raise TimeoutError("Timed out while waiting for the FastAPI server to start.")
 
-            if path == "/benchmark":
-                response = inferencer.benchmark_audio_paths(
-                    audio_paths=self._resolve_string_list_payload(
-                        payload,
-                        singular_key="audio_path",
-                        plural_key="audio_paths",
-                        field_name="audio_paths",
-                    ),
-                    stage=self._coerce_optional_stage(payload.get("stage")),
-                    iterations=self._coerce_optional_positive_int(
-                        payload.get("iterations"),
-                        field_name="iterations",
-                    )
-                    or 3,
-                    warmup_iterations=self._coerce_optional_non_negative_int(
-                        payload.get("warmup_iterations"),
-                        field_name="warmup_iterations",
-                    )
-                    or 1,
-                )
-                return HTTPStatus.OK, response
+    @property
+    def started(self) -> bool:
+        return bool(getattr(self._server, "started", False))
 
-            if path == "/score/pairwise":
-                response = inferencer.score_pairwise(
-                    left=self._require_payload_value(payload, "left"),
-                    right=self._require_payload_value(payload, "right"),
-                    normalize=self._coerce_bool(payload.get("normalize"), default=True),
-                )
-                return HTTPStatus.OK, response
 
-            if path == "/score/one-to-many":
-                response = inferencer.score_one_to_many(
-                    queries=self._require_payload_value(payload, "queries"),
-                    references=self._require_payload_value(payload, "references"),
-                    normalize=self._coerce_bool(payload.get("normalize"), default=True),
-                    top_k=self._coerce_optional_positive_int(
-                        payload.get("top_k"),
-                        field_name="top_k",
-                    ),
-                    query_ids=self._coerce_optional_string_list(payload.get("query_ids")),
-                    reference_ids=self._coerce_optional_string_list(payload.get("reference_ids")),
-                )
-                return HTTPStatus.OK, response
+class _EmbeddedUvicornServer(uvicorn.Server):
+    def install_signal_handlers(self) -> None:
+        return
 
-            if path == "/enroll":
-                enrollment_id = self._coerce_non_empty_string(
-                    self._require_payload_value(payload, "enrollment_id"),
-                    field_name="enrollment_id",
-                )
-                if "embeddings" in payload or "embedding" in payload:
-                    response = inferencer.enroll_embeddings(
-                        enrollment_id=enrollment_id,
-                        embeddings=self._resolve_embedding_payload(
-                            payload,
-                            singular_key="embedding",
-                            plural_key="embeddings",
-                        ),
-                        metadata=self._coerce_optional_mapping(payload.get("metadata")),
-                    )
-                else:
-                    response = inferencer.enroll_audio_paths(
-                        enrollment_id=enrollment_id,
-                        audio_paths=self._resolve_string_list_payload(
-                            payload,
-                            singular_key="audio_path",
-                            plural_key="audio_paths",
-                            field_name="audio_paths",
-                        ),
-                        stage=self._coerce_optional_stage(payload.get("stage")),
-                        metadata=self._coerce_optional_mapping(payload.get("metadata")),
-                    )
-                status = HTTPStatus.OK if response["replaced"] else HTTPStatus.CREATED
-                return status, response
 
-            enrollment_id = self._coerce_non_empty_string(
-                self._require_payload_value(payload, "enrollment_id"),
-                field_name="enrollment_id",
-            )
-            if "probes" in payload or "probe" in payload:
-                response = inferencer.verify_embeddings(
-                    enrollment_id=enrollment_id,
-                    probes=self._resolve_embedding_payload(
-                        payload,
-                        singular_key="probe",
-                        plural_key="probes",
-                    ),
-                    normalize=self._coerce_bool(payload.get("normalize"), default=True),
-                    threshold=self._coerce_optional_float(payload.get("threshold")),
-                )
-            else:
-                response = inferencer.verify_audio_paths(
-                    enrollment_id=enrollment_id,
-                    audio_paths=self._resolve_string_list_payload(
-                        payload,
-                        singular_key="audio_path",
-                        plural_key="audio_paths",
-                        field_name="audio_paths",
-                    ),
-                    stage=self._coerce_optional_stage(payload.get("stage")),
-                    normalize=self._coerce_bool(payload.get("normalize"), default=True),
-                    threshold=self._coerce_optional_float(payload.get("threshold")),
-                )
-            return HTTPStatus.OK, response
+def _error_payload(
+    message: str,
+    *,
+    details: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "status": "error",
+        "message": message,
+    }
+    if details:
+        payload["details"] = dict(details)
+    return payload
 
-        def _read_json_object(self) -> dict[str, object]:
-            content_length = self.headers.get("Content-Length")
-            if content_length is None:
-                raise ValueError("Content-Length header is required.")
-            try:
-                length = int(content_length)
-            except ValueError as exc:
-                raise ValueError("Content-Length header must be an integer.") from exc
-            if length <= 0:
-                raise ValueError("Request body must not be empty.")
 
-            body = self.rfile.read(length).decode("utf-8")
-            payload = json.loads(body)
-            if not isinstance(payload, dict):
-                raise ValueError("Request JSON body must be an object.")
-            return payload
-
-        def _require_payload_value(
-            self,
-            payload: dict[str, object],
-            field_name: str,
-        ) -> object:
-            if field_name not in payload:
-                raise ValueError(f"{field_name} is required.")
-            return payload[field_name]
-
-        def _resolve_embedding_payload(
-            self,
-            payload: dict[str, object],
-            *,
-            singular_key: str,
-            plural_key: str,
-        ) -> object:
-            if plural_key in payload:
-                return payload[plural_key]
-            if singular_key in payload:
-                return payload[singular_key]
-            raise ValueError(f"Either {singular_key} or {plural_key} is required.")
-
-        def _resolve_string_list_payload(
-            self,
-            payload: dict[str, object],
-            *,
-            singular_key: str,
-            plural_key: str,
-            field_name: str,
-        ) -> list[str]:
-            if plural_key in payload:
-                values = payload[plural_key]
-                if not isinstance(values, list):
-                    raise ValueError(f"{field_name} must be a JSON array of strings.")
-                normalized = self._coerce_optional_string_list(values)
-                if not normalized:
-                    raise ValueError(f"{field_name} must not be empty.")
-                return normalized
-            if singular_key in payload:
-                return [
-                    self._coerce_non_empty_string(
-                        payload[singular_key],
-                        field_name=singular_key,
-                    )
-                ]
-            raise ValueError(f"Either {singular_key} or {plural_key} is required.")
-
-        def _coerce_bool(self, value: object, *, default: bool) -> bool:
-            if value is None:
-                return default
-            if isinstance(value, bool):
-                return value
-            raise ValueError("Boolean fields must be encoded as true/false.")
-
-        def _coerce_optional_float(self, value: object) -> float | None:
-            if value is None:
-                return None
-            if isinstance(value, bool):
-                raise ValueError("threshold must be a number.")
-            if isinstance(value, int | float):
-                return float(value)
-            raise ValueError("threshold must be a number.")
-
-        def _coerce_optional_positive_int(
-            self,
-            value: object,
-            *,
-            field_name: str,
-        ) -> int | None:
-            if value is None:
-                return None
-            if isinstance(value, bool) or not isinstance(value, int):
-                raise ValueError(f"{field_name} must be a positive integer.")
-            if value <= 0:
-                raise ValueError(f"{field_name} must be a positive integer.")
-            return value
-
-        def _coerce_optional_non_negative_int(
-            self,
-            value: object,
-            *,
-            field_name: str,
-        ) -> int | None:
-            if value is None:
-                return None
-            if isinstance(value, bool) or not isinstance(value, int):
-                raise ValueError(f"{field_name} must be a non-negative integer.")
-            if value < 0:
-                raise ValueError(f"{field_name} must be a non-negative integer.")
-            return value
-
-        def _coerce_non_empty_string(self, value: object, *, field_name: str) -> str:
-            if not isinstance(value, str):
-                raise ValueError(f"{field_name} must be a string.")
-            normalized = value.strip()
-            if not normalized:
-                raise ValueError(f"{field_name} must not be empty.")
-            return normalized
-
-        def _coerce_optional_stage(self, value: object) -> str | None:
-            if value is None:
-                return None
-            return self._coerce_non_empty_string(value, field_name="stage").lower()
-
-        def _coerce_optional_string_list(self, value: object) -> list[str] | None:
-            if value is None:
-                return None
-            if not isinstance(value, list):
-                raise ValueError("Identifier lists must be JSON arrays of strings.")
-            normalized: list[str] = []
-            for item in value:
-                if not isinstance(item, str):
-                    raise ValueError("Identifier lists must contain only strings.")
-                if not item.strip():
-                    raise ValueError("Identifier lists must not contain empty strings.")
-                normalized.append(item.strip())
-            return normalized
-
-        def _coerce_optional_mapping(self, value: object) -> Mapping[str, object] | None:
-            if value is None:
-                return None
-            if not isinstance(value, dict):
-                raise ValueError("metadata must be a JSON object.")
-            normalized: dict[str, object] = {}
-            for key, item in value.items():
-                if not isinstance(key, str):
-                    raise ValueError("metadata keys must be strings.")
-                normalized[key] = item
-            return normalized
-
-        def _write_error(
-            self,
-            status: HTTPStatus,
-            message: str,
-            *,
-            details: dict[str, object] | None = None,
-        ) -> None:
-            payload: dict[str, object] = {
-                "status": "error",
-                "message": message,
-            }
-            if details:
-                payload["details"] = details
-            self._write_json(status, payload)
-
-        def _write_not_found(self, path: str) -> None:
-            self._write_json(
-                HTTPStatus.NOT_FOUND,
-                {
-                    "status": "not_found",
-                    "path": path,
-                },
-            )
-
-        def _write_json(self, status: HTTPStatus, data: object) -> None:
-            body = json.dumps(data, indent=2, sort_keys=True).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-    return Handler
+__all__ = [
+    "FastAPIServerHandle",
+    "create_http_app",
+    "create_http_server",
+    "run_http_server",
+]
