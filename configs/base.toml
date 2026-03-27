@@ -33,6 +33,9 @@ allow_tensorrt = false
 opset = 18
 dynamic_axes = true
 profile = "baseline"
+boundary = "encoder_only"
+input_name = "encoder_input"
+output_name = "embedding"
 
 [tracking]
 enabled = true

@@ -16,6 +16,11 @@ from kryptonite.config import ProjectConfig
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
 from kryptonite.features import FbankExtractionRequest, UtteranceChunkingRequest
+from kryptonite.serve.export_boundary import (
+    ExportBoundaryContract,
+    build_export_boundary_contract,
+    build_model_bundle_metadata,
+)
 
 from .data.manifest_artifacts import (
     build_file_artifact,
@@ -163,23 +168,36 @@ def generate_demo_artifacts(
     )
     subset_file.write_text(json.dumps(subset_entries, indent=2, sort_keys=True))
 
-    _write_demo_model(path=model_file)
+    export_boundary = build_export_boundary_contract(
+        config=config,
+        inferencer_backend="feature_statistics",
+        embedding_stage="demo",
+        embedding_mode="mean_std",
+    )
+    _write_demo_model(path=model_file, export_boundary=export_boundary)
     metadata_file.write_text(
         json.dumps(
-            {
-                "model_file": _relative_to_project(model_file, project_root),
-                "input_name": "audio",
-                "output_name": "embedding",
-                "sample_rate_hz": sample_rate,
-                "enrollment_cache_compatibility_id": "demo-speaker-recognition-cache-v1",
-                "description": (
-                    "Synthetic ONNX demo bundle for strict container smoke checks. "
-                    "This is a packaging/runtime validation artifact, not a production SV model."
+            build_model_bundle_metadata(
+                config=config,
+                model_file=_relative_to_project(model_file, project_root),
+                enrollment_cache_compatibility_id="demo-speaker-recognition-cache-v1",
+                description=(
+                    "Synthetic ONNX encoder-boundary stub for strict container smoke checks. "
+                    "The runtime frontend stays outside the graph; this bundle validates only "
+                    "the deploy contract shape, not production SV quality."
                 ),
-            },
+                inferencer_backend="feature_statistics",
+                embedding_stage="demo",
+                embedding_mode="mean_std",
+                extra_metadata={
+                    "sample_rate_hz": sample_rate,
+                    "structural_stub": True,
+                },
+            ),
             indent=2,
             sort_keys=True,
         )
+        + "\n"
     )
     write_manifest_inventory(
         dataset="demo-speaker-recognition",
@@ -246,24 +264,67 @@ def _write_sine_wave(
         handle.writeframes(bytes(frames))
 
 
-def _write_demo_model(*, path: Path) -> None:
+def _write_demo_model(*, path: Path, export_boundary: ExportBoundaryContract) -> None:
+    input_name = export_boundary.input_tensor.name
+    output_name = export_boundary.output_tensor.name
+    num_mel_bins = export_boundary.input_tensor.axes[-1].size
+    embedding_dim = export_boundary.output_tensor.axes[-1].size
+    if not isinstance(num_mel_bins, int):
+        raise ValueError("Demo export boundary requires a fixed mel-bin axis.")
+    if not isinstance(embedding_dim, int):
+        raise ValueError("Demo export boundary requires a fixed embedding dimension.")
+
+    nodes = [
+        helper.make_node(
+            "ReduceMean",
+            inputs=[input_name, "reduce_axes"],
+            outputs=["mean_embedding"],
+            keepdims=0,
+        )
+    ]
+    if embedding_dim == num_mel_bins:
+        nodes.append(helper.make_node("Identity", inputs=["mean_embedding"], outputs=[output_name]))
+    elif embedding_dim == num_mel_bins * 2:
+        nodes.extend(
+            [
+                helper.make_node("Abs", inputs=["mean_embedding"], outputs=["abs_mean_embedding"]),
+                helper.make_node(
+                    "Concat",
+                    inputs=["mean_embedding", "abs_mean_embedding"],
+                    outputs=[output_name],
+                    axis=1,
+                ),
+            ]
+        )
+    else:
+        raise ValueError(
+            "Demo export boundary stub supports only embedding_dim equal to "
+            f"{num_mel_bins} or {num_mel_bins * 2}, got {embedding_dim}."
+        )
+
     graph = helper.make_graph(
-        nodes=[
-            helper.make_node(
-                "Identity",
-                inputs=["audio"],
-                outputs=["embedding"],
-            )
-        ],
+        nodes=nodes,
         name="demo-speaker-recognition",
         inputs=[
-            helper.make_tensor_value_info("audio", TensorProto.FLOAT, [1, DEFAULT_SAMPLE_RATE])
+            helper.make_tensor_value_info(
+                input_name,
+                TensorProto.FLOAT,
+                [1, "frames", num_mel_bins],
+            )
         ],
         outputs=[
             helper.make_tensor_value_info(
-                "embedding",
+                output_name,
                 TensorProto.FLOAT,
-                [1, DEFAULT_SAMPLE_RATE],
+                [1, embedding_dim],
+            )
+        ],
+        initializer=[
+            helper.make_tensor(
+                name="reduce_axes",
+                data_type=TensorProto.INT64,
+                dims=[1],
+                vals=[1],
             )
         ],
     )

@@ -55,6 +55,9 @@ class ExportConfig:
     opset: int
     dynamic_axes: bool
     profile: str
+    boundary: str = "encoder_only"
+    input_name: str = "encoder_input"
+    output_name: str = "embedding"
 
 
 @dataclass(slots=True)

@@ -7,6 +7,7 @@ import pytest
 
 import kryptonite.serve.runtime as serve_runtime
 from kryptonite.config import load_project_config
+from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.serve import build_service_metadata, create_http_server
 from kryptonite.serve.deployment import build_infer_artifact_report
 
@@ -28,8 +29,19 @@ def test_build_serve_runtime_report_marks_missing_required_backend(monkeypatch) 
     assert report.missing_required == ["onnxruntime"]
 
 
-def test_create_http_server_uses_selected_backend_metadata(monkeypatch) -> None:
-    config = load_project_config(config_path=Path("configs/deployment/infer.toml"))
+def test_create_http_server_uses_selected_backend_metadata(monkeypatch, tmp_path) -> None:
+    config = load_project_config(
+        config_path=Path("configs/deployment/infer.toml"),
+        overrides=[
+            f'paths.project_root="{tmp_path}"',
+            'paths.dataset_root="datasets"',
+            'paths.manifests_root="artifacts/manifests"',
+            'deployment.model_bundle_root="artifacts/model-bundle"',
+            'deployment.demo_subset_root="artifacts/demo-subset"',
+            'deployment.enrollment_cache_root="artifacts/enrollment-cache"',
+        ],
+    )
+    generate_demo_artifacts(config=config)
 
     def fake_load_module(module_name: str) -> object:
         if module_name == "onnxruntime":

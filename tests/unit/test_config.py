@@ -12,6 +12,9 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.reproducibility.pythonhashseed == 42
     assert config.training.precision == "fp32"
     assert config.backends.allow_tensorrt is False
+    assert config.export.boundary == "encoder_only"
+    assert config.export.input_name == "encoder_input"
+    assert config.export.output_name == "embedding"
     assert config.tracking.backend == "local"
     assert config.normalization.target_sample_rate_hz == 16000
     assert config.normalization.target_channels == 1
@@ -103,6 +106,9 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.training.precision == "bf16"
     assert config.runtime.log_level == "DEBUG"
     assert config.backends.allow_tensorrt is True
+    assert config.export.boundary == "encoder_only"
+    assert config.export.input_name == "encoder_input"
+    assert config.export.output_name == "embedding"
     assert config.normalization.output_format == "flac"
     assert config.normalization.loudness_mode == "rms"
     assert config.normalization.target_loudness_dbfs == -24.0

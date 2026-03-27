@@ -24,6 +24,11 @@ from .enrollment_cache import (
     validate_enrollment_cache_compatibility,
 )
 from .enrollment_store import RUNTIME_ENROLLMENT_STORE_DB_NAME, RuntimeEnrollmentStore
+from .export_boundary import (
+    ExportBoundaryContract,
+    load_export_boundary_from_model_metadata,
+    validate_runtime_frontend_against_boundary,
+)
 from .inference_backend import build_runtime_embedding_backend
 from .runtime import (
     ServeRuntimeReport,
@@ -102,6 +107,7 @@ class Inferencer:
         runtime_report: ServeRuntimeReport,
         artifact_report: Any,
         model_metadata: Mapping[str, Any] | None,
+        export_boundary: ExportBoundaryContract | None,
         enrollment_cache_payload: Mapping[str, Any],
         scoring_service: ScoringService,
         embedding_backend: Any,
@@ -110,6 +116,7 @@ class Inferencer:
         self._runtime_report = runtime_report
         self._artifact_report = artifact_report
         self._model_metadata = dict(model_metadata or {})
+        self._export_boundary = export_boundary
         self._enrollment_cache_payload = dict(enrollment_cache_payload)
         self._scoring_service = scoring_service
         self._embedding_backend = embedding_backend
@@ -142,6 +149,10 @@ class Inferencer:
             if model_metadata_path.exists()
             else None
         )
+        export_boundary = None
+        if model_metadata is not None:
+            export_boundary = load_export_boundary_from_model_metadata(model_metadata)
+            validate_runtime_frontend_against_boundary(config=config, contract=export_boundary)
         scoring_service, enrollment_cache_payload = _build_scoring_service(
             config=config,
             model_metadata_path=model_metadata_path,
@@ -156,6 +167,7 @@ class Inferencer:
             runtime_report=runtime_report,
             artifact_report=artifact_report,
             model_metadata=model_metadata,
+            export_boundary=export_boundary,
             enrollment_cache_payload=enrollment_cache_payload,
             scoring_service=scoring_service,
             embedding_backend=embedding_backend,
@@ -178,6 +190,9 @@ class Inferencer:
                 "loaded": True,
                 "input_name": self._model_metadata.get("input_name"),
                 "output_name": self._model_metadata.get("output_name"),
+                "export_boundary": (
+                    None if self._export_boundary is None else self._export_boundary.summary_dict()
+                ),
             }
         else:
             payload["model_bundle"] = {"loaded": False}

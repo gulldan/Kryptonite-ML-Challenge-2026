@@ -57,7 +57,12 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert manifest_inventory["auxiliary_files"][0]["path"].endswith("demo_subset.json")
     assert len(subset_payload["enrollment"]) == 4
     assert len(subset_payload["test"]) == 2
-    assert json.loads(metadata_file.read_text())["enrollment_cache_compatibility_id"]
+    metadata_payload = json.loads(metadata_file.read_text())
+    assert metadata_payload["enrollment_cache_compatibility_id"]
+    assert metadata_payload["input_name"] == "encoder_input"
+    assert metadata_payload["output_name"] == "embedding"
+    assert metadata_payload["export_boundary"]["boundary"] == "encoder_only"
+    assert metadata_payload["export_boundary"]["input_tensor"]["layout"] == "BTF"
 
 
 def test_generated_demo_artifacts_satisfy_strict_preflight(tmp_path: Path) -> None:

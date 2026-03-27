@@ -81,11 +81,14 @@
         },
         "export": {
             "type": "object",
-            "required": ["opset", "dynamic_axes", "profile"],
+            "required": ["opset", "dynamic_axes", "profile", "boundary", "input_name", "output_name"],
             "properties": {
                 "opset": {"type": "integer", "minimum": 1},
                 "dynamic_axes": {"type": "boolean"},
                 "profile": {"type": "string"},
+                "boundary": {"type": "string", "enum": ["encoder_only"]},
+                "input_name": {"type": "string", "minLength": 1},
+                "output_name": {"type": "string", "minLength": 1},
             },
             "additionalProperties": false,
         },

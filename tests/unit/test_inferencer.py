@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 import kryptonite.serve.runtime as serve_runtime
 from kryptonite.config import load_project_config
@@ -52,6 +55,24 @@ def test_inferencer_embeds_audio_paths_and_verifies_against_cache(
     assert benchmark_payload["audio_count"] == 2
     assert benchmark_payload["iterations"] == 2
     assert benchmark_payload["mean_ms_per_audio"] >= 0.0
+
+
+def test_inferencer_rejects_model_bundle_with_mismatched_export_boundary(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    config = _build_demo_config(tmp_path)
+    _patch_runtime_probes(monkeypatch)
+
+    metadata_path = tmp_path / "artifacts" / "model-bundle" / "metadata.json"
+    metadata_payload = json.loads(metadata_path.read_text())
+    metadata_payload["export_boundary"]["runtime_frontend"]["audio_load_request"][
+        "target_sample_rate_hz"
+    ] = 8000
+    metadata_path.write_text(json.dumps(metadata_payload, indent=2, sort_keys=True))
+
+    with pytest.raises(ValueError, match="Model bundle export boundary mismatch"):
+        Inferencer.from_config(config=config)
 
 
 def _build_demo_config(tmp_path: Path):
