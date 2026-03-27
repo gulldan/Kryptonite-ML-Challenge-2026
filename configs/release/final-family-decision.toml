@@ -1,0 +1,102 @@
+title = "Kryptonite 2026 Final Family Decision"
+decision_id = "kryptonite-2026-final-family"
+accepted_at = "2026-03-27"
+summary = "Freeze CAM++ as the production student family for the next export cycle and keep the WavLM / w2v-BERT PEFT branch as stretch-only teacher work."
+context = """
+The checked-in release postmortem makes KVA-536 the first gate for the next
+iteration: export, parity, and fallback packaging must target one family rather
+than duplicating deployment work across incompatible candidates.
+
+The repository already contains real baseline artifacts for CAM++ and
+ERes2NetV2, but only CAM++ has the staged stage-2/stage-3 training path, a
+bounded shortlist contract, and a final-candidate selection workflow. Teacher
+work remains strategically interesting, yet backlog v2 explicitly de-scopes it
+from the next must-have milestone until one student family is exportable.
+"""
+decision = """
+Use CAM++ as the only production-student family for KVA-538, KVA-539, and the
+later KVA-544 fallback chain. Keep the WavLM / w2v-BERT PEFT branch as the
+stretch teacher path, but do not allow it to block the export/parity track.
+Reject ERes2NetV2 as the immediate export target because it currently stops at a
+baseline recipe and would require extra model-selection and deployment handoff
+work before parity can even be measured.
+"""
+output_root = "artifacts/release-decisions/kryptonite-2026-final-family"
+selected_production_student = "campp"
+selected_stretch_teacher = "wavlm_w2vbert_peft"
+decision_drivers = [
+  "The next export cycle must freeze one family before KVA-538 and KVA-539 start.",
+  "CAM++ is the only repo-native student family with baseline, stage-2, stage-3, shortlist, and final-candidate selection contracts already checked in.",
+  "ERes2NetV2 currently has only a baseline path, so choosing it now would add scope before ONNX parity exists.",
+  "Teacher-heavy work stays stretch-only until a student export path is real and benchmarkable.",
+]
+next_step_issues = ["KVA-538", "KVA-539", "KVA-544"]
+
+[[option]]
+family_id = "campp"
+label = "CAM++ staged student"
+role = "production_student"
+status = "selected"
+summary = "Most mature repo-native student family for the next export loop."
+rationale = """
+CAM++ already has baseline, stage-2, stage-3, shortlist, and model-selection
+workflows checked in. That makes it the only family that can move from current
+artifacts to a real final-candidate export path without inventing missing
+selection tooling mid-flight.
+"""
+export_readiness = "ready_next"
+verification_report_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/verification_eval_report.json"
+score_summary_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/score_summary.json"
+report_markdown_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/campp_baseline_report.md"
+checkpoint_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/campp_encoder.pt"
+evidence_paths = [
+  "configs/training/campp-stage2.toml",
+  "configs/training/campp-stage3.toml",
+  "configs/training/campp-stage3-sweep-shortlist.toml",
+  "configs/training/campp-stage3-model-selection.toml",
+  "docs/campp-stage2-training.md",
+  "docs/campp-stage3-training.md",
+  "docs/campp-hyperparameter-sweep-shortlist.md",
+  "docs/campp-model-selection.md",
+]
+
+[[option]]
+family_id = "eres2netv2"
+label = "ERes2NetV2 baseline"
+role = "production_student"
+status = "rejected"
+summary = "Healthy comparison baseline, but not yet mature enough for the export-critical path."
+rationale = """
+ERes2NetV2 is useful as a repo-native baseline and on the tiny demo set it does
+not underperform CAM++. But the repository currently contains only baseline
+training for this family; there is no stage-2/3 progression, shortlist, or
+final-candidate handoff to feed export and parity work cleanly.
+"""
+export_readiness = "not_ready"
+verification_report_path = "artifacts/baselines/eres2netv2/20260326T184454Z-d0eba6dc018d/verification_eval_report.json"
+score_summary_path = "artifacts/baselines/eres2netv2/20260326T184454Z-d0eba6dc018d/score_summary.json"
+report_markdown_path = "artifacts/baselines/eres2netv2/20260326T184454Z-d0eba6dc018d/eres2netv2_baseline_report.md"
+checkpoint_path = "artifacts/baselines/eres2netv2/20260326T184454Z-d0eba6dc018d/eres2netv2_encoder.pt"
+evidence_paths = [
+  "configs/training/eres2netv2-baseline.toml",
+  "docs/eres2netv2-baseline.md",
+]
+rejected_reason = "No staged fine-tuning, shortlist, or final-candidate export handoff exists yet."
+
+[[option]]
+family_id = "wavlm_w2vbert_peft"
+label = "WavLM / w2v-BERT PEFT teacher branch"
+role = "stretch_teacher"
+status = "selected"
+summary = "Retain as the stretch teacher path, but keep it outside the must-have export gate."
+rationale = """
+Teacher-style work still has upside for robustness and future distillation, and
+KVA-531 already constrains it to a PEFT-only path that is realistic on one
+4090. However backlog v2 explicitly de-scopes teacher-heavy work from the next
+must-have milestone, so it cannot block student export and parity.
+"""
+export_readiness = "deferred_until_student_export"
+evidence_paths = [
+  "docs/release-postmortem.md",
+  "configs/release/release-postmortem-v2.toml",
+]

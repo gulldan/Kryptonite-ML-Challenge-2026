@@ -12,6 +12,7 @@ Key serving notes:
 - `docs/end-to-end-regression-suite.md` for the release-oriented serving regression contract
 - `docs/inference-stress-test.md` for the serving-path stress matrix, malformed-input contract, and hard-limit reporting flow
 - `docs/final-benchmark-pack.md` for the release pack that freezes quality/latency/memory and exact configs
+- `docs/final-family-decision.md` for the frozen export-target family ADR that feeds the next ONNX/parity cycle
 - `docs/model-card.md` for the release scope, training-data classes, caveats, and deployment assumptions
 - `docs/release-runbook.md` for preflight, rollout, monitoring, and rollback procedures
 - `docs/submission-release-bundle.md` for the handoff bundle that packages configs, model artifacts, docs, demo assets, and an optional archive
