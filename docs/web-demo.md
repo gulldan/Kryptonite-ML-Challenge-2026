@@ -30,7 +30,9 @@ docker compose -f compose.yml -f compose.gpu.yml up --build
 ```
 
 That override builds `deployment/docker/infer.gpu.Dockerfile`, which keeps the
-default CPU image untouched and swaps the demo stack onto a CUDA runtime base.
+default CPU image untouched, swaps the demo stack onto a CUDA runtime base, and
+applies the `privileged` workaround currently required on `gpu-server` for CUDA
+compute inside Docker.
 
 Open the demo:
 
@@ -69,6 +71,9 @@ means:
 
 - the container gets NVIDIA GPU access through Docker Compose;
 - the GPU override builds from `deployment/docker/infer.gpu.Dockerfile`;
+- the GPU override also enables `privileged: true` on `gpu-server`, because that
+  host's Docker security profile otherwise exposes `nvidia-smi` but blocks
+  `cudaGetDeviceCount()` for the runtime process;
 - `runtime.device` is set to `cuda`;
 - the service reports `selected_backend = "torch"` because that is the runtime path that actually
   executes on CUDA today.

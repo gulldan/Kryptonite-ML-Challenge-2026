@@ -60,7 +60,7 @@ The stack contains two services:
 
 The GPU override changes two things:
 
-- both services request `gpus: all` and build from `deployment/docker/infer.gpu.Dockerfile`
+- both services request `gpus: all`, build from `deployment/docker/infer.gpu.Dockerfile`, and run with `privileged: true`
 - the stack switches to [`configs/deployment/infer-gpu.toml`](../configs/deployment/infer-gpu.toml),
   which sets `runtime.device = "cuda"` and `backends.inference = "torch"`
 
@@ -169,6 +169,10 @@ The health payload now includes an `artifacts` block so target-machine runs can 
 - The GPU image is split into its own Dockerfile instead of overloading the default CPU image,
   because the validated `gpu-server` Docker runtime requires an NVIDIA CUDA base image for the
   current torch CUDA wheels to initialize correctly inside the container.
+- On the currently validated `gpu-server`, CUDA compute inside Docker also requires
+  `privileged: true`; `--gpus all` alone is enough for `nvidia-smi`, but not enough for
+  `cudaGetDeviceCount()` / `torch.cuda.is_available()`. The root `compose.gpu.yml`
+  captures that server-specific workaround explicitly.
 - The current GPU path is intentionally the torch-backed runtime frontend. On the validated
   `gpu-server` environment, `onnxruntime` is CPU-only, so the honest GPU mode today is
   `runtime.device = "cuda"` with `backends.inference = "torch"` instead of claiming a CUDA/TensorRT

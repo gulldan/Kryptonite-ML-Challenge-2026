@@ -64,7 +64,9 @@ docker compose -f compose.yml -f compose.gpu.yml up --build
 
 The GPU override swaps the image build to
 `deployment/docker/infer.gpu.Dockerfile`, which uses an NVIDIA CUDA runtime
-base and points the service at `configs/deployment/infer-gpu.toml`.
+base, points the service at `configs/deployment/infer-gpu.toml`, and enables
+the server-side `privileged` workaround required by the current `gpu-server`
+Docker security profile for CUDA compute.
 
 ## Repository Layout
 

@@ -3,6 +3,7 @@ services:
     build:
       dockerfile: deployment/docker/infer.gpu.Dockerfile
     image: kryptonite-infer-gpu:local
+    privileged: true
     command:
       - python
       - scripts/generate_demo_artifacts.py
@@ -17,6 +18,7 @@ services:
     build:
       dockerfile: deployment/docker/infer.gpu.Dockerfile
     image: kryptonite-infer-gpu:local
+    privileged: true
     command:
       - python
       - apps/api/main.py

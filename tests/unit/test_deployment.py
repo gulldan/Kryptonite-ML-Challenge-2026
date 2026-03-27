@@ -80,4 +80,5 @@ def test_gpu_compose_override_uses_gpu_image_and_profile() -> None:
     assert "deployment/docker/infer.gpu.Dockerfile" in compose_override
     assert "configs/deployment/infer-gpu.toml" in compose_override
     assert "gpus: all" in compose_override
+    assert "privileged: true" in compose_override
     assert default_command in dockerfile
