@@ -26,6 +26,7 @@ Current entrypoints include:
 - `scripts/build_enrollment_cache.py` for precomputing one runtime-ready enrollment centroid cache from an enrollment manifest plus model-bundle compatibility metadata
 - `scripts/build_manifest_embedding_atlas.py` for exporting baseline manifest-backed Fbank/stat embeddings and immediately rendering an interactive atlas from them
 - `scripts/export_boundary_report.py` for writing the machine-readable `encoder_input -> embedding` contract plus a Markdown handoff for later ONNX/TensorRT work
+- `scripts/export_campp_onnx.py` for exporting the frozen CAM++ checkpoint family into a real encoder-only ONNX model bundle with checker and ONNX Runtime smoke validation
 - `scripts/build_verification_protocol.py` for freezing the repo-native clean dev bundles plus production-like corrupted suites into one auditable verification-protocol snapshot
 - `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report, with optional `AS-norm` score normalization backed by exported eval embeddings and a frozen cohort bank
 - `scripts/calibrate_verification_thresholds.py` for generating the full offline verification report plus named `balanced/min_dcf/demo/production` thresholds and optional slice-aware calibration bundles

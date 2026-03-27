@@ -57,8 +57,23 @@ docker run --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 \
   "$TRITON_IMAGE" tritonserver --model-repository=/models
 ```
 
-The repository is backend-agnostic at the folder level. By default it packages the ONNX bundle,
-which is the only artifact this repo can build and validate locally today.
+The repository is backend-agnostic at the folder level. By default it packages
+whatever model bundle `deployment.model_bundle_root` points to.
+
+The checked-in deployment config still points at the demo stub bundle. To package
+the real CAM++ ONNX export from `KVA-538`, first materialize that bundle and then
+override the model-bundle root:
+
+```bash
+uv run python scripts/export_campp_onnx.py \
+  --config configs/base.toml \
+  --checkpoint artifacts/baselines/campp/<run-id> \
+  --output-root artifacts/model-bundle-campp-onnx
+
+uv run python scripts/build_triton_model_repository.py \
+  --config configs/deployment/infer.toml \
+  --override 'deployment.model_bundle_root="artifacts/model-bundle-campp-onnx"'
+```
 
 ## Smoke
 
@@ -105,6 +120,6 @@ What this does not claim:
 ## Limits
 
 - The packaged Triton model is encoder-only, not end-to-end raw audio.
-- The default demo bundle is a structural ONNX stub used for deploy-contract validation, not a
-  production SV encoder.
+- The default checked-in bundle is still a structural ONNX stub used for
+  deploy-contract validation; the real CAM++ bundle is generated separately.
 - Full raw-audio parity still lives in the FastAPI + `Inferencer` runtime path.
