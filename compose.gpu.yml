@@ -1,0 +1,28 @@
+services:
+  demo-artifacts:
+    command:
+      - python
+      - scripts/generate_demo_artifacts.py
+      - --config
+      - configs/deployment/infer-gpu.toml
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+  demo:
+    command:
+      - python
+      - apps/api/main.py
+      - --config
+      - configs/deployment/infer-gpu.toml
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --require-artifacts
+    gpus: all
+    environment:
+      KRYP_REQUIRE_DEPLOYMENT_ARTIFACTS: "1"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility

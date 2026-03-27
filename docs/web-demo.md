@@ -23,6 +23,12 @@ Or run the containerized local stack from the repository root:
 docker compose up --build
 ```
 
+On `gpu-server`, switch to the GPU override:
+
+```bash
+docker compose -f compose.yml -f compose.gpu.yml up --build
+```
+
 Open the demo:
 
 ```text
@@ -52,6 +58,19 @@ Browser actions use dedicated JSON endpoints under `/demo/api/*`:
 
 The browser sends audio as base64-encoded JSON payloads. That keeps the demo self-contained and
 avoids an extra multipart dependency in the runtime environment.
+
+## GPU Mode
+
+The current runtime implementation is still the shared `feature_statistics` inferencer, so GPU mode
+means:
+
+- the container gets NVIDIA GPU access through Docker Compose;
+- `runtime.device` is set to `cuda`;
+- the service reports `selected_backend = "torch"` because that is the runtime path that actually
+  executes on CUDA today.
+
+This is deliberate. The repository already carries export-boundary and model-bundle metadata for a
+future ONNX/TensorRT path, but the implemented raw-audio runtime backend is still torch-based.
 
 ## Threshold Resolution
 

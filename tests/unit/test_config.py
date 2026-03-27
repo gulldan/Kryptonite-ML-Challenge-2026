@@ -149,3 +149,17 @@ def test_parse_override_value_supports_toml_literals_and_raw_strings() -> None:
     assert parse_override_value("true") is True
     assert parse_override_value('"fp16"') == "fp16"
     assert parse_override_value("datasets") == "datasets"
+
+
+def test_infer_gpu_profile_targets_cuda_torch_runtime() -> None:
+    config = load_project_config(config_path=Path("configs/deployment/infer-gpu.toml"))
+
+    assert config.runtime.device == "cuda"
+    assert config.backends.inference == "torch"
+    assert config.backends.allow_torch is True
+    assert config.backends.allow_onnx is True
+    assert config.backends.allow_tensorrt is False
+    assert config.reproducibility.fingerprint_paths == [
+        "configs/deployment/infer-gpu.toml",
+        "configs/schema.json",
+    ]

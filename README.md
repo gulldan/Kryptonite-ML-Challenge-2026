@@ -56,6 +56,12 @@ To stop the stack and remove the generated demo volumes:
 docker compose down -v
 ```
 
+On `gpu-server`, use the GPU override so the current `feature_statistics` inferencer runs on CUDA:
+
+```bash
+docker compose -f compose.yml -f compose.gpu.yml up --build
+```
+
 ## Repository Layout
 
 ```text
