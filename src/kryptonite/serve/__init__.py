@@ -7,6 +7,11 @@ from .enrollment_cache import (
     load_enrollment_embedding_cache,
     validate_enrollment_cache_compatibility,
 )
+from .enrollment_store import (
+    RUNTIME_ENROLLMENT_STORE_DB_NAME,
+    RUNTIME_ENROLLMENT_STORE_FORMAT_VERSION,
+    RuntimeEnrollmentStore,
+)
 from .http import create_http_app, create_http_server, run_http_server
 from .inferencer import Inferencer
 from .runtime import (
@@ -24,6 +29,9 @@ __all__ = [
     "ScoringService",
     "ENROLLMENT_CACHE_FORMAT_VERSION",
     "ServeRuntimeReport",
+    "RUNTIME_ENROLLMENT_STORE_DB_NAME",
+    "RUNTIME_ENROLLMENT_STORE_FORMAT_VERSION",
+    "RuntimeEnrollmentStore",
     "build_enrollment_embedding_cache",
     "build_infer_artifact_report",
     "build_service_metadata",

@@ -1,9 +1,10 @@
-# Enrollment Embedding Cache
+# Enrollment Embedding Cache And Runtime Store
 
 ## Goal
 
 Freeze one runtime-ready enrollment bank ahead of API startup so `/verify` can use stable speaker
-centroids without recomputing enrollment state inside the serving process.
+centroids without recomputing enrollment state inside the serving process, while still allowing
+runtime `/enroll` calls to persist new speakers across service restarts.
 
 ## What Gets Written
 
@@ -13,6 +14,7 @@ Each cache build writes:
 - `enrollment_metadata.jsonl`
 - `enrollment_metadata.parquet`
 - `enrollment_summary.json`
+- `runtime_enrollments.sqlite3`: runtime overlay created by the service on first startup
 
 The summary is the runtime compatibility anchor. It records:
 
@@ -31,6 +33,10 @@ The summary is the runtime compatibility anchor. It records:
 
 That keeps the startup check explicit for real bundles while still giving smoke/demo artifacts a
 deterministic fallback.
+
+The runtime overlay store uses the same compatibility id and also records the SHA-256 of
+`model_bundle/metadata.json`. Startup fails fast when the runtime store was produced by a different
+encoder bundle, even if the enrollment ids still look valid.
 
 ## Builder
 
@@ -55,3 +61,25 @@ runtime cache artifacts.
 - Incompatible cache: startup fails fast
 - Missing cache in advisory mode: server still starts, but only manual `POST /enroll` calls can add
   process-local state
+
+## Runtime Overlay Store
+
+`POST /enroll` now persists normalized enrollment centroids into
+`artifacts/enrollment-cache/runtime_enrollments.sqlite3`.
+
+- The offline cache remains the immutable bootstrap bank.
+- The SQLite store is a mutable overlay loaded on top of the offline cache at startup.
+- If a runtime enrollment id matches an offline cache id, the runtime record wins for that process.
+- Runtime records survive service restarts as long as the same model bundle metadata remains in
+  place.
+
+The persistent record stores:
+
+- `enrollment_id`
+- `sample_count`
+- `embedding_dim`
+- normalized centroid bytes
+- user-provided enrollment metadata
+
+That gives the demo flow a minimal but durable `enroll -> restart -> verify` path without requiring
+the offline cache builder to run again after every interactive enrollment.

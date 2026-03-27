@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -16,6 +16,9 @@ from kryptonite.models import (
     ensure_embedding_matrix,
     rank_cosine_scores,
 )
+
+if TYPE_CHECKING:
+    from .enrollment_store import RuntimeEnrollmentStore
 
 
 class EnrollmentNotFoundError(LookupError):
@@ -44,8 +47,10 @@ class ScoringService:
         self,
         *,
         initial_enrollments: Mapping[str, EnrollmentRecord] | None = None,
+        persistent_store: RuntimeEnrollmentStore | None = None,
     ) -> None:
         self._lock = Lock()
+        self._persistent_store = persistent_store
         self._enrollments = {
             enrollment_id: _clone_enrollment_record(record)
             for enrollment_id, record in (initial_enrollments or {}).items()
@@ -169,6 +174,14 @@ class ScoringService:
         )
         with self._lock:
             replaced = normalized_enrollment_id in self._enrollments
+            if self._persistent_store is not None:
+                self._persistent_store.upsert(
+                    enrollment_id=record.enrollment_id,
+                    sample_count=record.sample_count,
+                    embedding_dim=record.embedding_dim,
+                    embedding=record.embedding,
+                    metadata=record.metadata,
+                )
             self._enrollments[normalized_enrollment_id] = record
         return {
             "enrollment_id": record.enrollment_id,
