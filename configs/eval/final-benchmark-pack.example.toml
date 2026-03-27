@@ -1,0 +1,44 @@
+title = "Kryptonite release benchmark pack"
+summary = "Freeze quality, latency, memory, and exact config provenance for final release candidates."
+output_root = "artifacts/benchmark-pack/release-candidates"
+
+notes = [
+  "All paths are resolved relative to the repository root unless they are absolute.",
+  "Run the per-candidate offline verification and inference stress workflows before building the pack.",
+]
+
+[[candidate]]
+candidate_id = "campp-final"
+label = "CAM++ final"
+family = "campp"
+verification_report_path = "artifacts/final/campp/verification_eval_report.json"
+threshold_calibration_path = "artifacts/final/campp/verification_threshold_calibration.json"
+stress_report_path = "artifacts/final/campp/inference_stress_report.json"
+model_bundle_metadata_path = "artifacts/final/campp/model-bundle/metadata.json"
+export_boundary_path = "artifacts/final/campp/export_boundary.json"
+config_paths = [
+  "configs/training/campp-stage3.toml",
+  "configs/deployment/infer-gpu.toml",
+]
+supporting_paths = [
+  "artifacts/final/campp/final_candidate_selection.json",
+]
+notes = ["Replace the placeholder paths with the frozen CAM++ release artifacts."]
+
+[[candidate]]
+candidate_id = "eres2netv2-final"
+label = "ERes2NetV2 final"
+family = "eres2netv2"
+verification_report_path = "artifacts/final/eres2netv2/verification_eval_report.json"
+threshold_calibration_path = "artifacts/final/eres2netv2/verification_threshold_calibration.json"
+stress_report_path = "artifacts/final/eres2netv2/inference_stress_report.json"
+model_bundle_metadata_path = "artifacts/final/eres2netv2/model-bundle/metadata.json"
+export_boundary_path = "artifacts/final/eres2netv2/export_boundary.json"
+config_paths = [
+  "configs/training/eres2netv2-baseline.toml",
+  "configs/deployment/infer-gpu.toml",
+]
+supporting_paths = [
+  "artifacts/final/eres2netv2/final_candidate_selection.json",
+]
+notes = ["Replace the placeholder paths with the frozen ERes2NetV2 release artifacts."]

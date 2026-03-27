@@ -10,3 +10,4 @@ Key serving notes:
 - `docs/inference-observability.md` for structured logs and Prometheus-compatible metrics
 - `docs/end-to-end-regression-suite.md` for the release-oriented serving regression contract
 - `docs/inference-stress-test.md` for the serving-path stress matrix, malformed-input contract, and hard-limit reporting flow
+- `docs/final-benchmark-pack.md` for the release pack that freezes quality/latency/memory and exact configs

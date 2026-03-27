@@ -12,6 +12,7 @@ Prefer concern-based groupings such as:
 Current bootstrap config lives in `configs/base.toml`.
 Deployment-specific runtime profiles live in `configs/deployment/`.
 Deployment profiles also carry a `[deployment]` section that pins the expected model bundle and demo subset roots for strict container preflight.
+Release benchmark-pack templates live in `configs/eval/`.
 
 Validate and inspect it with:
 

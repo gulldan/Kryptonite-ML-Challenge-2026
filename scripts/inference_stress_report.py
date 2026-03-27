@@ -113,6 +113,8 @@ def main() -> None:
                     f"Backend: {report.service.selected_backend} / {report.service.implementation}",
                     f"Model version: {report.service.model_version}",
                     f"Largest validated burst: {report.hard_limits.largest_validated_batch_size}",
+                    f"Peak process RSS MiB: {report.memory.peak_process_rss_mib}",
+                    f"Peak CUDA allocated MiB: {report.memory.peak_cuda_allocated_mib}",
                     f"JSON: {written.report_json_path}",
                     f"Markdown: {written.report_markdown_path}",
                 ]

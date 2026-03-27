@@ -49,6 +49,8 @@ def test_inference_stress_report_covers_audio_bursts_and_malformed_inputs(
     assert report.service.implementation == "feature_statistics"
     assert report.summary.control_ordering_passed is True
     assert report.summary.long_audio_chunking_observed is True
+    assert report.memory.peak_process_rss_mib is not None
+    assert report.memory.peak_process_rss_delta_mib is not None
     assert scenario_ids == {
         "alpha_reference",
         "bravo_reference",
@@ -71,6 +73,8 @@ def test_inference_stress_report_covers_audio_bursts_and_malformed_inputs(
     assert report.hard_limits.largest_validated_batch_size == 4
     assert report.hard_limits.max_validated_duration_seconds is not None
     assert report.hard_limits.max_validated_duration_seconds > 4.0
+    assert all(result.memory is not None for result in report.audio_scenarios)
+    assert all(result.memory is not None for result in report.batch_bursts)
     assert Path(written.report_json_path).is_file()
     assert Path(written.report_markdown_path).is_file()
     assert "Hard Limits" in render_inference_stress_markdown(report)

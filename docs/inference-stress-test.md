@@ -9,6 +9,7 @@ The stress run validates three classes of behavior:
 
 - same-speaker verification on deterministic extreme-duration and corrupted inputs;
 - batch-burst latency behavior on mixed short/long/corrupted payloads;
+- process/CUDA memory peaks observed during the serving-path workload;
 - malformed-input handling for missing files, corrupt audio containers, invalid
   stage values, and schema failures.
 
@@ -65,6 +66,7 @@ The report records the currently validated serving envelope:
 - the shortest and longest probe durations that completed successfully;
 - the largest batch burst that completed successfully;
 - the largest observed total chunk count in a burst run;
+- the peak process RSS and, when CUDA is active, peak CUDA allocated/reserved memory;
 - the expected malformed-input status codes.
 
 ## Why This Is Separate From Offline Quality Eval
@@ -79,4 +81,4 @@ This stress report is intentionally operational:
 If the active config points at the final release model bundle, the same script
 tests that candidate. If the runtime is operating without a model bundle, the
 report still validates the raw-audio frontend, chunking policy, enrollment
-flow, and API error contract.
+flow, API error contract, and operational memory envelope.

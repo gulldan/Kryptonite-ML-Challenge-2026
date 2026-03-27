@@ -20,6 +20,11 @@ from kryptonite.config import ProjectConfig
 from kryptonite.deployment import resolve_project_path
 
 from .http import create_http_server
+from .stress_memory import (
+    StressMemoryMeasurement,
+    finish_memory_measurement,
+    start_memory_measurement,
+)
 
 STRESS_INPUT_CATALOG_NAME = "stress_input_catalog.json"
 REPORT_JSON_NAME = "inference_stress_report.json"
@@ -97,6 +102,7 @@ class AudioStressScenarioResult:
     chunk_count: int | None
     score: float | None
     decision: bool | None
+    memory: StressMemoryMeasurement | None = None
     error: str | None = None
 
     def to_dict(self) -> dict[str, object]:
@@ -111,6 +117,7 @@ class AudioStressScenarioResult:
             "chunk_count": self.chunk_count,
             "score": self.score,
             "decision": self.decision,
+            "memory": (None if self.memory is None else self.memory.to_dict()),
             "error": self.error,
         }
 
@@ -125,6 +132,7 @@ class BatchBurstScenarioResult:
     mean_ms_per_audio: float | None
     total_audio_duration_seconds: float | None
     total_chunk_count: int | None
+    memory: StressMemoryMeasurement | None = None
     error: str | None = None
 
     def to_dict(self) -> dict[str, object]:
@@ -137,6 +145,7 @@ class BatchBurstScenarioResult:
             "mean_ms_per_audio": self.mean_ms_per_audio,
             "total_audio_duration_seconds": self.total_audio_duration_seconds,
             "total_chunk_count": self.total_chunk_count,
+            "memory": (None if self.memory is None else self.memory.to_dict()),
             "error": self.error,
         }
 
@@ -216,10 +225,27 @@ class InferenceStressSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class InferenceStressMemorySummary:
+    peak_process_rss_mib: float | None
+    peak_process_rss_delta_mib: float | None
+    peak_cuda_allocated_mib: float | None
+    peak_cuda_reserved_mib: float | None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "peak_process_rss_mib": self.peak_process_rss_mib,
+            "peak_process_rss_delta_mib": self.peak_process_rss_delta_mib,
+            "peak_cuda_allocated_mib": self.peak_cuda_allocated_mib,
+            "peak_cuda_reserved_mib": self.peak_cuda_reserved_mib,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InferenceStressReport:
     inputs: GeneratedStressInputs
     service: StressServiceMetadata
     summary: InferenceStressSummary
+    memory: InferenceStressMemorySummary
     audio_scenarios: tuple[AudioStressScenarioResult, ...]
     batch_bursts: tuple[BatchBurstScenarioResult, ...]
     malformed_requests: tuple[MalformedRequestResult, ...]
@@ -230,6 +256,7 @@ class InferenceStressReport:
             "inputs": self.inputs.to_dict(),
             "service": self.service.to_dict(),
             "summary": self.summary.to_dict(),
+            "memory": self.memory.to_dict(),
             "audio_scenarios": [result.to_dict() for result in self.audio_scenarios],
             "batch_bursts": [result.to_dict() for result in self.batch_bursts],
             "malformed_requests": [result.to_dict() for result in self.malformed_requests],
@@ -555,6 +582,7 @@ def build_inference_stress_report(
         batch_bursts=batch_bursts,
         malformed_requests=malformed_requests,
     )
+    memory = _build_memory_summary(audio_scenarios=audio_scenarios, batch_bursts=batch_bursts)
     hard_limits = _build_hard_limits(
         config=config,
         audio_scenarios=audio_scenarios,
@@ -567,6 +595,7 @@ def build_inference_stress_report(
         inputs=assets,
         service=service,
         summary=summary,
+        memory=memory,
         audio_scenarios=audio_scenarios,
         batch_bursts=batch_bursts,
         malformed_requests=malformed_requests,
@@ -585,6 +614,15 @@ def render_inference_stress_markdown(report: InferenceStressReport) -> str:
         f"- Model version: `{report.service.model_version}`",
         f"- Control ordering passed: `{report.summary.control_ordering_passed}`",
         f"- Long-audio chunking observed: `{report.summary.long_audio_chunking_observed}`",
+        f"- Peak process RSS: `{_format_float(report.memory.peak_process_rss_mib, digits=3)}` MiB",
+        (
+            "- Peak process RSS delta: "
+            f"`{_format_float(report.memory.peak_process_rss_delta_mib, digits=3)}` MiB"
+        ),
+        (
+            "- Peak CUDA allocated: "
+            f"`{_format_float(report.memory.peak_cuda_allocated_mib, digits=3)}` MiB"
+        ),
         "",
         "## Audio Stress Scenarios",
         "",
@@ -615,7 +653,15 @@ def render_inference_stress_markdown(report: InferenceStressReport) -> str:
         "## Batch Burst Benchmark",
         "",
         _markdown_table(
-            headers=["Batch", "Status", "Mean iter (s)", "Mean ms/audio", "Chunks"],
+            headers=[
+                "Batch",
+                "Status",
+                "Mean iter (s)",
+                "Mean ms/audio",
+                "Chunks",
+                "Peak RSS MiB",
+                "Peak CUDA MiB",
+            ],
             rows=[
                 [
                     str(result.batch_size),
@@ -623,6 +669,14 @@ def render_inference_stress_markdown(report: InferenceStressReport) -> str:
                     _format_float(result.mean_iteration_seconds, digits=6),
                     _format_float(result.mean_ms_per_audio, digits=6),
                     _format_int(result.total_chunk_count),
+                    _format_float(
+                        None if result.memory is None else result.memory.process_peak_rss_mib,
+                        digits=3,
+                    ),
+                    _format_float(
+                        None if result.memory is None else result.memory.cuda_peak_allocated_mib,
+                        digits=3,
+                    ),
                 ]
                 for result in report.batch_bursts
             ],
@@ -710,6 +764,7 @@ def _run_audio_scenario(
         "stage": stage,
         "threshold": verify_threshold,
     }
+    memory_baseline = start_memory_measurement()
     started = time.perf_counter()
     try:
         status_code, response_payload = _post_json_allow_error(f"{base_url}/verify", payload)
@@ -725,10 +780,12 @@ def _run_audio_scenario(
             chunk_count=None,
             score=None,
             decision=None,
+            memory=finish_memory_measurement(memory_baseline),
             error=f"{type(exc).__name__}: {exc}",
         )
 
     latency_seconds = time.perf_counter() - started
+    memory = finish_memory_measurement(memory_baseline)
     if status_code != 200:
         return AudioStressScenarioResult(
             scenario_id=descriptor.scenario_id,
@@ -741,6 +798,7 @@ def _run_audio_scenario(
             chunk_count=None,
             score=None,
             decision=None,
+            memory=memory,
             error=_extract_message(response_payload),
         )
 
@@ -756,6 +814,7 @@ def _run_audio_scenario(
         chunk_count=int(probe_item["chunk_count"]),
         score=float(response_payload["scores"][0]),
         decision=bool(response_payload["decisions"][0]),
+        memory=memory,
         error=None,
     )
 
@@ -770,6 +829,7 @@ def _run_batch_burst(
     audio_pool: Sequence[str],
 ) -> BatchBurstScenarioResult:
     audio_paths = list(islice(cycle(audio_pool), batch_size))
+    memory_baseline = start_memory_measurement()
     status_code, payload = _post_json_allow_error(
         f"{base_url}/benchmark",
         {
@@ -779,6 +839,7 @@ def _run_batch_burst(
             "warmup_iterations": warmup_iterations,
         },
     )
+    memory = finish_memory_measurement(memory_baseline)
     if status_code != 200:
         return BatchBurstScenarioResult(
             batch_size=batch_size,
@@ -789,6 +850,7 @@ def _run_batch_burst(
             mean_ms_per_audio=None,
             total_audio_duration_seconds=None,
             total_chunk_count=None,
+            memory=memory,
             error=_extract_message(payload),
         )
     return BatchBurstScenarioResult(
@@ -800,6 +862,7 @@ def _run_batch_burst(
         mean_ms_per_audio=float(payload["mean_ms_per_audio"]),
         total_audio_duration_seconds=float(payload["total_audio_duration_seconds"]),
         total_chunk_count=int(payload["total_chunk_count"]),
+        memory=memory,
         error=None,
     )
 
@@ -864,6 +927,30 @@ def _build_summary(
         expected_error_case_count=len(expected_errors),
         control_ordering_passed=control_ordering_passed,
         long_audio_chunking_observed=long_audio_chunking_observed,
+    )
+
+
+def _build_memory_summary(
+    *,
+    audio_scenarios: Sequence[AudioStressScenarioResult],
+    batch_bursts: Sequence[BatchBurstScenarioResult],
+) -> InferenceStressMemorySummary:
+    measurements = [
+        result.memory for result in [*audio_scenarios, *batch_bursts] if result.memory is not None
+    ]
+    return InferenceStressMemorySummary(
+        peak_process_rss_mib=_max_memory_value(
+            measurement.process_peak_rss_mib for measurement in measurements
+        ),
+        peak_process_rss_delta_mib=_max_memory_value(
+            measurement.process_peak_rss_delta_mib for measurement in measurements
+        ),
+        peak_cuda_allocated_mib=_max_memory_value(
+            measurement.cuda_peak_allocated_mib for measurement in measurements
+        ),
+        peak_cuda_reserved_mib=_max_memory_value(
+            measurement.cuda_peak_reserved_mib for measurement in measurements
+        ),
     )
 
 
@@ -1144,6 +1231,13 @@ def _format_bool(value: bool | None) -> str:
     return "true" if value else "false"
 
 
+def _max_memory_value(values: Iterable[float | None]) -> float | None:
+    resolved = [value for value in values if value is not None]
+    if not resolved:
+        return None
+    return round(max(resolved), 3)
+
+
 __all__ = [
     "DEFAULT_BATCH_SIZES",
     "DEFAULT_BENCHMARK_ITERATIONS",
@@ -1153,12 +1247,14 @@ __all__ = [
     "BatchBurstScenarioResult",
     "GeneratedStressInputs",
     "InferenceStressReport",
+    "InferenceStressMemorySummary",
     "InferenceStressSummary",
     "MalformedRequestResult",
     "REPORT_JSON_NAME",
     "REPORT_MARKDOWN_NAME",
     "StressHardLimitSummary",
     "StressInputDescriptor",
+    "StressMemoryMeasurement",
     "StressServiceMetadata",
     "WrittenInferenceStressReport",
     "build_inference_stress_report",
