@@ -122,6 +122,7 @@ See [docs/audio-augmentation-scheduler.md](./docs/audio-augmentation-scheduler.m
 See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
 See [docs/embedding-scoring.md](./docs/embedding-scoring.md) for the shared L2-normalization and cosine scoring contract used by offline verification and the thin HTTP scoring API.
 See [docs/export-boundary.md](./docs/export-boundary.md) for the machine-readable `encoder_input -> embedding` contract that keeps decode/VAD/Fbank outside exported ONNX/TensorRT graphs.
+See [docs/triton-deployment.md](./docs/triton-deployment.md) for the Triton model-repository packaging path that serves the encoder-only export boundary through KServe `/v2/models/.../infer`.
 See [docs/campp-baseline.md](./docs/campp-baseline.md) for the first repo-native CAM++ baseline path from manifests to checkpoints, embeddings, and cosine scores.
 See [docs/campp-stage2-training.md](./docs/campp-stage2-training.md) and [docs/campp-stage3-training.md](./docs/campp-stage3-training.md) for the staged CAM++ fine-tuning flow on top of the baseline checkpoint.
 See [docs/campp-hyperparameter-sweep-shortlist.md](./docs/campp-hyperparameter-sweep-shortlist.md) and [docs/campp-model-selection.md](./docs/campp-model-selection.md) for the bounded stage-3 shortlist plus the final-candidate selection and checkpoint-averaging flow.

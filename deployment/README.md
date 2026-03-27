@@ -159,6 +159,57 @@ curl http://127.0.0.1:8080/openapi.json
 
 The health payload now includes an `artifacts` block so target-machine runs can prove whether startup happened in advisory or strict mode. The FastAPI service also publishes its request contract through the built-in OpenAPI schema.
 
+## Triton Repository Packaging
+
+`KVA-551` adds an optional Triton packaging path for the already-fixed encoder export boundary.
+
+Important scope decision:
+
+- Triton serves only the encoder graph: `encoder_input -> embedding`
+- decode / resample / loudness normalization / VAD / chunking / Fbank stay outside Triton
+- default repository generation uses the existing ONNX bundle
+- TensorRT packaging is supported only when a real `model.plan` already exists
+
+Build the repository from the current deployment config:
+
+```bash
+uv run python scripts/build_triton_model_repository.py --config configs/deployment/infer.toml
+```
+
+This writes:
+
+- `artifacts/triton-model-repository/kryptonite_encoder/config.pbtxt`
+- `artifacts/triton-model-repository/kryptonite_encoder/1/model.onnx`
+- `artifacts/triton-model-repository/kryptonite_encoder/metadata.json`
+- `artifacts/triton-model-repository/smoke/kryptonite_encoder_infer_request.json`
+
+For TensorRT handoff, supply or materialize an engine and rebuild:
+
+```bash
+uv run python scripts/build_triton_model_repository.py \
+  --config configs/deployment/infer.toml \
+  --backend-mode tensorrt \
+  --engine-path artifacts/model-bundle/model.plan
+```
+
+Launch Triton with the generated repository mounted as `/models`:
+
+```bash
+TRITON_IMAGE="${TRITON_IMAGE:-nvcr.io/nvidia/tritonserver:<compatible-tag>}"
+docker run --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 \
+  -v "$PWD/artifacts/triton-model-repository:/models:ro" \
+  "$TRITON_IMAGE" tritonserver --model-repository=/models
+```
+
+Smoke the running server with the generated sample request:
+
+```bash
+uv run python scripts/triton_infer_smoke.py \
+  --repository-root artifacts/triton-model-repository \
+  --model-name kryptonite_encoder \
+  --server-url http://127.0.0.1:8000
+```
+
 ## Scope Decisions
 
 - Base image versions are pinned in the Dockerfiles via explicit `PYTHON_VERSION` and `UV_IMAGE` arguments.
@@ -182,5 +233,8 @@ The health payload now includes an `artifacts` block so target-machine runs can 
   `gpu-server` environment, `onnxruntime` is CPU-only, so the honest GPU mode today is
   `runtime.device = "cuda"` with `backends.inference = "torch"` instead of claiming a CUDA/TensorRT
   engine that is not implemented yet.
+- The Triton repository path follows the same honesty rule: the implemented deployable artifact is
+  the encoder-only boundary. It does not pretend that decode/VAD/Fbank or a full raw-audio
+  TensorRT stack already exist.
 - Strict artifact validation is opt-in because the real deploy inputs do not exist on every development machine.
 - The generated demo artifact set is intentionally tiny and synthetic so the target-machine deploy path can be validated without checking large raw datasets into git.

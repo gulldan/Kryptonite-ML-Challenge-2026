@@ -39,6 +39,8 @@ Current entrypoints include:
 - `scripts/vad_trimming_report.py` for comparing `none`, `light`, and `aggressive` loader-time trimming on a manifest-backed dev split
 - `scripts/validate_manifests.py` for enforcing the versioned unified manifest schema on data manifests
 - `scripts/infer_smoke.py` for inference-runtime and API startup smoke validation
+- `scripts/build_triton_model_repository.py` for packaging the current encoder-boundary ONNX or TensorRT artifact into a Triton model repository with generated `config.pbtxt` and sample infer request
+- `scripts/triton_infer_smoke.py` for probing a running Triton server through `/v2/models/<name>/infer` with the generated sample request
 - `scripts/inference_stress_report.py` for release-oriented stress validation across deterministic corrupted/extreme-duration inputs, malformed requests, and batch bursts
 - `scripts/build_final_benchmark_pack.py` for building one self-contained release pack that copies frozen quality/stress/config artifacts and computes pairwise candidate comparisons
 - `scripts/repro_check.py` for reproducibility smoke validation
