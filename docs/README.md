@@ -15,3 +15,4 @@ Key serving notes:
 - `docs/model-card.md` for the release scope, training-data classes, caveats, and deployment assumptions
 - `docs/release-runbook.md` for preflight, rollout, monitoring, and rollback procedures
 - `docs/submission-release-bundle.md` for the handoff bundle that packages configs, model artifacts, docs, demo assets, and an optional archive
+- `docs/release-postmortem.md` for the release retrospective, backlog v2, and the reproducible postmortem workflow
