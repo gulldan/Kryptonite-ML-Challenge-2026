@@ -200,3 +200,5 @@ Before a candidate is presented as release-ready:
 4. Rebuild or verify the enrollment cache against the active model bundle.
 5. Build the final benchmark pack and use it as the review artifact.
 6. Record known scope limits and rollback inputs in the runbook.
+7. Build the submission/release bundle so the handoff contains the frozen
+   docs, configs, model artifacts, thresholds, and demo assets in one place.

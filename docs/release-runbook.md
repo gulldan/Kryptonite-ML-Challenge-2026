@@ -114,6 +114,18 @@ uv run python scripts/build_final_benchmark_pack.py \
 Do not use the checked-in example TOML as-is for a real release. Replace the
 placeholder candidate paths first.
 
+5. Build the final handoff bundle that stages the release docs, configs, model
+   artifacts, demo assets, and optional archive:
+
+```bash
+uv run python scripts/build_submission_bundle.py \
+  --config configs/release/submission-bundle.example.toml
+```
+
+For a real candidate, switch that config to `bundle_mode = "candidate"` and
+replace the smoke paths with frozen benchmark, threshold, checkpoint, and
+optional TensorRT artifacts before shipping the bundle onward.
+
 ## GPU Server Launch Runbook
 
 Use this path on `gpu-server` from

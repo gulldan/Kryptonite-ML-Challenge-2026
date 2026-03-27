@@ -14,3 +14,4 @@ Key serving notes:
 - `docs/final-benchmark-pack.md` for the release pack that freezes quality/latency/memory and exact configs
 - `docs/model-card.md` for the release scope, training-data classes, caveats, and deployment assumptions
 - `docs/release-runbook.md` for preflight, rollout, monitoring, and rollback procedures
+- `docs/submission-release-bundle.md` for the handoff bundle that packages configs, model artifacts, docs, demo assets, and an optional archive

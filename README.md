@@ -132,6 +132,7 @@ See [docs/threshold-calibration.md](./docs/threshold-calibration.md) for the nam
 See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
 See [docs/model-card.md](./docs/model-card.md) for the release-oriented model card, training-data classes, and caveats.
 See [docs/release-runbook.md](./docs/release-runbook.md) for the current rollout, smoke, monitoring, and rollback procedures.
+See [docs/submission-release-bundle.md](./docs/submission-release-bundle.md) for the self-contained handoff bundle that stages frozen configs, model artifacts, docs, demo assets, and an optional archive.
 
 ## Naming Conventions
 

@@ -43,6 +43,7 @@ Current entrypoints include:
 - `scripts/triton_infer_smoke.py` for probing a running Triton server through `/v2/models/<name>/infer` with the generated sample request
 - `scripts/inference_stress_report.py` for release-oriented stress validation across deterministic corrupted/extreme-duration inputs, malformed requests, and batch bursts
 - `scripts/build_final_benchmark_pack.py` for building one self-contained release pack that copies frozen quality/stress/config artifacts and computes pairwise candidate comparisons
+- `scripts/build_submission_bundle.py` for packaging the final handoff bundle with configs, model artifacts, docs, demo assets, checksums, and an optional `.tar.gz` archive
 - `scripts/repro_check.py` for reproducibility smoke validation
 - `scripts/show_config.py` for config inspection and overrides
 - `scripts/training_env_smoke.py` for training-environment import checks
