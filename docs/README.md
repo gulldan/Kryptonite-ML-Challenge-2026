@@ -6,6 +6,7 @@ Exploratory notes should stay in `notebooks/` until they become stable enough to
 
 Key serving notes:
 
+- `docs/model-task-contract.md` for the repository-level ADR that fixes the primary verification task, compatible identification modes, trial semantics, and handoff artifacts
 - `docs/web-demo.md` for the browser demo and runtime entrypoints
 - `docs/triton-deployment.md` for the encoder-boundary Triton model repository, launch flow, and TensorRT handoff constraints
 - `docs/inference-observability.md` for structured logs and Prometheus-compatible metrics
