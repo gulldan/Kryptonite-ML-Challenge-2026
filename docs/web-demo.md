@@ -17,6 +17,12 @@ Start the service:
 uv run python apps/api/main.py --config configs/deployment/infer.toml
 ```
 
+Or run the containerized local stack from the repository root:
+
+```bash
+docker compose up --build
+```
+
 Open the demo:
 
 ```text

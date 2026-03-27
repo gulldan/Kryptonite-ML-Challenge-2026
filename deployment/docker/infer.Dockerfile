@@ -19,7 +19,7 @@ COPY deployment ./deployment
 COPY scripts ./scripts
 COPY src ./src
 
-RUN uv sync --frozen --no-dev --group infer
+RUN uv sync --frozen --no-dev --group infer --group train
 RUN .venv/bin/python scripts/infer_smoke.py --config configs/deployment/infer.toml
 
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime

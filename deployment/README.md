@@ -9,7 +9,7 @@ This directory is intentionally separate from `apps/` and `src/` so serving adap
 The repository ships two container build targets under `deployment/docker/`:
 
 - `train.Dockerfile` installs the locked `train` and `tracking` groups and runs `scripts/training_env_smoke.py --config configs/deployment/train.toml` during build.
-- `infer.Dockerfile` installs the locked `infer` group, validates `configs/deployment/infer.toml`, and starts the FastAPI adapter from `apps/api/main.py`.
+- `infer.Dockerfile` installs the locked `infer` and `train` groups, validates `configs/deployment/infer.toml`, and starts the FastAPI adapter from `apps/api/main.py`.
 
 The build-stage smoke is intentionally advisory with respect to datasets, manifests, demo subsets, and model bundles. It verifies the container packaging and locked runtime, but it does not claim deploy readiness by itself.
 
@@ -32,6 +32,46 @@ Generate the canonical mini-demo artifact set before strict target-machine valid
 ```bash
 uv run python scripts/generate_demo_artifacts.py --config configs/deployment/infer.toml
 ```
+
+## Docker Compose Demo
+
+The repository root now ships a default [`compose.yml`](../compose.yml) so the local mini-demo can
+be started with one command from the checkout root:
+
+```bash
+docker compose up --build
+```
+
+The stack contains two services:
+
+- `demo-artifacts`: one-shot bootstrap that generates the synthetic model bundle, demo subset,
+  manifests, and offline enrollment cache inside named Docker volumes
+- `demo`: the FastAPI runtime that serves both the JSON API and the `/demo` browser UI on port
+  `8080`
+
+Open the demo at:
+
+```text
+http://127.0.0.1:8080/demo
+```
+
+The API health endpoint stays on:
+
+```text
+http://127.0.0.1:8080/health
+```
+
+Useful lifecycle commands:
+
+```bash
+docker compose up --build -d
+docker compose logs -f demo
+docker compose down
+docker compose down -v
+```
+
+`docker compose down -v` removes the generated model/cache/manifests volumes and forces a clean
+bootstrap on the next run.
 
 ## Artifact Contract
 
@@ -107,6 +147,9 @@ The health payload now includes an `artifacts` block so target-machine runs can 
 
 - Base image versions are pinned in the Dockerfiles via explicit `PYTHON_VERSION` and `UV_IMAGE` arguments.
 - Dependency versions stay fixed through `uv.lock`; the build uses `uv sync --frozen` to prevent drift.
-- The infer image intentionally uses an ONNX Runtime-only config to avoid shipping the heavier training stack in a demo/runtime container.
+- The infer image now layers the shared torch/torchaudio/VAD frontend from the `train` group on top
+  of the thin API/runtime dependencies, because the current `feature_statistics` inferencer and
+  `generate_demo_artifacts.py` bootstrap both execute the same runtime audio frontend inside the
+  container.
 - Strict artifact validation is opt-in because the real deploy inputs do not exist on every development machine.
 - The generated demo artifact set is intentionally tiny and synthetic so the target-machine deploy path can be validated without checking large raw datasets into git.

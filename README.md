@@ -36,6 +36,26 @@ uv run python scripts/training_env_smoke.py --require-gpu
 
 The important detail is that TensorRT is layered into the same repo-local `.venv` created by `uv sync`, not into a separate global environment.
 
+## Local Demo via Docker Compose
+
+From the repository root, the quickest end-to-end local demo path is:
+
+```bash
+docker compose up --build
+```
+
+This boots a one-shot artifact generator plus the FastAPI runtime that serves both the API and the
+browser demo. Open:
+
+- `http://127.0.0.1:8080/demo`
+- `http://127.0.0.1:8080/health`
+
+To stop the stack and remove the generated demo volumes:
+
+```bash
+docker compose down -v
+```
+
 ## Repository Layout
 
 ```text
@@ -63,6 +83,7 @@ See [docs/configuration.md](./docs/configuration.md) for config overrides and se
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
 See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
+See [docs/web-demo.md](./docs/web-demo.md) for the browser demo flow and compose-based launch path.
 See [docs/dataset-inventory.md](./docs/dataset-inventory.md) for the repository-level policy on approved, conditional, and blocked data resources.
 See [docs/ffsvc2022-surrogate.md](./docs/ffsvc2022-surrogate.md) for the current server-only surrogate dataset strategy.
 See [docs/gpu-server-data-sync.md](./docs/gpu-server-data-sync.md) for gpu-server dataset/manifests sync and readiness auditing.
