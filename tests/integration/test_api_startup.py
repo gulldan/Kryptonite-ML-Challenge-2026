@@ -16,6 +16,11 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")
@@ -38,7 +43,9 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
         server.server_close()
 
     assert payload["service"] == "kryptonite-infer"
-    assert payload["selected_backend"] == "onnxruntime"
+    assert payload["requested_backend"] == "auto"
+    assert payload["selected_backend"] == "torch"
+    assert payload["selected_provider"] is None
     assert payload["status"] == "ok"
     assert payload["artifacts"]["scope"] == "infer"
     assert payload["artifacts"]["strict"] is False

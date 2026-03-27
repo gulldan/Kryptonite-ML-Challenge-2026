@@ -73,7 +73,10 @@ def build_demo_state(
     return {
         "service": {
             "status": health["status"],
+            "requested_backend": health["requested_backend"],
             "selected_backend": health["selected_backend"],
+            "selected_provider": health["selected_provider"],
+            "selection": dict(health["selection"]),
             "model_bundle": dict(health["model_bundle"]),
             "inferencer": dict(health["inferencer"]),
             "runtime": dict(health["runtime"]),

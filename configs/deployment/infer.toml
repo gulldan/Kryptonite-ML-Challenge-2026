@@ -23,9 +23,9 @@ max_epochs = 1
 precision = "fp32"
 
 [backends]
-inference = "onnxruntime"
+inference = "auto"
 export = "onnx"
-allow_torch = false
+allow_torch = true
 allow_onnx = true
 allow_tensorrt = false
 

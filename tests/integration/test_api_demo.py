@@ -28,7 +28,8 @@ def test_demo_page_and_state_endpoint_expose_runtime_metadata(
         _stop_server(server, thread)
 
     assert "Kryptonite Speaker Demo" in demo_html
-    assert state_payload["service"]["selected_backend"] == "onnxruntime"
+    assert state_payload["service"]["requested_backend"] == "auto"
+    assert state_payload["service"]["selected_backend"] == "torch"
     assert state_payload["threshold"]["source"] == "builtin_default"
     assert state_payload["threshold"]["value"] == 0.995
     assert state_payload["default_stage"] == "demo"
@@ -134,6 +135,11 @@ def _start_server(
     config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")

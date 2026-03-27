@@ -73,7 +73,9 @@ class GeneratedStressInputs:
 @dataclass(frozen=True, slots=True)
 class StressServiceMetadata:
     service_status: str
+    requested_backend: str
     selected_backend: str
+    selected_provider: str | None
     implementation: str
     model_version: str
     platform: str
@@ -82,7 +84,9 @@ class StressServiceMetadata:
     def to_dict(self) -> dict[str, object]:
         return {
             "service_status": self.service_status,
+            "requested_backend": self.requested_backend,
             "selected_backend": self.selected_backend,
+            "selected_provider": self.selected_provider,
             "implementation": self.implementation,
             "model_version": self.model_version,
             "platform": self.platform,
@@ -571,7 +575,13 @@ def build_inference_stress_report(
 
     service = StressServiceMetadata(
         service_status=str(health_payload["status"]),
+        requested_backend=str(health_payload["requested_backend"]),
         selected_backend=str(health_payload["selected_backend"]),
+        selected_provider=(
+            None
+            if health_payload.get("selected_provider") is None
+            else str(health_payload["selected_provider"])
+        ),
         implementation=str(health_payload["inferencer"]["implementation"]),
         model_version=str(health_payload["model_bundle"]["model_version"]),
         platform=str(health_payload["runtime"]["platform"]),

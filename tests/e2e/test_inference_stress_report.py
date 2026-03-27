@@ -45,7 +45,8 @@ def test_inference_stress_report_covers_audio_bursts_and_malformed_inputs(
     malformed_ids = {result.scenario_id for result in report.malformed_requests}
 
     assert report.summary.passed is True
-    assert report.service.selected_backend == "onnxruntime"
+    assert report.service.requested_backend == "auto"
+    assert report.service.selected_backend == "torch"
     assert report.service.implementation == "feature_statistics"
     assert report.summary.control_ordering_passed is True
     assert report.summary.long_audio_chunking_observed is True
@@ -95,6 +96,11 @@ def test_generate_inference_stress_inputs_writes_catalog_and_assets(tmp_path: Pa
 
 def _patch_runtime_probes(monkeypatch) -> None:
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")

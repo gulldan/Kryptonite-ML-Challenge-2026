@@ -190,6 +190,11 @@ def generate_demo_artifacts(
                 inferencer_backend="feature_statistics",
                 embedding_stage="demo",
                 embedding_mode="mean_std",
+                validated_runtime_backends={
+                    "torch": True,
+                    "onnxruntime": False,
+                    "tensorrt": False,
+                },
                 extra_metadata={
                     "sample_rate_hz": sample_rate,
                     "structural_stub": True,

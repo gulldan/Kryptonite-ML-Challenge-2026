@@ -17,7 +17,7 @@ The suite lives in `tests/e2e/test_inference_regression_suite.py`.
 The regression suite generates the repository demo artifacts and then runs the
 same top-level flow against the thin FastAPI adapter that production/demo entrypoints use.
 
-Per backend selection (`torch`, `onnxruntime`, `tensorrt`) it verifies:
+Per requested backend mode (`auto`, `torch`) it verifies:
 
 - `GET /health` and `GET /openapi.json` expose the expected release surface;
 - `POST /embed` matches `Inferencer.embed_audio_paths(...)` exactly on the same audio;
@@ -31,12 +31,12 @@ Per backend selection (`torch`, `onnxruntime`, `tensorrt`) it verifies:
 The repository currently keeps one shared raw-audio embedding implementation:
 `feature_statistics`.
 
-The runtime `selected_backend` flag is already part of the release contract,
+The runtime backend-selection contract is already part of the release surface,
 telemetry labels, and deploy metadata, but the CI environment does not provide
-real TensorRT. The regression suite therefore stubs the backend-availability
+real TensorRT. The regression suite therefore stubs only the availability
 probe while keeping the actual raw-audio frontend + scoring path real. This
-lets CI catch API/telemetry/backend-label drift without pretending that GitHub
-Actions is a production inference host.
+lets CI catch requested-vs-resolved backend drift without pretending that
+GitHub Actions is a production inference host.
 
 ## How To Run
 

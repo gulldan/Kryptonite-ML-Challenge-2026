@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from kryptonite.config import ProjectConfig
 from kryptonite.data.audio_loader import AudioLoadRequest
+from kryptonite.serve.inference_package import build_inference_package_contract
 
 EXPORT_BOUNDARY_FORMAT_VERSION = "kryptonite.serve.export_boundary.v1"
 SUPPORTED_EXPORT_BOUNDARY_MODES = frozenset({"encoder_only"})
@@ -274,6 +275,8 @@ def build_model_bundle_metadata(
     embedding_stage: str = "demo",
     embedding_mode: str | None = "mean_std",
     embedding_dim: int | None = None,
+    tensorrt_engine_file: str | None = None,
+    validated_runtime_backends: Mapping[str, bool] | None = None,
     extra_metadata: Mapping[str, object] | None = None,
 ) -> dict[str, Any]:
     contract = build_export_boundary_contract(
@@ -294,6 +297,11 @@ def build_model_bundle_metadata(
         "enrollment_cache_compatibility_id": enrollment_cache_compatibility_id,
         "description": description,
         "export_boundary": contract.to_dict(),
+        "inference_package": build_inference_package_contract(
+            onnx_model_file=model_file,
+            tensorrt_engine_file=tensorrt_engine_file,
+            validated_backends=validated_runtime_backends,
+        ).to_dict(),
     }
     if extra_metadata is not None:
         metadata.update(dict(extra_metadata))

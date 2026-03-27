@@ -40,12 +40,16 @@ def test_inferencer_embeds_audio_paths_and_verifies_against_cache(
         iterations=2,
         warmup_iterations=0,
     )
+    health_payload = inferencer.health_payload()
 
     assert embed_payload["mode"] == "embed"
     assert embed_payload["embedding_dim"] == 160
     assert embed_payload["item_count"] == 1
     assert len(embed_payload["items"][0]["embedding"]) == 160
     assert embed_payload["backend"]["implementation"] == "feature_statistics"
+    assert health_payload["requested_backend"] == "auto"
+    assert health_payload["selected_backend"] == "torch"
+    assert health_payload["selected_provider"] is None
 
     assert alpha_verify["probe_count"] == 1
     assert alpha_verify["scores"][0] > bravo_verify["scores"][0]
@@ -93,6 +97,11 @@ def _build_demo_config(tmp_path: Path):
 
 def _patch_runtime_probes(monkeypatch) -> None:
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")

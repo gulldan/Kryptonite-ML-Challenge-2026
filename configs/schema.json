@@ -72,8 +72,11 @@
             "type": "object",
             "required": ["inference", "export", "allow_torch", "allow_onnx", "allow_tensorrt"],
             "properties": {
-                "inference": {"type": "string"},
-                "export": {"type": "string"},
+                "inference": {
+                    "type": "string",
+                    "enum": ["auto", "onnx", "onnxruntime", "tensorrt", "torch"]
+                },
+                "export": {"type": "string", "enum": ["onnx", "torch"]},
                 "allow_torch": {"type": "boolean"},
                 "allow_onnx": {"type": "boolean"},
                 "allow_tensorrt": {"type": "boolean"},

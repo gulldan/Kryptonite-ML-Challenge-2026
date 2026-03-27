@@ -112,9 +112,9 @@ outcome = "missed"
 title = "The learned export path is still not the live runtime implementation"
 detail = """
 The repository now exposes a production-like runtime surface, but the active
-embedding implementation is still feature_statistics. Export-oriented backlog
-items were not landed, so selected_backend can point at onnxruntime or tensorrt
- while the real embedding path remains a stubbed fallback.
+embedding implementation is still feature_statistics. Runtime metadata is now
+truthful about the resolved backend, but export-oriented backlog items were not
+yet landed, so the fallback chain still terminates at the torch path.
 """
 evidence = ["model_card", "release_runbook", "inference_wrapper", "inference_backend", "regression_suite"]
 related_issues = ["KVA-538", "KVA-539", "KVA-540", "KVA-541", "KVA-544"]
