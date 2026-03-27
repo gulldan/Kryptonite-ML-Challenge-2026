@@ -73,8 +73,7 @@ def test_gpu_compose_override_uses_gpu_image_and_profile() -> None:
     compose_override = Path("compose.gpu.yml").read_text()
     dockerfile = Path("deployment/docker/infer.gpu.Dockerfile").read_text()
     default_command = (
-        'CMD ["python", "apps/api/main.py", "--config", '
-        '"configs/deployment/infer-gpu.toml"'
+        'CMD ["python", "apps/api/main.py", "--config", "configs/deployment/infer-gpu.toml"'
     )
 
     assert "deployment/docker/infer.gpu.Dockerfile" in compose_override

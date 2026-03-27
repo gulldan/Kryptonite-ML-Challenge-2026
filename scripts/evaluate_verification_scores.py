@@ -125,8 +125,7 @@ IDS_KEY_OPTION = typer.Option(
     "point_ids",
     "--ids-key",
     help=(
-        "Optional point-id array key used when reading evaluation embeddings from a .npz "
-        "artifact."
+        "Optional point-id array key used when reading evaluation embeddings from a .npz artifact."
     ),
 )
 P_TARGET_OPTION = typer.Option(0.01, "--p-target", help="Target prior used for minDCF.")

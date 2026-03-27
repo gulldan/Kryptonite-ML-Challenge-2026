@@ -115,9 +115,7 @@ EMBEDDINGS_KEY_OPTION = typer.Option(
 IDS_KEY_OPTION = typer.Option(
     "point_ids",
     "--ids-key",
-    help=(
-        "Optional point-id array key to use when the source embeddings artifact is a .npz file."
-    ),
+    help=("Optional point-id array key to use when the source embeddings artifact is a .npz file."),
 )
 OVERRIDE_OPTION = typer.Option(
     None,

@@ -152,10 +152,7 @@ def compute_identifier_cohort_statistics(
     )
     if missing_identifiers:
         preview = ", ".join(repr(identifier) for identifier in missing_identifiers[:3])
-        raise ValueError(
-            "Score normalization could not resolve an embedding for: "
-            f"{preview}."
-        )
+        raise ValueError(f"Score normalization could not resolve an embedding for: {preview}.")
 
     query_embeddings = np.stack(
         [context.identifier_to_embedding[identifier] for identifier in identifiers],
