@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from statistics import fmean
 from typing import Any
 
@@ -22,6 +23,7 @@ from .enrollment_cache import (
     load_model_bundle_metadata,
     validate_enrollment_cache_compatibility,
 )
+from .enrollment_store import RUNTIME_ENROLLMENT_STORE_DB_NAME, RuntimeEnrollmentStore
 from .inference_backend import build_runtime_embedding_backend
 from .runtime import (
     ServeRuntimeReport,
@@ -142,6 +144,7 @@ class Inferencer:
         )
         scoring_service, enrollment_cache_payload = _build_scoring_service(
             config=config,
+            model_metadata_path=model_metadata_path,
             model_metadata=model_metadata,
         )
         embedding_backend = build_runtime_embedding_backend(
@@ -404,6 +407,7 @@ def _coerce_audio_paths(audio_paths: Sequence[str]) -> list[str]:
 def _build_scoring_service(
     *,
     config: ProjectConfig,
+    model_metadata_path: Path,
     model_metadata: Mapping[str, object] | None,
 ) -> tuple[ScoringService, dict[str, object]]:
     cache_root = resolve_project_path(
@@ -411,53 +415,118 @@ def _build_scoring_service(
         config.deployment.enrollment_cache_root,
     )
     summary_path = cache_root / ENROLLMENT_SUMMARY_JSON_NAME
-    if not summary_path.exists():
-        return (
-            ScoringService(),
-            {
-                "loaded": False,
-                "cache_root": str(cache_root),
-                "enrollment_count": 0,
-            },
-        )
-
-    if model_metadata is None:
-        raise ValueError(
-            "Enrollment cache exists, but model bundle metadata is missing; "
-            "cannot validate compatibility."
-        )
-
-    loaded_cache = load_enrollment_embedding_cache(cache_root)
-    validate_enrollment_cache_compatibility(
-        summary=loaded_cache.summary,
-        model_metadata=model_metadata,
-    )
-    initial_enrollments = {
-        enrollment_id: EnrollmentRecord(
-            enrollment_id=enrollment_id,
-            sample_count=int(metadata_row["sample_count"]),
-            embedding_dim=int(embedding.shape[0]),
-            embedding=embedding,
-            metadata=dict(metadata_row),
-        )
-        for enrollment_id, embedding, metadata_row in zip(
-            _resolve_enrollment_ids(loaded_cache.metadata_rows),
-            loaded_cache.embeddings,
-            loaded_cache.metadata_rows,
-            strict=True,
-        )
+    initial_enrollments: dict[str, EnrollmentRecord] = {}
+    enrollment_cache_payload: dict[str, object] = {
+        "loaded": False,
+        "cache_root": str(cache_root),
+        "enrollment_count": 0,
     }
-    return (
-        ScoringService(initial_enrollments=initial_enrollments),
-        {
+
+    if not summary_path.exists():
+        pass
+    else:
+        if model_metadata is None:
+            raise ValueError(
+                "Enrollment cache exists, but model bundle metadata is missing; "
+                "cannot validate compatibility."
+            )
+
+        loaded_cache = load_enrollment_embedding_cache(cache_root)
+        validate_enrollment_cache_compatibility(
+            summary=loaded_cache.summary,
+            model_metadata=model_metadata,
+        )
+        initial_enrollments.update(
+            {
+                enrollment_id: EnrollmentRecord(
+                    enrollment_id=enrollment_id,
+                    sample_count=int(metadata_row["sample_count"]),
+                    embedding_dim=int(embedding.shape[0]),
+                    embedding=embedding,
+                    metadata=dict(metadata_row),
+                )
+                for enrollment_id, embedding, metadata_row in zip(
+                    _resolve_enrollment_ids(loaded_cache.metadata_rows),
+                    loaded_cache.embeddings,
+                    loaded_cache.metadata_rows,
+                    strict=True,
+                )
+            }
+        )
+        enrollment_cache_payload = {
             "loaded": True,
             "cache_root": str(cache_root),
             "enrollment_count": loaded_cache.summary.enrollment_count,
             "compatibility_id": loaded_cache.summary.compatibility_id,
             "format_version": loaded_cache.summary.format_version,
             "source_manifest_path": loaded_cache.summary.source_manifest_path,
-        },
+        }
+
+    runtime_store, runtime_store_payload = _build_runtime_enrollment_store(
+        config=config,
+        cache_root=cache_root,
+        model_metadata_path=model_metadata_path,
+        model_metadata=model_metadata,
     )
+    if runtime_store is not None:
+        initial_enrollments.update(
+            {
+                enrollment_id: EnrollmentRecord(
+                    enrollment_id=record.enrollment_id,
+                    sample_count=record.sample_count,
+                    embedding_dim=record.embedding_dim,
+                    embedding=record.embedding,
+                    metadata=dict(record.metadata),
+                )
+                for enrollment_id, record in runtime_store.load_records().items()
+            }
+        )
+
+    enrollment_cache_payload["runtime_store"] = runtime_store_payload
+    return (
+        ScoringService(
+            initial_enrollments=initial_enrollments,
+            persistent_store=runtime_store,
+        ),
+        enrollment_cache_payload,
+    )
+
+
+def _build_runtime_enrollment_store(
+    *,
+    config: ProjectConfig,
+    cache_root: Path,
+    model_metadata_path: Path,
+    model_metadata: Mapping[str, object] | None,
+) -> tuple[RuntimeEnrollmentStore | None, dict[str, object]]:
+    store_path = cache_root / RUNTIME_ENROLLMENT_STORE_DB_NAME
+    if model_metadata is None:
+        if store_path.exists():
+            raise ValueError(
+                "Runtime enrollment store exists, but model bundle metadata is missing; "
+                "cannot validate compatibility."
+            )
+        return (
+            None,
+            {
+                "enabled": False,
+                "loaded": False,
+                "store_path": str(store_path),
+                "enrollment_count": 0,
+                "reason": "model bundle metadata missing",
+            },
+        )
+
+    runtime_store = RuntimeEnrollmentStore(
+        store_root=cache_root,
+        model_metadata_path=model_metadata_path,
+        model_metadata_location=_relative_to_project(
+            model_metadata_path,
+            resolve_project_path(config.paths.project_root, "."),
+        ),
+        model_metadata=model_metadata,
+    )
+    return runtime_store, runtime_store.describe()
 
 
 def _resolve_enrollment_ids(metadata_rows: list[dict[str, object]]) -> list[str]:
@@ -468,6 +537,13 @@ def _resolve_enrollment_ids(metadata_rows: list[dict[str, object]]) -> list[str]
             raise ValueError("Enrollment cache metadata rows must define non-empty enrollment_id.")
         enrollment_ids.append(enrollment_id)
     return enrollment_ids
+
+
+def _relative_to_project(path: Path, project_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(project_root.resolve()))
+    except ValueError:
+        return str(path.resolve())
 
 
 __all__ = ["Inferencer"]

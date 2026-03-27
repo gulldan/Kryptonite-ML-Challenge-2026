@@ -132,6 +132,51 @@ def test_enroll_and_verify_endpoints_share_the_same_scoring_state(
     assert verify_payload["decisions"] == [True]
 
 
+def test_enrollments_persist_across_server_restart(monkeypatch, tmp_path: Path) -> None:
+    first_server, first_thread = _start_server(monkeypatch, tmp_path)
+    try:
+        enroll_status, _ = _post_json(
+            f"http://127.0.0.1:{first_server.server_address[1]}/enroll",
+            {
+                "enrollment_id": "speaker-charlie",
+                "embeddings": [[2.0, 0.0], [6.0, 0.0]],
+                "metadata": {"source": "restart-test"},
+            },
+        )
+    finally:
+        _stop_server(first_server, first_thread)
+
+    second_server, second_thread = _start_server(monkeypatch, tmp_path)
+    try:
+        with urlopen(f"http://127.0.0.1:{second_server.server_address[1]}/enrollments") as response:
+            enrollments_payload = json.loads(response.read().decode("utf-8"))
+        with urlopen(f"http://127.0.0.1:{second_server.server_address[1]}/health") as response:
+            health_payload = json.loads(response.read().decode("utf-8"))
+        verify_status, verify_payload = _post_json(
+            f"http://127.0.0.1:{second_server.server_address[1]}/verify",
+            {
+                "enrollment_id": "speaker-charlie",
+                "probe": [1.0, 0.0],
+                "threshold": 0.9,
+            },
+        )
+    finally:
+        _stop_server(second_server, second_thread)
+
+    assert enroll_status == 201
+    assert enrollments_payload["enrollment_count"] == 3
+    assert {enrollment["enrollment_id"] for enrollment in enrollments_payload["enrollments"]} == {
+        "speaker_alpha",
+        "speaker_bravo",
+        "speaker-charlie",
+    }
+    assert health_payload["enrollment_cache"]["runtime_store"]["loaded"] is True
+    assert health_payload["enrollment_cache"]["runtime_store"]["enrollment_count"] == 1
+    assert verify_status == 200
+    assert verify_payload["scores"] == [1.0]
+    assert verify_payload["decisions"] == [True]
+
+
 def test_verify_endpoint_accepts_audio_paths_against_preloaded_cache(
     monkeypatch,
     tmp_path: Path,
