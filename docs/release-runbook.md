@@ -39,10 +39,14 @@ Primary operational endpoints:
 
 Important inspection rule:
 
-- `selected_backend` tells you what the deployment config requested;
-- `inferencer.implementation` tells you what is actually generating embeddings.
+- `requested_backend` tells you what the deployment config asked for;
+- `selected_backend` tells you which runtime path actually won the fallback chain;
+- `inferencer.implementation` tells you which embedding implementation is actually generating
+  embeddings.
 
-For the current repository state, that second field is the authoritative one.
+For the current repository state, `selected_backend = "torch"` and
+`inferencer.implementation = "feature_statistics"` is the expected steady-state
+until a validated learned export backend is promoted.
 
 ## Preflight Checklist
 
@@ -216,7 +220,7 @@ active threshold intentionally.
 Primary checks:
 
 ```bash
-curl -s http://127.0.0.1:8080/health | jq '{status, selected_backend, inferencer, model_bundle, artifacts, enrollment_cache}'
+curl -s http://127.0.0.1:8080/health | jq '{status, requested_backend, selected_backend, selected_provider, selection, inferencer, model_bundle, artifacts, enrollment_cache}'
 curl -s http://127.0.0.1:8080/demo/api/state | jq '{threshold, service}'
 curl -s http://127.0.0.1:8080/metrics | head -40
 ```
@@ -224,7 +228,7 @@ curl -s http://127.0.0.1:8080/metrics | head -40
 Interpretation:
 
 - `status != "ok"` means runtime or artifact preflight is degraded;
-- `selected_backend` and `inferencer.implementation` must be read together;
+- `requested_backend`, `selected_backend`, and `inferencer.implementation` must be read together;
 - `model_bundle.model_version` must match the intended rollout target;
 - `threshold.origin_path` from `/demo/api/state` must point at the intended
   calibration artifact;
@@ -241,8 +245,8 @@ Common failure patterns:
   `artifacts/release/current/verification_threshold_calibration.json` so it is
   the newest visible calibration artifact;
 - backend confusion:
-  inspect both `selected_backend` and `inferencer.implementation` before
-  assuming ONNX Runtime or torch is actually serving embeddings;
+  inspect `selection.trace`, `selected_backend`, and `inferencer.implementation`
+  before assuming ONNX Runtime or torch is actually serving embeddings;
 - runtime latency regression:
   rerun `scripts/inference_stress_report.py` and compare the new report to the
   frozen benchmark pack before changing thresholds or configs.

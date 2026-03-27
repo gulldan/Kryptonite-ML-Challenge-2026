@@ -23,11 +23,11 @@ max_epochs = 1
 precision = "fp32"
 
 [backends]
-inference = "torch"
+inference = "auto"
 export = "onnx"
 allow_torch = true
 allow_onnx = true
-allow_tensorrt = false
+allow_tensorrt = true
 
 [export]
 opset = 18

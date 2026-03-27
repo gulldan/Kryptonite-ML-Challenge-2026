@@ -19,15 +19,19 @@ ALPHA_AUDIO_PATH = "artifacts/demo-subset/test/speaker_alpha-test_01.wav"
 BRAVO_AUDIO_PATH = "artifacts/demo-subset/test/speaker_bravo-test_01.wav"
 
 
-@pytest.mark.parametrize("selected_backend", ("torch", "onnxruntime", "tensorrt"))
+@pytest.mark.parametrize(
+    ("requested_backend", "resolved_backend"),
+    (("auto", "torch"), ("torch", "torch")),
+)
 def test_end_to_end_regression_suite_exercises_backend_matrix(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    selected_backend: str,
+    requested_backend: str,
+    resolved_backend: str,
 ) -> None:
     pytest.importorskip("torch")
-    config = _build_demo_config(tmp_path, selected_backend=selected_backend)
-    _patch_runtime_backend_probe(monkeypatch, selected_backend=selected_backend)
+    config = _build_demo_config(tmp_path, requested_backend=requested_backend)
+    _patch_runtime_backend_probe(monkeypatch)
 
     inferencer = Inferencer.from_config(config=config)
     server, thread = _start_server(config=config)
@@ -84,8 +88,10 @@ def test_end_to_end_regression_suite_exercises_backend_matrix(
         threshold=0.995,
     )
 
-    assert health_payload["selected_backend"] == selected_backend
-    assert health_payload["telemetry"]["backend"] == selected_backend
+    assert health_payload["requested_backend"] == requested_backend
+    assert health_payload["selected_backend"] == resolved_backend
+    assert health_payload["selected_provider"] is None
+    assert health_payload["telemetry"]["backend"] == resolved_backend
     assert health_payload["telemetry"]["implementation"] == "feature_statistics"
     assert health_payload["model_bundle"]["model_version"] == "demo-onnx-stub-v1"
     assert "/embed" in openapi_payload["paths"]
@@ -132,7 +138,7 @@ def test_end_to_end_regression_suite_exercises_backend_matrix(
     )
     assert (
         _inference_operations_metric_line(
-            backend=selected_backend,
+            backend=resolved_backend,
             operation="embed",
             stage="demo",
             count=1,
@@ -141,7 +147,7 @@ def test_end_to_end_regression_suite_exercises_backend_matrix(
     )
     assert (
         _inference_operations_metric_line(
-            backend=selected_backend,
+            backend=resolved_backend,
             operation="verify",
             stage="demo",
             count=2,
@@ -150,7 +156,7 @@ def test_end_to_end_regression_suite_exercises_backend_matrix(
     )
     assert (
         _inference_operations_metric_line(
-            backend=selected_backend,
+            backend=resolved_backend,
             operation="benchmark",
             stage="eval",
             count=1,
@@ -163,7 +169,7 @@ def test_end_to_end_regression_suite_exercises_backend_matrix(
     )
 
 
-def _build_demo_config(tmp_path: Path, *, selected_backend: str) -> ProjectConfig:
+def _build_demo_config(tmp_path: Path, *, requested_backend: str) -> ProjectConfig:
     config = load_project_config(
         config_path=Path("configs/deployment/infer.toml"),
         overrides=[
@@ -173,21 +179,17 @@ def _build_demo_config(tmp_path: Path, *, selected_backend: str) -> ProjectConfi
             'deployment.model_bundle_root="artifacts/model-bundle"',
             'deployment.demo_subset_root="artifacts/demo-subset"',
             'deployment.enrollment_cache_root="artifacts/enrollment-cache"',
-            f'backends.inference="{selected_backend}"',
-            f"backends.allow_torch={selected_backend == 'torch'}",
-            f"backends.allow_onnx={selected_backend == 'onnxruntime'}",
-            f"backends.allow_tensorrt={selected_backend == 'tensorrt'}",
+            f'backends.inference="{requested_backend}"',
+            "backends.allow_torch=true",
+            "backends.allow_onnx=true",
+            "backends.allow_tensorrt=false",
         ],
     )
     generate_demo_artifacts(config=config)
     return config
 
 
-def _patch_runtime_backend_probe(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    selected_backend: str,
-) -> None:
+def _patch_runtime_backend_probe(monkeypatch: pytest.MonkeyPatch) -> None:
     backend_modules = {
         "torch": SimpleNamespace(
             cuda=SimpleNamespace(is_available=lambda: False),
@@ -205,7 +207,7 @@ def _patch_runtime_backend_probe(
     }
 
     def fake_load_module(module_name: str) -> object:
-        if module_name in backend_modules and module_name == selected_backend:
+        if module_name in backend_modules:
             return backend_modules[module_name]
         raise ImportError(f"{module_name} missing")
 

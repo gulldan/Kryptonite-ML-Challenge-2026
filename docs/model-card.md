@@ -150,9 +150,10 @@ Current release limitations that should be called out during review:
 
 - the checked-in demo/runtime path validates deployment shape more than final
   learned-model quality;
-- `selected_backend` in service metadata reflects deployment config, while the
-  active inferencer implementation still needs to be checked separately through
-  `inferencer.implementation`;
+- `requested_backend` reflects deployment intent, while `selected_backend`
+  reflects the resolved runtime path after fallback selection;
+- the active inferencer implementation still needs to be checked separately
+  through `inferencer.implementation`;
 - threshold profiles are data-dependent and must be regenerated from the frozen
   score bundle for each real release candidate;
 - enrollment caches are only valid for the model-bundle metadata they were
@@ -179,7 +180,8 @@ Operational requirements:
   newer stale `verification_threshold_calibration.json` can silently override
   the intended threshold unless rollout is controlled carefully;
 - health and demo-state inspection should always check both:
-  - configured backend: `selected_backend`;
+  - requested backend: `requested_backend`;
+  - resolved backend: `selected_backend`;
   - real embedding implementation: `inferencer.implementation`.
 
 Operational references:

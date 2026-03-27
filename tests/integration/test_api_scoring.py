@@ -121,7 +121,7 @@ def test_metrics_endpoint_reports_http_inference_and_validation_counters(
         in metrics_payload
     )
     assert (
-        'kryptonite_inference_operations_total{backend="onnxruntime",'
+        'kryptonite_inference_operations_total{backend="torch",'
         'model_version="demo-onnx-stub-v1",operation="embed",stage="demo"} 1' in metrics_payload
     )
     assert (
@@ -162,7 +162,7 @@ def test_embed_endpoint_emits_structured_telemetry_logs(
 
     assert inference_logs
     log_payload = inference_logs[-1]
-    assert log_payload["backend"] == "onnxruntime"
+    assert log_payload["backend"] == "torch"
     assert log_payload["implementation"] == "feature_statistics"
     assert log_payload["model_version"] == "demo-onnx-stub-v1"
     assert log_payload["audio_count"] == 1
@@ -297,6 +297,11 @@ def _start_server(
     config = _build_demo_config(tmp_path)
 
     def fake_load_module(module_name: str) -> object:
+        if module_name == "torch":
+            return SimpleNamespace(
+                cuda=SimpleNamespace(is_available=lambda: False),
+                version=SimpleNamespace(cuda=None),
+            )
         if module_name == "onnxruntime":
             return SimpleNamespace(get_available_providers=lambda: ["CPUExecutionProvider"])
         raise ImportError(f"{module_name} missing")

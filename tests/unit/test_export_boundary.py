@@ -56,6 +56,8 @@ def test_model_bundle_metadata_round_trips_export_boundary() -> None:
     assert metadata["model_version"] == "baseline"
     assert metadata["input_name"] == "encoder_input"
     assert metadata["output_name"] == "embedding"
+    assert metadata["inference_package"]["validated_backends"]["torch"] is True
+    assert metadata["inference_package"]["validated_backends"]["onnxruntime"] is False
     assert contract.output_tensor.axes[-1].size == 160
     validate_runtime_frontend_against_boundary(config=config, contract=contract)
 

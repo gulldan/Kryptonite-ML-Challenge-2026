@@ -15,6 +15,7 @@ That contract now lives in `src/kryptonite/serve/inferencer.py` as `Inferencer`.
 `Inferencer.from_config(...)` builds one runtime object that owns:
 
 - runtime/backend preflight via `build_serve_runtime_report(...)`;
+- requested-vs-resolved backend selection with a documented fallback trace;
 - deploy artifact checks via `build_infer_artifact_report(...)`;
 - model bundle metadata loading;
 - offline enrollment cache preload;
@@ -77,6 +78,7 @@ Example `POST /benchmark` request:
 ## Current Limits
 
 - The wrapper is ready for local/service parity, but not yet for final upload transport.
-- The backend abstraction is explicit, but only `feature_statistics` is implemented today.
+- The runtime now resolves `selected_backend` truthfully, but the only implemented embedding
+  engine is still the torch-based `feature_statistics` path.
 - Model bundle metadata is already loaded and surfaced, so a later ONNX/TensorRT backend can slot
   under the same `Inferencer` API without changing callers.

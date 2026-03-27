@@ -34,9 +34,9 @@ The current cycle did not succeed at:
 ## What Did Not Ship
 
 - The runtime contract is ahead of the real learned export path. Multiple docs
-  and tests call out the same boundary: `selected_backend` can report
-  `onnxruntime` or `tensorrt`, but the active embedding implementation is still
-  `feature_statistics`.
+  and tests call out the same boundary: the service now resolves
+  `selected_backend` truthfully, but the active embedding implementation is
+  still `feature_statistics`, so the learned export path is not live yet.
 - Teacher PEFT, distillation, optional ReDimNet exploration, and
   consistency-loss work remained stretch items. They did not become part of the
   must-have release path.

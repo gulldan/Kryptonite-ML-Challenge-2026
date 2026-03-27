@@ -49,6 +49,17 @@ class BackendsConfig:
     allow_onnx: bool
     allow_tensorrt: bool
 
+    def __post_init__(self) -> None:
+        normalized_inference = self.inference.strip().lower()
+        if normalized_inference not in {"auto", "torch", "onnx", "onnxruntime", "tensorrt"}:
+            raise ValueError(
+                "backends.inference must be one of "
+                "['auto', 'onnx', 'onnxruntime', 'tensorrt', 'torch']."
+            )
+        normalized_export = self.export.strip().lower()
+        if normalized_export not in {"onnx", "torch"}:
+            raise ValueError("backends.export must be one of ['onnx', 'torch'].")
+
 
 @dataclass(slots=True)
 class ExportConfig:

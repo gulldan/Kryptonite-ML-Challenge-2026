@@ -28,6 +28,22 @@ Supported value forms:
 - quoted TOML strings
 - plain strings, which are treated as raw text
 
+## Backend Selection
+
+Serving configs use `backends.inference` to express intent, not just a fixed
+runtime label.
+
+- `auto` asks the service to resolve the highest eligible backend from the
+  fallback chain `tensorrt -> onnxruntime -> torch`;
+- `torch`, `onnxruntime`, and `tensorrt` request a specific runtime path and
+  fail fast when that path is not validated or not available.
+
+At runtime, `GET /health` reports both:
+
+- `requested_backend`: what the config asked for;
+- `selected_backend`: what the service actually resolved after validation and
+  fallback.
+
 ## Secrets
 
 Copy `.env.example` to `.env` on each machine and fill in only the values you need.

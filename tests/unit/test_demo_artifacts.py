@@ -62,6 +62,13 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert metadata_payload["model_version"] == "demo-onnx-stub-v1"
     assert metadata_payload["input_name"] == "encoder_input"
     assert metadata_payload["output_name"] == "embedding"
+    assert metadata_payload["inference_package"]["backend_chain"] == [
+        "tensorrt",
+        "onnxruntime",
+        "torch",
+    ]
+    assert metadata_payload["inference_package"]["validated_backends"]["torch"] is True
+    assert metadata_payload["inference_package"]["validated_backends"]["onnxruntime"] is False
     assert metadata_payload["export_boundary"]["boundary"] == "encoder_only"
     assert metadata_payload["export_boundary"]["input_tensor"]["layout"] == "BTF"
 

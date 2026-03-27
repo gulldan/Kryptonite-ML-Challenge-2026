@@ -133,10 +133,6 @@ class Inferencer:
         config: ProjectConfig,
         require_artifacts: bool = False,
     ) -> Inferencer:
-        runtime_report = build_serve_runtime_report(config=config)
-        if not runtime_report.passed:
-            raise RuntimeError(render_serve_runtime_report(runtime_report))
-
         artifact_report = build_infer_artifact_report(config=config, strict=require_artifacts)
         if not artifact_report.passed:
             raise RuntimeError(render_artifact_report(artifact_report))
@@ -154,6 +150,12 @@ class Inferencer:
         if model_metadata is not None:
             export_boundary = load_export_boundary_from_model_metadata(model_metadata)
             validate_runtime_frontend_against_boundary(config=config, contract=export_boundary)
+        runtime_report = build_serve_runtime_report(
+            config=config,
+            model_metadata=None if model_metadata is None else dict(model_metadata),
+        )
+        if not runtime_report.passed:
+            raise RuntimeError(render_serve_runtime_report(runtime_report))
         scoring_service, enrollment_cache_payload = _build_scoring_service(
             config=config,
             model_metadata_path=model_metadata_path,
@@ -202,7 +204,10 @@ class Inferencer:
 
     @property
     def selected_backend(self) -> str:
-        return self._runtime_report.selected_backend
+        selected_backend = self._runtime_report.selected_backend
+        if selected_backend is None:
+            raise RuntimeError("Inferencer runtime report did not resolve a selected backend.")
+        return selected_backend
 
     @property
     def inferencer_implementation(self) -> str:
