@@ -46,13 +46,18 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     assert payload["enrollment_cache"]["enrollment_count"] == 2
     assert payload["enrollment_cache"]["runtime_store"]["enabled"] is True
     assert payload["enrollment_cache"]["runtime_store"]["enrollment_count"] == 0
+    assert payload["telemetry"]["enabled"] is True
+    assert payload["telemetry"]["metrics_enabled"] is True
+    assert payload["telemetry"]["metrics_path"] == "/metrics"
     assert payload["inferencer"]["implementation"] == "feature_statistics"
     assert payload["model_bundle"]["loaded"] is True
+    assert payload["model_bundle"]["model_version"] == "demo-onnx-stub-v1"
     assert payload["model_bundle"]["input_name"] == "encoder_input"
     assert payload["model_bundle"]["output_name"] == "embedding"
     assert payload["model_bundle"]["export_boundary"]["boundary"] == "encoder_only"
     assert payload["model_bundle"]["export_boundary"]["frontend_location"] == "runtime"
     assert "/health" in openapi_payload["paths"]
+    assert "/metrics" in openapi_payload["paths"]
     assert "/demo/api/state" in openapi_payload["paths"]
     assert "/demo/api/compare" in openapi_payload["paths"]
     assert "/demo/api/enroll" in openapi_payload["paths"]

@@ -71,6 +71,20 @@ class TrackingConfig:
 
 
 @dataclass(slots=True)
+class TelemetryConfig:
+    enabled: bool = True
+    structured_logs: bool = True
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
+
+    def __post_init__(self) -> None:
+        if not self.metrics_path.startswith("/"):
+            raise ValueError("metrics_path must start with '/'.")
+        if self.metrics_path == "/":
+            raise ValueError("metrics_path must not be '/'.")
+
+
+@dataclass(slots=True)
 class NormalizationConfig:
     target_sample_rate_hz: int
     target_channels: int
@@ -267,6 +281,7 @@ class ProjectConfig:
     backends: BackendsConfig
     export: ExportConfig
     tracking: TrackingConfig
+    telemetry: TelemetryConfig
     normalization: NormalizationConfig
     vad: VADConfig
     silence_augmentation: SilenceAugmentationConfig
@@ -287,6 +302,7 @@ class ProjectConfig:
             "backends": asdict(self.backends),
             "export": asdict(self.export),
             "tracking": asdict(self.tracking),
+            "telemetry": asdict(self.telemetry),
             "normalization": asdict(self.normalization),
             "vad": asdict(self.vad),
             "silence_augmentation": asdict(self.silence_augmentation),
@@ -328,6 +344,18 @@ def load_project_config(
         backends=BackendsConfig(**require_section(data, "backends")),
         export=ExportConfig(**require_section(data, "export")),
         tracking=TrackingConfig(**require_section(data, "tracking")),
+        telemetry=TelemetryConfig(
+            **optional_section(
+                data,
+                "telemetry",
+                {
+                    "enabled": True,
+                    "structured_logs": True,
+                    "metrics_enabled": True,
+                    "metrics_path": "/metrics",
+                },
+            )
+        ),
         normalization=NormalizationConfig(
             **optional_section(
                 data,

@@ -45,6 +45,12 @@ run_name_prefix = "infer-gpu"
 output_root = "artifacts/tracking"
 copy_artifacts = false
 
+[telemetry]
+enabled = true
+structured_logs = true
+metrics_enabled = true
+metrics_path = "/metrics"
+
 [secrets]
 wandb_api_key = "WANDB_API_KEY"
 mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"

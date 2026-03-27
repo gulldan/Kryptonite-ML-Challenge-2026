@@ -10,6 +10,7 @@ Current adapter scope:
 
 - `GET /health` as the primary runtime/artifact health endpoint
 - compatibility aliases: `GET /healthz` and `GET /readyz`
+- `GET /metrics` for Prometheus-compatible service telemetry
 - `GET /demo` (and `/`) plus `/demo/api/*` for the lightweight browser demo
 - `POST /score/pairwise` and `POST /score/one-to-many` for embedding-based cosine scoring
 - startup-time loading of the offline enrollment cache plus `POST /verify` and `GET /enrollments`
@@ -17,4 +18,5 @@ Current adapter scope:
 - `POST /embed` and `POST /benchmark` for raw-audio runtime inference and latency smoke checks
 - generated OpenAPI schema at `/openapi.json` and interactive docs at `/docs`
 
-See `docs/embedding-scoring.md` for request/response examples and `docs/web-demo.md` for the demo flow.
+See `docs/embedding-scoring.md` for request/response examples, `docs/web-demo.md` for the demo flow,
+and `docs/inference-observability.md` for logs and metrics.

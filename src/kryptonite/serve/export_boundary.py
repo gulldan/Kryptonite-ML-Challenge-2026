@@ -269,6 +269,7 @@ def build_model_bundle_metadata(
     model_file: str,
     enrollment_cache_compatibility_id: str,
     description: str,
+    model_version: str | None = None,
     inferencer_backend: str = "feature_statistics",
     embedding_stage: str = "demo",
     embedding_mode: str | None = "mean_std",
@@ -284,6 +285,7 @@ def build_model_bundle_metadata(
     )
     metadata: dict[str, Any] = {
         "model_file": model_file,
+        "model_version": model_version or config.export.profile,
         "input_name": contract.input_tensor.name,
         "output_name": contract.output_tensor.name,
         "inferencer_backend": inferencer_backend,

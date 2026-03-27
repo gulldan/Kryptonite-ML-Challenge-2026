@@ -37,6 +37,7 @@ from .runtime import (
     render_serve_runtime_report,
 )
 from .scoring_service import EnrollmentRecord, ScoringService
+from .telemetry import resolve_model_version
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +189,7 @@ class Inferencer:
         if self._model_metadata:
             payload["model_bundle"] = {
                 "loaded": True,
+                "model_version": self.model_version,
                 "input_name": self._model_metadata.get("input_name"),
                 "output_name": self._model_metadata.get("output_name"),
                 "export_boundary": (
@@ -195,8 +197,21 @@ class Inferencer:
                 ),
             }
         else:
-            payload["model_bundle"] = {"loaded": False}
+            payload["model_bundle"] = {"loaded": False, "model_version": self.model_version}
         return payload
+
+    @property
+    def selected_backend(self) -> str:
+        return self._runtime_report.selected_backend
+
+    @property
+    def inferencer_implementation(self) -> str:
+        implementation = self._embedding_backend.describe().get("implementation")
+        return str(implementation) if implementation is not None else "unknown"
+
+    @property
+    def model_version(self) -> str:
+        return resolve_model_version(self._model_metadata)
 
     def list_enrollments(self) -> dict[str, Any]:
         return self._scoring_service.list_enrollments()
@@ -327,14 +342,20 @@ class Inferencer:
         durations: list[float] = []
         chunk_counts: list[int] = []
         effective_stage: str | None = None
+        last_batch: AudioEmbeddingBatch | None = None
         for _ in range(iterations):
             started = time.perf_counter()
             batch = self._embed_audio_batch(audio_paths=normalized_paths, stage=stage)
             durations.append(time.perf_counter() - started)
             chunk_counts.append(batch.total_chunk_count)
             effective_stage = batch.stage
+            last_batch = batch
 
         mean_iteration_seconds = fmean(durations)
+        total_audio_duration_seconds = (
+            0.0 if last_batch is None else sum(item.duration_seconds for item in last_batch.items)
+        )
+        total_chunk_count = 0 if last_batch is None else last_batch.total_chunk_count
         return {
             "mode": "benchmark",
             "stage": effective_stage,
@@ -347,7 +368,9 @@ class Inferencer:
             "mean_ms_per_audio": round(
                 (mean_iteration_seconds * 1000.0) / len(normalized_paths), 8
             ),
+            "total_audio_duration_seconds": round(total_audio_duration_seconds, 6),
             "mean_chunk_count": round(float(fmean(chunk_counts)), 6),
+            "total_chunk_count": total_chunk_count,
             "backend": dict(self._embedding_backend.describe()),
         }
 

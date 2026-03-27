@@ -53,6 +53,7 @@ def test_model_bundle_metadata_round_trips_export_boundary() -> None:
 
     contract = load_export_boundary_from_model_metadata(metadata)
 
+    assert metadata["model_version"] == "baseline"
     assert metadata["input_name"] == "encoder_input"
     assert metadata["output_name"] == "embedding"
     assert contract.output_tensor.axes[-1].size == 160

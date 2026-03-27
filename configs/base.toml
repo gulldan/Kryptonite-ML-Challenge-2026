@@ -45,6 +45,12 @@ run_name_prefix = "smoke"
 output_root = "artifacts/tracking"
 copy_artifacts = true
 
+[telemetry]
+enabled = true
+structured_logs = true
+metrics_enabled = true
+metrics_path = "/metrics"
+
 [normalization]
 target_sample_rate_hz = 16000
 target_channels = 1

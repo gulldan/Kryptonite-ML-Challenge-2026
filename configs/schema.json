@@ -10,6 +10,7 @@
         "backends",
         "export",
         "tracking",
+        "telemetry",
         "normalization",
         "vad",
         "augmentation_scheduler",
@@ -111,6 +112,17 @@
                 "copy_artifacts": {"type": "boolean"},
             },
             "additionalProperties": false,
+        },
+        "telemetry": {
+            "type": "object",
+            "required": ["enabled", "structured_logs", "metrics_enabled", "metrics_path"],
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "structured_logs": {"type": "boolean"},
+                "metrics_enabled": {"type": "boolean"},
+                "metrics_path": {"type": "string", "pattern": "^/.+"}
+            },
+            "additionalProperties": false
         },
         "normalization": {
             "type": "object",

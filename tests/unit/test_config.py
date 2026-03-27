@@ -16,6 +16,10 @@ def test_load_project_config_uses_defaults() -> None:
     assert config.export.input_name == "encoder_input"
     assert config.export.output_name == "embedding"
     assert config.tracking.backend == "local"
+    assert config.telemetry.enabled is True
+    assert config.telemetry.structured_logs is True
+    assert config.telemetry.metrics_enabled is True
+    assert config.telemetry.metrics_path == "/metrics"
     assert config.normalization.target_sample_rate_hz == 16000
     assert config.normalization.target_channels == 1
     assert config.normalization.output_format == "wav"
@@ -78,6 +82,8 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
             "normalization.loudness_mode=rms",
             "normalization.target_loudness_dbfs=-24.0",
             "normalization.max_loudness_gain_db=18.0",
+            "telemetry.metrics_enabled=false",
+            'telemetry.metrics_path="/internal/metrics"',
             "vad.mode=light",
             "vad.provider=cpu",
             "vad.min_output_duration_seconds=1.25",
@@ -109,6 +115,8 @@ def test_load_project_config_applies_overrides_and_env_file(tmp_path: Path) -> N
     assert config.export.boundary == "encoder_only"
     assert config.export.input_name == "encoder_input"
     assert config.export.output_name == "embedding"
+    assert config.telemetry.metrics_enabled is False
+    assert config.telemetry.metrics_path == "/internal/metrics"
     assert config.normalization.output_format == "flac"
     assert config.normalization.loudness_mode == "rms"
     assert config.normalization.target_loudness_dbfs == -24.0
@@ -159,6 +167,7 @@ def test_infer_gpu_profile_targets_cuda_torch_runtime() -> None:
     assert config.backends.allow_torch is True
     assert config.backends.allow_onnx is True
     assert config.backends.allow_tensorrt is False
+    assert config.telemetry.metrics_path == "/metrics"
     assert config.reproducibility.fingerprint_paths == [
         "configs/deployment/infer-gpu.toml",
         "configs/schema.json",

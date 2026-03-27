@@ -186,6 +186,7 @@ def generate_demo_artifacts(
                     "The runtime frontend stays outside the graph; this bundle validates only "
                     "the deploy contract shape, not production SV quality."
                 ),
+                model_version="demo-onnx-stub-v1",
                 inferencer_backend="feature_statistics",
                 embedding_stage="demo",
                 embedding_mode="mean_std",

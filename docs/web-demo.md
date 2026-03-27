@@ -50,6 +50,11 @@ The root path `/` now serves the same demo page for convenience. Health checks s
 - `GET /health`
 - `GET /healthz`
 - `GET /readyz`
+- `GET /metrics`
+
+`/metrics` exports Prometheus-compatible counters and histograms for HTTP requests, validation
+errors, and audio inference operations. Structured JSON logs use the same backend/model-version
+context and surface request latency, audio duration, chunk counts, and validation failures.
 
 ## Demo API
 

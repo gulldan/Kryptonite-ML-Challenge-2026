@@ -59,6 +59,7 @@ def test_generate_demo_artifacts_creates_expected_files(tmp_path: Path) -> None:
     assert len(subset_payload["test"]) == 2
     metadata_payload = json.loads(metadata_file.read_text())
     assert metadata_payload["enrollment_cache_compatibility_id"]
+    assert metadata_payload["model_version"] == "demo-onnx-stub-v1"
     assert metadata_payload["input_name"] == "encoder_input"
     assert metadata_payload["output_name"] == "embedding"
     assert metadata_payload["export_boundary"]["boundary"] == "encoder_only"
