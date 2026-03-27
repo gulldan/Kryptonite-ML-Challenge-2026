@@ -10,6 +10,7 @@ The repository ships two container build targets under `deployment/docker/`:
 
 - `train.Dockerfile` installs the locked `train` and `tracking` groups and runs `scripts/training_env_smoke.py --config configs/deployment/train.toml` during build.
 - `infer.Dockerfile` installs the locked `infer` and `train` groups, validates `configs/deployment/infer.toml`, and starts the FastAPI adapter from `apps/api/main.py`.
+- `infer.gpu.Dockerfile` installs the same locked runtime on top of an NVIDIA CUDA runtime base so `torch` can execute the current inferencer on `gpu-server`.
 
 The build-stage smoke is intentionally advisory with respect to datasets, manifests, demo subsets, and model bundles. It verifies the container packaging and locked runtime, but it does not claim deploy readiness by itself.
 
@@ -18,6 +19,7 @@ Build them from the repository root:
 ```bash
 docker build -f deployment/docker/train.Dockerfile -t kryptonite-train .
 docker build -f deployment/docker/infer.Dockerfile -t kryptonite-infer .
+docker build -f deployment/docker/infer.gpu.Dockerfile -t kryptonite-infer-gpu .
 ```
 
 Smoke-check the resulting images:
@@ -25,6 +27,7 @@ Smoke-check the resulting images:
 ```bash
 docker run --rm kryptonite-train
 docker run --rm kryptonite-infer python scripts/infer_smoke.py --config configs/deployment/infer.toml
+docker run --rm --gpus all kryptonite-infer-gpu python scripts/infer_smoke.py --config configs/deployment/infer-gpu.toml
 ```
 
 Generate the canonical mini-demo artifact set before strict target-machine validation:
@@ -57,7 +60,7 @@ The stack contains two services:
 
 The GPU override changes two things:
 
-- both services request `gpus: all`
+- both services request `gpus: all` and build from `deployment/docker/infer.gpu.Dockerfile`
 - the stack switches to [`configs/deployment/infer-gpu.toml`](../configs/deployment/infer-gpu.toml),
   which sets `runtime.device = "cuda"` and `backends.inference = "torch"`
 
@@ -163,6 +166,9 @@ The health payload now includes an `artifacts` block so target-machine runs can 
   of the thin API/runtime dependencies, because the current `feature_statistics` inferencer and
   `generate_demo_artifacts.py` bootstrap both execute the same runtime audio frontend inside the
   container.
+- The GPU image is split into its own Dockerfile instead of overloading the default CPU image,
+  because the validated `gpu-server` Docker runtime requires an NVIDIA CUDA base image for the
+  current torch CUDA wheels to initialize correctly inside the container.
 - The current GPU path is intentionally the torch-backed runtime frontend. On the validated
   `gpu-server` environment, `onnxruntime` is CPU-only, so the honest GPU mode today is
   `runtime.device = "cuda"` with `backends.inference = "torch"` instead of claiming a CUDA/TensorRT

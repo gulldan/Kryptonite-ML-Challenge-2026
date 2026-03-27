@@ -29,6 +29,9 @@ On `gpu-server`, switch to the GPU override:
 docker compose -f compose.yml -f compose.gpu.yml up --build
 ```
 
+That override builds `deployment/docker/infer.gpu.Dockerfile`, which keeps the
+default CPU image untouched and swaps the demo stack onto a CUDA runtime base.
+
 Open the demo:
 
 ```text
@@ -65,6 +68,7 @@ The current runtime implementation is still the shared `feature_statistics` infe
 means:
 
 - the container gets NVIDIA GPU access through Docker Compose;
+- the GPU override builds from `deployment/docker/infer.gpu.Dockerfile`;
 - `runtime.device` is set to `cuda`;
 - the service reports `selected_backend = "torch"` because that is the runtime path that actually
   executes on CUDA today.

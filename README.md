@@ -62,6 +62,10 @@ On `gpu-server`, use the GPU override so the current `feature_statistics` infere
 docker compose -f compose.yml -f compose.gpu.yml up --build
 ```
 
+The GPU override swaps the image build to
+`deployment/docker/infer.gpu.Dockerfile`, which uses an NVIDIA CUDA runtime
+base and points the service at `configs/deployment/infer-gpu.toml`.
+
 ## Repository Layout
 
 ```text

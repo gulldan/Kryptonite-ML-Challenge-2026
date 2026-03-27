@@ -1,5 +1,8 @@
 services:
   demo-artifacts:
+    build:
+      dockerfile: deployment/docker/infer.gpu.Dockerfile
+    image: kryptonite-infer-gpu:local
     command:
       - python
       - scripts/generate_demo_artifacts.py
@@ -11,6 +14,9 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
   demo:
+    build:
+      dockerfile: deployment/docker/infer.gpu.Dockerfile
+    image: kryptonite-infer-gpu:local
     command:
       - python
       - apps/api/main.py

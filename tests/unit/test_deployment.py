@@ -67,3 +67,17 @@ def test_infer_artifact_report_requires_real_paths_in_strict_mode(tmp_path: Path
 
     assert report.passed is True
     assert report.missing_required == []
+
+
+def test_gpu_compose_override_uses_gpu_image_and_profile() -> None:
+    compose_override = Path("compose.gpu.yml").read_text()
+    dockerfile = Path("deployment/docker/infer.gpu.Dockerfile").read_text()
+    default_command = (
+        'CMD ["python", "apps/api/main.py", "--config", '
+        '"configs/deployment/infer-gpu.toml"'
+    )
+
+    assert "deployment/docker/infer.gpu.Dockerfile" in compose_override
+    assert "configs/deployment/infer-gpu.toml" in compose_override
+    assert "gpus: all" in compose_override
+    assert default_command in dockerfile
