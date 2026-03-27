@@ -1,0 +1,53 @@
+title = "Kryptonite INT8 feasibility"
+report_id = "kryptonite-2026-int8-feasibility"
+candidate_label = "Current export surface"
+summary = """
+Decide whether INT8 can be promoted honestly on top of the current ONNX/TensorRT
+handoff. The checked-in config is expected to return `no_go` until a non-stub
+model bundle, a reference FP16 engine, an ONNX parity report, and matched FP16
+vs INT8 quality/latency measurements exist.
+"""
+output_root = "artifacts/release-decisions/kryptonite-2026-int8-feasibility"
+
+validation_commands = [
+  "uv run python scripts/build_int8_feasibility_report.py --config configs/release/int8-feasibility.toml",
+  "uv run python scripts/infer_smoke.py --config configs/deployment/infer-gpu.toml",
+]
+
+notes = [
+  "This workflow records a saved calibration-set spec first and only returns `go` after the promoted FP16 path is real.",
+  "The current repository intentionally reports `no_go` because the checked-in export surface still lacks a real FP16 TensorRT engine and parity-backed measurements.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle/metadata.json"
+onnx_model_path = "artifacts/model-bundle/model.onnx"
+fp16_engine_path = "artifacts/model-bundle/model.plan"
+int8_engine_path = "artifacts/model-bundle/model.int8.plan"
+onnx_parity_report_path = "artifacts/release/current/onnx_parity_report.json"
+fp16_verification_report_path = "artifacts/release/current/fp16/verification_eval_report.json"
+fp16_stress_report_path = "artifacts/release/current/fp16/inference_stress_report.json"
+int8_verification_report_path = "artifacts/release/current/int8/verification_eval_report.json"
+int8_stress_report_path = "artifacts/release/current/int8/inference_stress_report.json"
+
+[calibration_set]
+source_catalog_path = "assets/int8/calibration_catalog.json"
+include_categories = ["baseline", "extreme_duration", "corruption"]
+exclude_scenarios = ["alpha_silence"]
+short_max_duration_seconds = 1.0
+mid_max_duration_seconds = 4.0
+notes = [
+  "Use the same deterministic stress-suite inputs that exercise clean, corrupted, and dynamic-shape traffic.",
+  "Silence-only waveforms stay in stress validation but are excluded from the default INT8 calibration selection.",
+]
+
+[gates]
+require_non_stub_model = true
+require_fp16_engine = true
+require_onnx_parity_report = true
+require_int8_engine = true
+max_eer_delta = 0.01
+max_min_dcf_delta = 0.02
+min_latency_speedup_ratio = 1.15
+max_process_rss_delta_mib = 128.0
+max_cuda_allocated_delta_mib = 256.0
