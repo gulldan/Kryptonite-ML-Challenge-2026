@@ -59,7 +59,8 @@ docker compose down -v
 On `gpu-server`, use the GPU override so the current `feature_statistics` inferencer runs on CUDA:
 
 ```bash
-docker compose -f compose.yml -f compose.gpu.yml up --build
+DOCKER_BUILDKIT=0 docker build -f deployment/docker/infer.gpu.Dockerfile -t kryptonite-infer-gpu:local .
+docker compose -f compose.yml -f compose.gpu.yml up --no-build
 ```
 
 The GPU override swaps the image build to
@@ -67,6 +68,10 @@ The GPU override swaps the image build to
 base, points the service at `configs/deployment/infer-gpu.toml`, and enables
 the server-side `privileged` workaround required by the current `gpu-server`
 Docker security profile for CUDA compute.
+
+That two-step command is the validated server path. On the current
+`gpu-server`, `docker compose ... up --build` delegates to `buildx` and may
+stall while exporting the large CUDA image.
 
 ## Repository Layout
 

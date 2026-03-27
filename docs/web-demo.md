@@ -26,13 +26,18 @@ docker compose up --build
 On `gpu-server`, switch to the GPU override:
 
 ```bash
-docker compose -f compose.yml -f compose.gpu.yml up --build
+DOCKER_BUILDKIT=0 docker build -f deployment/docker/infer.gpu.Dockerfile -t kryptonite-infer-gpu:local .
+docker compose -f compose.yml -f compose.gpu.yml up --no-build
 ```
 
 That override builds `deployment/docker/infer.gpu.Dockerfile`, which keeps the
 default CPU image untouched, swaps the demo stack onto a CUDA runtime base, and
 applies the `privileged` workaround currently required on `gpu-server` for CUDA
 compute inside Docker.
+
+This is also the validated launch sequence on the current `gpu-server`: `buildx`
+can hang while exporting the large CUDA image, so the reliable server path is an
+explicit legacy `docker build` followed by compose startup without rebuild.
 
 Open the demo:
 

@@ -48,7 +48,8 @@ docker compose up --build
 For `gpu-server`, use the GPU override:
 
 ```bash
-docker compose -f compose.yml -f compose.gpu.yml up --build
+DOCKER_BUILDKIT=0 docker build -f deployment/docker/infer.gpu.Dockerfile -t kryptonite-infer-gpu:local .
+docker compose -f compose.yml -f compose.gpu.yml up --no-build
 ```
 
 The stack contains two services:
@@ -173,6 +174,10 @@ The health payload now includes an `artifacts` block so target-machine runs can 
   `privileged: true`; `--gpus all` alone is enough for `nvidia-smi`, but not enough for
   `cudaGetDeviceCount()` / `torch.cuda.is_available()`. The root `compose.gpu.yml`
   captures that server-specific workaround explicitly.
+- On the same `gpu-server`, `docker compose ... up --build` currently delegates image export to
+  `buildx`, and the large CUDA image can stall there for a long time. The validated operational
+  path is therefore `DOCKER_BUILDKIT=0 docker build ...` followed by
+  `docker compose ... up --no-build`.
 - The current GPU path is intentionally the torch-backed runtime frontend. On the validated
   `gpu-server` environment, `onnxruntime` is CPU-only, so the honest GPU mode today is
   `runtime.device = "cuda"` with `backends.inference = "torch"` instead of claiming a CUDA/TensorRT
