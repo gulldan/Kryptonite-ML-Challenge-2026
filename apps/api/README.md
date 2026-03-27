@@ -10,10 +10,11 @@ Current adapter scope:
 
 - `GET /health` as the primary runtime/artifact health endpoint
 - compatibility aliases: `GET /healthz` and `GET /readyz`
+- `GET /demo` (and `/`) plus `/demo/api/*` for the lightweight browser demo
 - `POST /score/pairwise` and `POST /score/one-to-many` for embedding-based cosine scoring
 - startup-time loading of the offline enrollment cache plus `POST /verify` and `GET /enrollments`
-- `POST /enroll` as a process-local override for smoke tests and manual contract checks
+- `POST /enroll` and `POST /demo/api/enroll` as runtime-store-backed enrollment updates
 - `POST /embed` and `POST /benchmark` for raw-audio runtime inference and latency smoke checks
 - generated OpenAPI schema at `/openapi.json` and interactive docs at `/docs`
 
-See `docs/embedding-scoring.md` for request/response examples and scope limits.
+See `docs/embedding-scoring.md` for request/response examples and `docs/web-demo.md` for the demo flow.

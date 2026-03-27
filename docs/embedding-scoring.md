@@ -59,6 +59,9 @@ Current implementation details:
 
 The FastAPI adapter in `src/kryptonite/serve/http.py` now exposes embedding-based JSON endpoints plus an OpenAPI schema at `/openapi.json` and interactive docs at `/docs`.
 
+For the browser-facing mini demo mounted on the same runtime, see
+[docs/web-demo.md](./web-demo.md).
+
 Primary health endpoint:
 
 - `GET /health`
@@ -118,8 +121,9 @@ Stores an in-memory enrollment embedding by:
 3. L2-normalizing the pooled enrollment vector.
 
 The runtime now starts from the offline enrollment cache when one is present and compatible with
-the active model bundle metadata. `POST /enroll` remains intentionally process-local so smoke tests
-and manual probes can inject or override entries without mutating the checked-in cache artifacts.
+the active model bundle metadata. Runtime updates are persisted through the runtime enrollment
+store, so `POST /enroll` survives server restart as long as the same compatible model bundle and
+cache root are reused.
 
 `POST /enroll` now also accepts `audio_path` / `audio_paths` instead of precomputed embeddings.
 

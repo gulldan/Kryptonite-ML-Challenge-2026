@@ -11,18 +11,30 @@ from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from kryptonite.config import ProjectConfig
+from kryptonite.deployment import resolve_project_path
 
 from .api_models import (
     BenchmarkAudioRequest,
+    DemoCompareRequest,
+    DemoEnrollmentRequest,
+    DemoVerifyRequest,
     EmbedAudioRequest,
     EnrollmentRequest,
     OneToManyScoringRequest,
     PairwiseScoringRequest,
     VerifyRequest,
 )
+from .demo import (
+    build_demo_state,
+    resolve_demo_threshold,
+    run_demo_compare,
+    run_demo_enroll,
+    run_demo_verify,
+)
+from .demo_ui import render_demo_page
 from .inferencer import Inferencer
 from .scoring_service import EnrollmentNotFoundError
 
@@ -50,7 +62,7 @@ def create_http_app(
         )
     except ValueError as exc:
         raise RuntimeError(str(exc)) from exc
-    return _build_app(inferencer)
+    return _build_app(inferencer, config=config)
 
 
 def run_http_server(
@@ -72,12 +84,14 @@ def run_http_server(
         server.server_close()
 
 
-def _build_app(inferencer: Inferencer) -> FastAPI:
+def _build_app(inferencer: Inferencer, *, config: ProjectConfig) -> FastAPI:
     app = FastAPI(
         title="Kryptonite Inference API",
         version="0.1.0",
         summary="Thin FastAPI adapter over the unified Kryptonite inferencer.",
     )
+    demo_threshold = resolve_demo_threshold(config=config)
+    demo_root = resolve_project_path(config.paths.project_root, config.deployment.demo_subset_root)
 
     @app.exception_handler(EnrollmentNotFoundError)
     async def _handle_enrollment_not_found(
@@ -90,12 +104,48 @@ def _build_app(inferencer: Inferencer) -> FastAPI:
     async def _handle_value_error(_request: object, exc: ValueError) -> JSONResponse:
         return JSONResponse(status_code=400, content=_error_payload(str(exc)))
 
-    @app.get("/", include_in_schema=False)
     @app.get("/healthz", include_in_schema=False)
     @app.get("/readyz", include_in_schema=False)
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, Any]:
         return inferencer.health_payload()
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> Response:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @app.get("/", include_in_schema=False, response_class=HTMLResponse)
+    @app.get("/demo", tags=["demo"], response_class=HTMLResponse)
+    async def demo_page() -> HTMLResponse:
+        return HTMLResponse(render_demo_page())
+
+    @app.get("/demo/api/state", tags=["demo"])
+    async def demo_state() -> dict[str, object]:
+        return build_demo_state(
+            inferencer=inferencer,
+            config=config,
+            threshold=demo_threshold,
+        )
+
+    @app.post("/demo/api/compare", tags=["demo"])
+    async def demo_compare(request: DemoCompareRequest) -> dict[str, object]:
+        return run_demo_compare(
+            inferencer=inferencer,
+            request=request,
+            default_threshold=demo_threshold,
+        )
+
+    @app.post("/demo/api/enroll", tags=["demo"])
+    async def demo_enroll(request: DemoEnrollmentRequest) -> dict[str, object]:
+        return run_demo_enroll(inferencer=inferencer, request=request)
+
+    @app.post("/demo/api/verify", tags=["demo"])
+    async def demo_verify(request: DemoVerifyRequest) -> dict[str, object]:
+        return run_demo_verify(
+            inferencer=inferencer,
+            request=request,
+            default_threshold=demo_threshold,
+        )
 
     @app.get("/enrollments", tags=["enrollment"])
     async def enrollments() -> dict[str, Any]:
@@ -173,6 +223,8 @@ def _build_app(inferencer: Inferencer) -> FastAPI:
             threshold=request.threshold,
         )
 
+    if not demo_root.exists():
+        app.extra["demo_warning"] = f"Configured demo subset root is missing: {demo_root}"
     return app
 
 
@@ -198,7 +250,10 @@ class FastAPIServerHandle:
         self._server = _EmbeddedUvicornServer(config)
 
     def serve_forever(self) -> None:
-        asyncio.run(self._server.serve(sockets=[self._socket]))
+        try:
+            asyncio.run(self._server.serve(sockets=[self._socket]))
+        except KeyboardInterrupt:
+            return
 
     def shutdown(self) -> None:
         self._server.should_exit = True

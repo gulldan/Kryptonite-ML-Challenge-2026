@@ -1,0 +1,66 @@
+# Web Demo
+
+## Goal
+
+Expose a lightweight browser UI for the current speaker-verification runtime without introducing a
+separate frontend toolchain.
+
+The demo is intentionally built on top of the existing FastAPI adapter and shared
+`Inferencer`, so the browser flow exercises the same runtime/backend selection, enrollment store,
+audio loading, and verification code paths as the JSON API.
+
+## Entry Points
+
+Start the service:
+
+```bash
+uv run python apps/api/main.py --config configs/deployment/infer.toml
+```
+
+Open the demo:
+
+```text
+http://127.0.0.1:8080/demo
+```
+
+The root path `/` now serves the same demo page for convenience. Health checks stay on:
+
+- `GET /health`
+- `GET /healthz`
+- `GET /readyz`
+
+## Demo API
+
+Browser actions use dedicated JSON endpoints under `/demo/api/*`:
+
+- `GET /demo/api/state`
+  returns runtime metadata, current enrollments, and the default threshold reference
+- `POST /demo/api/compare`
+  uploads two files, embeds them through the shared inferencer, and returns `score`, `decision`,
+  `threshold`, `backend`, and `latency_ms`
+- `POST /demo/api/enroll`
+  uploads one or more enrollment files and persists the resulting enrollment through the runtime
+  enrollment store
+- `POST /demo/api/verify`
+  uploads one probe file and verifies it against a selected enrollment
+
+The browser sends audio as base64-encoded JSON payloads. That keeps the demo self-contained and
+avoids an extra multipart dependency in the runtime environment.
+
+## Threshold Resolution
+
+The demo resolves its default threshold in this order:
+
+1. latest `verification_threshold_calibration.json` with a `demo` profile
+2. latest `verification_eval_report.json` decision threshold
+3. built-in fallback `0.995`
+
+The active source is surfaced in `/demo/api/state` and in the UI so the operator can tell whether
+the page is using a calibrated operating point or a fallback.
+
+## Current Limits
+
+- The browser flow is meant for local/manual demonstration, not for production auth or bulk upload.
+- Upload transport is JSON base64 for simplicity; very large files are not the intended use case.
+- The fallback threshold is only a conservative demo default. A real calibrated
+  `verification_threshold_calibration.json` should take precedence when available.

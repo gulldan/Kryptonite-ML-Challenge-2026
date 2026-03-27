@@ -49,6 +49,10 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     assert payload["inferencer"]["implementation"] == "feature_statistics"
     assert payload["model_bundle"]["loaded"] is True
     assert "/health" in openapi_payload["paths"]
+    assert "/demo/api/state" in openapi_payload["paths"]
+    assert "/demo/api/compare" in openapi_payload["paths"]
+    assert "/demo/api/enroll" in openapi_payload["paths"]
+    assert "/demo/api/verify" in openapi_payload["paths"]
     assert "/embed" in openapi_payload["paths"]
     assert "/enroll" in openapi_payload["paths"]
     assert "/verify" in openapi_payload["paths"]
