@@ -66,6 +66,29 @@ def test_one_to_many_scoring_endpoint_returns_ranked_matches(
     ]
 
 
+def test_embed_endpoint_returns_runtime_embeddings_from_audio_paths(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    server, thread = _start_server(monkeypatch, tmp_path)
+    try:
+        status, payload = _post_json(
+            f"http://127.0.0.1:{server.server_address[1]}/embed",
+            {
+                "audio_paths": ["artifacts/demo-subset/test/speaker_alpha-test_01.wav"],
+            },
+        )
+    finally:
+        _stop_server(server, thread)
+
+    assert status == 200
+    assert payload["mode"] == "embed"
+    assert payload["embedding_dim"] == 160
+    assert payload["item_count"] == 1
+    assert payload["backend"]["implementation"] == "feature_statistics"
+    assert len(payload["items"][0]["embedding"]) == 160
+
+
 def test_enroll_and_verify_endpoints_share_the_same_scoring_state(
     monkeypatch,
     tmp_path: Path,
@@ -108,6 +131,36 @@ def test_enroll_and_verify_endpoints_share_the_same_scoring_state(
     assert verify_payload["mode"] == "verify"
     assert verify_payload["scores"] == [1.0]
     assert verify_payload["decisions"] == [True]
+
+
+def test_verify_endpoint_accepts_audio_paths_against_preloaded_cache(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    server, thread = _start_server(monkeypatch, tmp_path)
+    try:
+        alpha_status, alpha_payload = _post_json(
+            f"http://127.0.0.1:{server.server_address[1]}/verify",
+            {
+                "enrollment_id": "speaker_alpha",
+                "audio_path": "artifacts/demo-subset/test/speaker_alpha-test_01.wav",
+            },
+        )
+        bravo_status, bravo_payload = _post_json(
+            f"http://127.0.0.1:{server.server_address[1]}/verify",
+            {
+                "enrollment_id": "speaker_alpha",
+                "audio_path": "artifacts/demo-subset/test/speaker_bravo-test_01.wav",
+            },
+        )
+    finally:
+        _stop_server(server, thread)
+
+    assert alpha_status == 200
+    assert bravo_status == 200
+    assert alpha_payload["scores"][0] > bravo_payload["scores"][0]
+    assert alpha_payload["backend"]["implementation"] == "feature_statistics"
+    assert alpha_payload["probe_items"][0]["chunk_count"] >= 1
 
 
 def _start_server(

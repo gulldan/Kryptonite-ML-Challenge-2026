@@ -8,6 +8,7 @@ from .enrollment_cache import (
     validate_enrollment_cache_compatibility,
 )
 from .http import create_http_server, run_http_server
+from .inferencer import Inferencer
 from .runtime import (
     ServeRuntimeReport,
     build_serve_runtime_report,
@@ -19,6 +20,7 @@ from .scoring_service import EnrollmentNotFoundError, EnrollmentRecord, ScoringS
 __all__ = [
     "EnrollmentNotFoundError",
     "EnrollmentRecord",
+    "Inferencer",
     "ScoringService",
     "ENROLLMENT_CACHE_FORMAT_VERSION",
     "ServeRuntimeReport",

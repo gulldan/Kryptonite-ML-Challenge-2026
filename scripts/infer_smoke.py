@@ -8,7 +8,7 @@ from pathlib import Path
 
 from kryptonite.config import load_project_config
 from kryptonite.deployment import render_artifact_report
-from kryptonite.serve import create_http_server
+from kryptonite.serve import Inferencer, create_http_server
 from kryptonite.serve.deployment import build_infer_artifact_report
 from kryptonite.serve.runtime import build_serve_runtime_report, render_serve_runtime_report
 
@@ -62,27 +62,35 @@ def main() -> None:
     strict_artifacts = args.require_artifacts or config.deployment.require_artifacts
     report = build_serve_runtime_report(config=config)
     artifact_report = build_infer_artifact_report(config=config, strict=strict_artifacts)
+    inferencer = None
+    if report.passed and artifact_report.passed:
+        inferencer = Inferencer.from_config(
+            config=config,
+            require_artifacts=strict_artifacts,
+        )
 
     if args.output == "json":
-        print(
-            json.dumps(
-                {
-                    "runtime": report.to_dict(),
-                    "artifacts": artifact_report.to_dict(),
-                },
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        payload = {
+            "runtime": report.to_dict(),
+            "artifacts": artifact_report.to_dict(),
+        }
+        if inferencer is not None:
+            payload["inferencer"] = inferencer.health_payload()["inferencer"]
+        print(json.dumps(payload, indent=2, sort_keys=True))
     else:
-        print(
-            "\n\n".join(
-                (
-                    render_serve_runtime_report(report),
-                    render_artifact_report(artifact_report),
-                )
+        sections = [
+            render_serve_runtime_report(report),
+            render_artifact_report(artifact_report),
+        ]
+        if inferencer is not None:
+            inferencer_payload = inferencer.health_payload()["inferencer"]
+            sections.append(
+                "Inferencer smoke: PASS "
+                f"(implementation={inferencer_payload['implementation']}, "
+                f"embedding_dim={inferencer_payload['embedding_dim']}, "
+                f"stage={inferencer_payload['default_stage']})"
             )
-        )
+        print("\n\n".join(sections))
 
     if not report.passed or not artifact_report.passed:
         raise SystemExit(1)

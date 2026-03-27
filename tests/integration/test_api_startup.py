@@ -41,6 +41,8 @@ def test_health_endpoint_reports_selected_backend(monkeypatch, tmp_path: Path) -
     assert payload["artifacts"]["strict"] is False
     assert payload["enrollment_cache"]["loaded"] is True
     assert payload["enrollment_cache"]["enrollment_count"] == 2
+    assert payload["inferencer"]["implementation"] == "feature_statistics"
+    assert payload["model_bundle"]["loaded"] is True
 
 
 def _build_demo_config(tmp_path: Path):

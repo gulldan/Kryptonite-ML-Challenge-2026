@@ -19,6 +19,11 @@ from kryptonite.eval.embedding_atlas.io import (
     load_metadata_rows,
 )
 from kryptonite.models import average_normalized_embeddings
+from kryptonite.serve.inference_backend import (
+    FeatureStatisticsEmbeddingBackend,
+    normalize_inference_stage,
+    normalize_runtime_embedding_mode,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -101,16 +106,9 @@ def build_enrollment_embedding_cache(
     device: str = "auto",
 ) -> WrittenEnrollmentEmbeddingCache:
     from kryptonite.data import load_manifest_audio
-    from kryptonite.eval.embedding_atlas.export import (
-        _normalize_embedding_mode,
-        _normalize_stage,
-        _pool_feature_frames,
-        _resolve_torch_device,
-    )
-    from kryptonite.features import FbankExtractor, chunk_utterance, pool_chunk_tensors
 
-    normalized_stage = _normalize_stage(stage)
-    normalized_embedding_mode = _normalize_embedding_mode(embedding_mode)
+    normalized_stage = normalize_inference_stage(stage)
+    normalized_embedding_mode = normalize_runtime_embedding_mode(embedding_mode)
     resolved_project_root = resolve_project_path(str(project_root), ".")
     resolved_manifest_path = resolve_project_path(str(resolved_project_root), str(manifest_path))
     resolved_output_root = resolve_project_path(str(resolved_project_root), str(output_root))
@@ -128,9 +126,14 @@ def build_enrollment_embedding_cache(
         resolved_project_root,
     )
 
-    torch = _import_torch()
-    resolved_device = _resolve_torch_device(torch=torch, preference=device)
-    extractor = FbankExtractor(request=fbank_request)
+    embedding_backend = FeatureStatisticsEmbeddingBackend(
+        feature_request=fbank_request,
+        chunking_request=chunking_request,
+        embedding_mode=normalized_embedding_mode,
+        default_stage=normalized_stage,
+        device=device,
+    )
+    resolved_device = embedding_backend.device
 
     grouped_embeddings: dict[str, list[np.ndarray]] = defaultdict(list)
     grouped_rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -158,19 +161,11 @@ def build_enrollment_embedding_cache(
                 manifest_path=manifest_location,
                 line_number=line_number,
             )
-            embedding = _compute_sample_embedding(
-                torch=torch,
-                extractor=extractor,
+            embedding = embedding_backend.embed_waveform(
                 waveform=loaded.audio.waveform,
                 sample_rate_hz=loaded.audio.sample_rate_hz,
-                chunking_request=chunking_request,
                 stage=normalized_stage,
-                embedding_mode=normalized_embedding_mode,
-                device=resolved_device,
-                pool_chunk_tensors_fn=pool_chunk_tensors,
-                chunk_utterance_fn=chunk_utterance,
-                pool_feature_frames_fn=_pool_feature_frames,
-            )
+            ).embedding
 
             grouped_embeddings[enrollment_id].append(embedding)
             grouped_rows[enrollment_id].append(
@@ -370,43 +365,6 @@ def validate_enrollment_cache_compatibility(
         )
 
 
-def _compute_sample_embedding(
-    *,
-    torch: Any,
-    extractor: Any,
-    waveform: Any,
-    sample_rate_hz: int,
-    chunking_request: Any,
-    stage: str,
-    embedding_mode: str,
-    device: Any,
-    pool_chunk_tensors_fn: Any,
-    chunk_utterance_fn: Any,
-    pool_feature_frames_fn: Any,
-) -> np.ndarray:
-    waveform_tensor = torch.as_tensor(waveform, dtype=torch.float32, device=device)
-    chunk_batch = chunk_utterance_fn(
-        waveform_tensor,
-        sample_rate_hz=sample_rate_hz,
-        stage=stage,
-        request=chunking_request,
-    )
-    with torch.inference_mode():
-        chunk_embeddings = [
-            pool_feature_frames_fn(
-                torch=torch,
-                features=extractor.extract(chunk.waveform, sample_rate_hz=sample_rate_hz),
-                embedding_mode=embedding_mode,
-            )
-            for chunk in chunk_batch.chunks
-        ]
-        pooled = pool_chunk_tensors_fn(
-            chunk_embeddings,
-            pooling_mode=chunk_batch.pooling_mode,
-        )
-    return pooled.to(device="cpu", dtype=torch.float32).numpy()
-
-
 def _resolve_enrollment_id(payload: dict[str, object]) -> str:
     enrollment_id = _coerce_string(payload.get("enrollment_id"))
     if enrollment_id is not None:
@@ -454,12 +412,6 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _import_torch() -> Any:
-    import torch
-
-    return torch
 
 
 __all__ = [
