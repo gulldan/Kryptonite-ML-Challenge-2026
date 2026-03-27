@@ -21,6 +21,12 @@ This writes a local inspection report under `artifacts/reports/dataset-inventory
 Important: these statuses are repository policy decisions for this project. They are not legal
 advice and they do not replace upstream terms.
 
+Competition-facing `allow` / `deny` / `unknown` decisions live separately in
+[`docs/dataton-rules-matrix.md`](./dataton-rules-matrix.md) and the machine-readable
+[`configs/data-inventory/dataton-rules-matrix.toml`](../configs/data-inventory/dataton-rules-matrix.toml),
+because the Dataton organizers publish challenge criteria on their own schedule and that boundary
+must stay distinct from repo-internal engineering policy.
+
 ## Decision Rules
 
 - `approved`: the repository can use this resource now under the documented constraints.

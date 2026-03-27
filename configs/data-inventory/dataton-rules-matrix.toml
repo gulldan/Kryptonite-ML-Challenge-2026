@@ -1,0 +1,324 @@
+title = "Dataton Kryptonite 2026 Rules Matrix"
+reviewed_on = "2026-03-28"
+summary = [
+  "The public competition site confirms the task and dates, but says evaluation criteria will only be published on 2026-04-11.",
+  "Until that publication lands, the repo should separate what is operationally possible from what is competition-legal.",
+  "The working policy is to allow only the official challenge data, repo-internal post-processing, and synthetic transforms over already-authorized audio; deny unofficial mirrors; keep external datasets, pretrained checkpoints, pseudo-labeling, teacher/student transfer, and external augmentation corpora in the unknown bucket until clarified.",
+]
+
+[[sources]]
+id = "dataton-site"
+title = "Dataton Kryptonite.Tembr official site"
+kind = "official-competition-site"
+url = "https://dataton-kryptonite.ru/"
+reviewed_on = "2026-03-28"
+evidence = [
+  "The public task is robust speaker recognition under channel, noise, reverberation, distance, and acoustic distortions.",
+  "The FAQ says evaluation criteria will be published on 2026-04-11, the start date of the competition.",
+  "The same FAQ routes participant questions through the official Telegram chat and the participant cabinet timeline.",
+]
+
+[[sources]]
+id = "dataton-rules-link"
+title = "Official rules PDF link from the Dataton site footer"
+kind = "official-rules-link"
+url = "https://cloud.mail.ru/public/gQL5/cXf5NkPpu"
+reviewed_on = "2026-03-28"
+evidence = [
+  "The competition footer exposes a single official rules-document link.",
+  "That link should be treated as the canonical legal artifact once organizers confirm or mirror its relevant ML clauses.",
+]
+
+[[sources]]
+id = "ffsvc-dataset-page"
+title = "FFSVC dataset page"
+kind = "upstream-dataset-policy"
+url = "https://ffsvc.github.io/dataset/"
+reviewed_on = "2026-03-28"
+evidence = [
+  "The page says the FFSVC2022 development set is for tuning and testing, not training.",
+  "The older FFSVC2020 main dataset requires manual request, while only part of the bundle remains directly downloadable.",
+]
+
+[[sources]]
+id = "openslr17"
+title = "OpenSLR 17 MUSAN"
+kind = "upstream-dataset-policy"
+url = "https://www.openslr.org/17/"
+reviewed_on = "2026-03-28"
+evidence = [
+  "Open additive-noise corpus with explicit license and primary-source download path.",
+]
+
+[[sources]]
+id = "openslr28"
+title = "OpenSLR 28 RIR and Noise Database"
+kind = "upstream-dataset-policy"
+url = "https://www.openslr.org/28/"
+reviewed_on = "2026-03-28"
+evidence = [
+  "Open real/simulated RIR and noise database with primary-source download path.",
+]
+
+[[sources]]
+id = "ffmpeg-legal"
+title = "FFmpeg legal overview"
+kind = "tooling-policy"
+url = "https://ffmpeg.org/legal.html"
+reviewed_on = "2026-03-28"
+evidence = [
+  "Codec and channel transforms can be generated from already-authorized parent audio without adding a new speech corpus.",
+]
+
+[[sources]]
+id = "voxceleb-primary"
+title = "VoxCeleb primary pages"
+kind = "upstream-dataset-policy"
+url = "https://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html"
+reviewed_on = "2026-03-28"
+evidence = [
+  "The primary VoxCeleb pages no longer provide a clean self-serve download path for the full corpus.",
+]
+
+[[items]]
+id = "official-challenge-data"
+name = "Official Dataton raw challenge data and evaluation artifacts"
+category = "official-data"
+decision = "allow"
+confidence = "high"
+repo_position = "Adopt as the primary train/eval surface as soon as organizers release the dataset and split contract; keep ingestion adapter-driven until then."
+reasoning = "The competition itself is defined around this dataset family. The blocker today is access timing and documentation completeness, not legality."
+owner = "Kryptonite organizers"
+clarification_channel = "Official dataset/rules publication on 2026-04-11, participant cabinet updates, and the Dataton Telegram chat"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "dataton-rules-link"]
+repo_references = [
+  "configs/data-inventory/allowed-sources.toml",
+  "docs/ffsvc2022-surrogate.md",
+  "docs/gpu-server-data-sync.md",
+]
+notes = [
+  "The current repo still treats the real dataset as not yet public or mirrored locally.",
+]
+
+[[items]]
+id = "repo-internal-postprocessing"
+name = "Repo-internal post-processing such as cosine scoring, AS-norm, TAS-norm, and threshold calibration"
+category = "postprocessing"
+decision = "allow"
+confidence = "medium"
+repo_position = "Proceed for both internal and challenge-facing paths because these techniques operate on model outputs and embeddings already inside the submission boundary."
+reasoning = "The public task statement does not forbid scoring or calibration logic, and these steps do not require extra corpora or outside checkpoints by themselves."
+owner = "Kryptonite organizers"
+clarification_channel = "Recheck the final scoring criteria on 2026-04-11 and ask in the Telegram chat if organizers require raw-model-only outputs"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site"]
+repo_references = [
+  "docs/embedding-scoring.md",
+  "docs/threshold-calibration.md",
+  "docs/as-norm-baseline.md",
+  "docs/tas-norm-experiment.md",
+]
+notes = [
+  "Revisit this decision immediately if the published scoring rules ban score normalization or calibration layers.",
+]
+
+[[items]]
+id = "synthetic-transforms-on-authorized-audio"
+name = "Synthetic codec, channel, and acoustic transforms over already-authorized parent audio"
+category = "augmentation"
+decision = "allow"
+confidence = "medium"
+repo_position = "Proceed only when the parent audio is itself authorized for the relevant track, and keep generated artifacts traceable to that parent corpus."
+reasoning = "These transforms are derived operations rather than a standalone third-party speech dataset. The main compliance risk is the origin of the parent audio, not the transform code."
+owner = "Kryptonite organizers"
+clarification_channel = "Confirm on 2026-04-11 whether derived corruptions of allowed audio remain in-scope; escalate in the Telegram chat if augmentations are restricted"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "ffmpeg-legal"]
+repo_references = [
+  "docs/audio-codec-simulation.md",
+  "docs/audio-far-field-simulation.md",
+  "docs/audio-vad-trimming.md",
+]
+notes = [
+  "This allowance does not automatically authorize the use of an external speech corpus as the parent audio.",
+]
+
+[[items]]
+id = "unofficial-mirrors"
+name = "Unofficial mirrors of datasets or checkpoints with unclear primary-source provenance"
+category = "acquisition"
+decision = "deny"
+confidence = "high"
+repo_position = "Do not use them in any challenge-facing recipe."
+reasoning = "Primary-source provenance is already a repo gate for external resources. If only mirrors exist, the acquisition path, license, and takedown status are not auditable enough for a competition submission."
+owner = "Internal repo maintainers"
+clarification_channel = "No organizer clarification is needed; reconsider only if a primary-source path reappears and can be documented in-repo"
+next_checkpoint = "If a primary-source path reappears"
+source_ids = ["voxceleb-primary"]
+repo_references = [
+  "configs/data-inventory/allowed-sources.toml",
+  "docs/dataset-inventory.md",
+]
+notes = [
+  "This is a repo-side hard stop independent of the competition rules.",
+]
+
+[[items]]
+id = "external-training-datasets"
+name = "External speaker datasets for final challenge training or tuning"
+category = "external-data"
+decision = "unknown"
+confidence = "low"
+repo_position = "Keep them out of the final challenge recipe until organizers publish explicit external-data rules."
+reasoning = "The public competition FAQ says evaluation criteria will only be published on 2026-04-11. That leaves FFSVC, VoxCeleb, or similar corpora without a confirmed competition status today."
+owner = "Kryptonite organizers"
+clarification_channel = "Official rules publication on 2026-04-11 and follow-up clarification in the Telegram chat"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "dataton-rules-link", "ffsvc-dataset-page", "voxceleb-primary"]
+repo_references = [
+  "docs/dataset-inventory.md",
+  "docs/ffsvc2022-surrogate.md",
+  "docs/clean-room-fallback-baseline.md",
+]
+notes = [
+  "Current repo policy allows some of these resources only for engineering smoke or after manual access, not for final challenge usage.",
+]
+
+[[items]]
+id = "external-pretrained-models"
+name = "External pretrained checkpoints, SSL encoders, and warm-start weights"
+category = "external-models"
+decision = "unknown"
+confidence = "low"
+repo_position = "Do not anchor the must-have delivery plan on them until the competition rules explicitly allow pretrained models."
+reasoning = "The public materials do not yet say whether pretrained encoders or imported checkpoints are legal. Assuming yes would contaminate the final recipe."
+owner = "Kryptonite organizers"
+clarification_channel = "Official rules publication on 2026-04-11 and explicit organizer confirmation in the Telegram chat"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "dataton-rules-link"]
+repo_references = [
+  "docs/clean-room-fallback-baseline.md",
+  "configs/training/campp-ffsvc2022-restricted-rules.toml",
+]
+notes = [
+  "Maintain a clean-room fallback so the repo can recover immediately if the answer is no.",
+]
+
+[[items]]
+id = "pseudo-labels-on-challenge-audio"
+name = "Pseudo-labels or self-training loops built on official challenge audio"
+category = "pseudo-labels"
+decision = "unknown"
+confidence = "low"
+repo_position = "Do not make the submission depend on pseudo-labels until organizers clarify whether self-training over the official corpus is allowed."
+reasoning = "Pseudo-labeling changes the supervision surface even without adding a new raw corpus, and the public materials do not resolve that point today."
+owner = "Kryptonite organizers"
+clarification_channel = "Ask on 2026-04-11 whether pseudo-labeling the official corpus is in-bounds, then record the answer in the Telegram chat or participant FAQ"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "dataton-rules-link"]
+repo_references = [
+  "docs/clean-room-fallback-baseline.md",
+]
+notes = [
+  "Any exploratory self-training should stay provenance-tagged and isolated from the final branch until clarified.",
+]
+
+[[items]]
+id = "teacher-student-with-external-teacher"
+name = "Teacher/student distillation when the teacher depends on an external model or dataset"
+category = "teacher-student"
+decision = "unknown"
+confidence = "low"
+repo_position = "Treat this branch as stretch-only until both pretrained-model and external-data rules are explicit."
+reasoning = "Teacher distillation legality depends on whether the teacher weights and their training corpus are themselves allowed."
+owner = "Kryptonite organizers"
+clarification_channel = "Resolve together with the pretrained-model question on 2026-04-11, then capture the answer in the Telegram chat history"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "dataton-rules-link"]
+repo_references = [
+  "docs/release-postmortem.md",
+  "docs/final-family-decision.md",
+]
+notes = [
+  "Keep production candidate selection independent from this branch until clarified.",
+]
+
+[[items]]
+id = "external-rir-noise-corpora"
+name = "External RIR and noise corpora such as MUSAN or OpenSLR SLR28 for challenge-facing training"
+category = "external-augmentation-data"
+decision = "unknown"
+confidence = "low"
+repo_position = "Use them for internal robustness engineering only until the organizers publish explicit external-augmentation rules."
+reasoning = "The repo has strong provenance for MUSAN and OpenSLR, but the competition-facing allowance for external augmentation corpora is still unpublished."
+owner = "Kryptonite organizers"
+clarification_channel = "Ask on 2026-04-11 whether open augmentation corpora are allowed for the final track; confirm the answer in the Telegram chat"
+next_checkpoint = "2026-04-11"
+source_ids = ["dataton-site", "openslr17", "openslr28"]
+repo_references = [
+  "docs/dataset-inventory.md",
+  "docs/audio-noise-bank.md",
+  "docs/audio-rir-bank.md",
+]
+notes = [
+  "If allowed later, preserve exact source manifests and corruption configs in the submission bundle.",
+]
+
+[[risks]]
+id = "rules-publish-late"
+title = "Competition-facing ML rules publish late"
+severity = "high"
+description = "The public site postpones evaluation criteria until 2026-04-11, so the repo can accidentally drift into an unapproved final recipe before the legal boundary is visible."
+owner = "Kryptonite organizers"
+clarification_channel = "Official rules publication on 2026-04-11 and the Dataton Telegram chat"
+mitigation = "Keep the final recipe on the clean-room path until ambiguous items move out of the unknown bucket."
+related_item_ids = [
+  "external-training-datasets",
+  "external-pretrained-models",
+  "pseudo-labels-on-challenge-audio",
+  "teacher-student-with-external-teacher",
+  "external-rir-noise-corpora",
+]
+
+[[risks]]
+id = "dataset-contract-arrives-late"
+title = "Official challenge dataset contract arrives later than the repo expects"
+severity = "high"
+description = "The real Dataton corpus, split semantics, or manifest schema may land too late or differ materially from the surrogate assumptions in the current codebase."
+owner = "Kryptonite organizers"
+clarification_channel = "Dataset release on 2026-04-11, participant cabinet updates, and checkpoint discussions"
+mitigation = "Keep ingestion adapter-driven, avoid surrogate-only shortcuts, and gate readiness on the actual release manifests."
+related_item_ids = [
+  "official-challenge-data",
+  "external-training-datasets",
+]
+
+[[risks]]
+id = "repo-vs-competition-policy-drift"
+title = "Repo policy drifts away from the eventual competition policy"
+severity = "medium"
+description = "Internal engineering allowances such as surrogate data, synthetic corruptions, or score normalization can be misread as competition-legal if the distinction is not explicit."
+owner = "Internal repo maintainers"
+clarification_channel = "Resolve by updating this rules matrix immediately after any organizer answer and by linking it from the relevant docs"
+mitigation = "Keep a dedicated rules matrix separate from the dataset inventory, and require provenance-tagged configs for any ambiguous path."
+related_item_ids = [
+  "repo-internal-postprocessing",
+  "synthetic-transforms-on-authorized-audio",
+  "external-rir-noise-corpora",
+]
+
+[[risks]]
+id = "clean-room-fallback-decays"
+title = "Clean-room fallback stops being truly submission-ready"
+severity = "medium"
+description = "If experimentation continues only on ambiguous external-data or pretrained paths, the repo may lose a viable submission route when organizers answer conservatively."
+owner = "Internal repo maintainers"
+clarification_channel = "Track in repo planning and revisit at the 2026-04-11 rules drop"
+mitigation = "Keep the restricted-rules baseline runnable, documented, and free of hidden dependencies on outside weights or corpora."
+related_item_ids = [
+  "external-training-datasets",
+  "external-pretrained-models",
+  "teacher-student-with-external-teacher",
+  "pseudo-labels-on-challenge-audio",
+]
