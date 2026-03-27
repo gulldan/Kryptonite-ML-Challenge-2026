@@ -23,6 +23,16 @@ _SECTION_SPECS: tuple[tuple[str, str, str], ...] = (
         "Room and direct-to-reverb breakdown for reverberant suites.",
     ),
     (
+        "rt60_slice",
+        "RT60",
+        "Explicit reverberation decay-bucket breakdown extracted from suite metadata.",
+    ),
+    (
+        "codec_slice",
+        "Codec",
+        "Codec-family breakdown for telephony, VoIP, compression, and other codec stress suites.",
+    ),
+    (
         "channel_slice",
         "Channel",
         "Channel-style codec breakdown for `dev_channel`-like evaluations.",
@@ -36,6 +46,11 @@ _SECTION_SPECS: tuple[tuple[str, str, str], ...] = (
         "duration_bucket",
         "Duration",
         "Duration buckets derived from left/right trial metadata.",
+    ),
+    (
+        "silence_ratio_bucket",
+        "Silence Ratio",
+        "Observed silence-ratio bucket derived from manifest or embedding metadata.",
     ),
     (
         "silence_slice",

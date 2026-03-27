@@ -85,13 +85,17 @@ The default per-slice report groups trials by:
 - `duration_bucket`
 - `noise_slice`
 - `reverb_slice`
+- `rt60_slice`
+- `codec_slice`
 - `channel_slice`
 - `distance_slice`
+- `silence_ratio_bucket`
 - `silence_slice`
 
 Override or extend this with repeated `--slice-field` flags. The implementation supports pairwise
 fields such as `dataset` / `channel`, explicit side selectors such as `left_device`, derived
-corruption-aware fields such as `noise_slice`, and `duration_bucket`.
+corruption-aware fields such as `noise_slice`, explicit reverb/codec buckets such as `rt60_slice`
+and `codec_slice`, and silence-aware fields such as `silence_ratio_bucket`.
 
 ## Calibration Notes
 
