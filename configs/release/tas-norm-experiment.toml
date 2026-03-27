@@ -1,0 +1,63 @@
+title = "Kryptonite TAS-norm experiment"
+report_id = "kryptonite-2026-tas-norm"
+candidate_label = "CAM++ smoke baseline"
+summary = """
+Assess whether a lightweight trainable score-normalization head is worth
+carrying beyond the current offline verification stack. The checked-in config
+uses the repository's tiny CAM++ smoke artifacts and is expected to return
+`no_go`: the split is too small to justify promotion and the raw baseline is
+already perfect on the held-out smoke set.
+"""
+output_root = "artifacts/release-decisions/kryptonite-2026-tas-norm"
+
+validation_commands = [
+  "uv run python scripts/build_tas_norm_experiment.py --config configs/release/tas-norm-experiment.toml",
+  "uv run python scripts/evaluate_verification_scores.py --scores artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_scores.jsonl --trials artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_trials.jsonl --metadata artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_embedding_metadata.parquet --embeddings artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_embeddings.npz --cohort-bank artifacts/release-decisions/kryptonite-2026-tas-norm/cohort-bank --score-normalization as-norm --as-norm-top-k 3 --output-dir artifacts/release-decisions/kryptonite-2026-tas-norm/reference-as-norm",
+]
+
+notes = [
+  "This experiment keeps the cohort bank frozen and only trains a lightweight logistic head over raw-score and cohort-stat features.",
+  "The current checked-in smoke artifacts are intentionally small; a `no_go` result is still useful because it records that TAS-norm has no measurable headroom on the repo fixture set.",
+]
+
+[artifacts]
+scores_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_scores.jsonl"
+trials_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_trials.jsonl"
+metadata_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_embedding_metadata.parquet"
+embeddings_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_embeddings.npz"
+cohort_bank_output_root = "artifacts/release-decisions/kryptonite-2026-tas-norm/cohort-bank"
+
+[cohort_selection]
+allow_trial_overlap_fallback = true
+strict_speaker_disjointness = false
+min_embeddings_per_speaker = 1
+max_embeddings_per_speaker = 2
+
+[tas_norm]
+top_k = 3
+std_epsilon = 1e-6
+exclude_matching_speakers = true
+eval_fraction = 0.5
+split_seed = 528
+
+[training]
+learning_rate = 0.05
+max_steps = 400
+l2_regularization = 0.01
+early_stopping_patience = 40
+min_relative_loss_improvement = 1e-4
+balance_classes = true
+
+[gates]
+min_train_trials = 4
+min_eval_trials = 4
+min_train_positives = 2
+min_train_negatives = 2
+min_eval_positives = 2
+min_eval_negatives = 2
+min_eer_gain_vs_raw = 0.001
+min_min_dcf_gain_vs_raw = 0.001
+min_eer_gain_vs_as_norm = 0.001
+min_min_dcf_gain_vs_as_norm = 0.001
+max_train_eval_eer_gap = 0.25
+max_train_eval_min_dcf_gap = 0.25

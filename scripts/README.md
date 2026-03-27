@@ -28,6 +28,7 @@ Current entrypoints include:
 - `scripts/export_boundary_report.py` for writing the machine-readable `encoder_input -> embedding` contract plus a Markdown handoff for later ONNX/TensorRT work
 - `scripts/evaluate_verification_scores.py` for computing EER/minDCF and writing the full offline verification report, with optional `AS-norm` score normalization backed by exported eval embeddings and a frozen cohort bank
 - `scripts/calibrate_verification_thresholds.py` for generating the full offline verification report plus named `balanced/min_dcf/demo/production` thresholds and optional slice-aware calibration bundles
+- `scripts/build_tas_norm_experiment.py` for running the repo-native `TAS-norm` go/no-go experiment on top of raw scores, `AS-norm`, and frozen cohort statistics
 - `scripts/run_campp_baseline.py` for training the repo-native CAM++ baseline and writing checkpoints, dev embeddings, trials, and cosine scores
 - `scripts/run_campp_sweep_shortlist.py` for running the bounded CAM++ stage-3 shortlist and ranking candidates on clean + corrupted dev suites
 - `scripts/run_campp_model_selection.py` for selecting the final CAM++ stage-3 candidate from a shortlist report and evaluating optional checkpoint averages
