@@ -157,6 +157,62 @@ class VerifyRequest(APIRequestModel):
         )
 
 
+class DemoAudioUpload(APIRequestModel):
+    filename: str
+    content_base64: str
+
+    @field_validator("filename", "content_base64")
+    @classmethod
+    def _validate_required_string(cls, value: str) -> str:
+        return _normalize_required_string(value)
+
+    @field_validator("filename")
+    @classmethod
+    def _validate_audio_filename(cls, value: str) -> str:
+        suffix = value.rsplit(".", 1)
+        if len(suffix) != 2 or f".{suffix[1].lower()}" not in {".wav", ".flac", ".mp3"}:
+            raise ValueError("Demo uploads must use one of: .wav, .flac, .mp3.")
+        return value
+
+
+class DemoCompareRequest(APIRequestModel):
+    left_audio: DemoAudioUpload
+    right_audio: DemoAudioUpload
+    stage: str | None = "demo"
+    normalize: bool = True
+    threshold: float | None = None
+
+    @field_validator("stage")
+    @classmethod
+    def _validate_optional_string(cls, value: str | None) -> str | None:
+        return _normalize_optional_string(value)
+
+
+class DemoEnrollmentRequest(APIRequestModel):
+    enrollment_id: str
+    audio_files: list[DemoAudioUpload] = Field(min_length=1)
+    stage: str | None = "demo"
+    metadata: dict[str, Any] | None = None
+
+    @field_validator("enrollment_id", "stage")
+    @classmethod
+    def _validate_optional_string(cls, value: str | None) -> str | None:
+        return _normalize_optional_string(value)
+
+
+class DemoVerifyRequest(APIRequestModel):
+    enrollment_id: str
+    audio_file: DemoAudioUpload
+    stage: str | None = "demo"
+    normalize: bool = True
+    threshold: float | None = None
+
+    @field_validator("enrollment_id", "stage")
+    @classmethod
+    def _validate_optional_string(cls, value: str | None) -> str | None:
+        return _normalize_optional_string(value)
+
+
 def _ensure_one_of(
     singular: object | None,
     plural: object | None,
@@ -196,6 +252,10 @@ def _resolve_string_paths(single: str | None, multiple: list[str] | None) -> lis
 def _normalize_optional_string(value: str | None) -> str | None:
     if value is None:
         return None
+    return _normalize_required_string(value)
+
+
+def _normalize_required_string(value: str) -> str:
     stripped = value.strip()
     if not stripped:
         raise ValueError("String fields must not be empty.")
@@ -218,6 +278,10 @@ def _normalize_optional_string_list(values: list[str] | None) -> list[str] | Non
 
 __all__ = [
     "BenchmarkAudioRequest",
+    "DemoAudioUpload",
+    "DemoCompareRequest",
+    "DemoEnrollmentRequest",
+    "DemoVerifyRequest",
     "EmbedAudioRequest",
     "EmbeddingPayload",
     "EnrollmentRequest",
