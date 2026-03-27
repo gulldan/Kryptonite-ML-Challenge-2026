@@ -129,6 +129,8 @@ See [docs/clean-room-fallback-baseline.md](./docs/clean-room-fallback-baseline.m
 See [docs/evaluation-package.md](./docs/evaluation-package.md) for the shared offline verification report contract, ROC/DET artifacts, calibration bins, and per-slice breakdown flow.
 See [docs/threshold-calibration.md](./docs/threshold-calibration.md) for the named `balanced/min_dcf/demo/production` threshold profiles and the slice-aware calibration bundle workflow.
 See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
+See [docs/model-card.md](./docs/model-card.md) for the release-oriented model card, training-data classes, and caveats.
+See [docs/release-runbook.md](./docs/release-runbook.md) for the current rollout, smoke, monitoring, and rollback procedures.
 
 ## Naming Conventions
 
