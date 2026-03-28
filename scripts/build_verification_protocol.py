@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from kryptonite.eval import (
+    assert_verification_protocol_complete,
     build_verification_protocol_report,
     load_verification_protocol_config,
     write_verification_protocol_report,
@@ -27,6 +28,11 @@ def parse_args() -> argparse.Namespace:
         default="text",
         help="CLI output format.",
     )
+    parser.add_argument(
+        "--require-complete",
+        action="store_true",
+        help="Exit non-zero when the rendered protocol is incomplete or has warnings.",
+    )
     return parser.parse_args()
 
 
@@ -35,6 +41,14 @@ def main() -> None:
     config = load_verification_protocol_config(config_path=args.config)
     report = build_verification_protocol_report(config, config_path=args.config)
     written = write_verification_protocol_report(report)
+
+    if args.require_complete:
+        try:
+            assert_verification_protocol_complete(report)
+        except ValueError as exc:
+            raise SystemExit(
+                f"{exc}\nJSON: {written.report_json_path}\nMarkdown: {written.report_markdown_path}"
+            ) from exc
 
     if args.output == "json":
         print(json.dumps(written.to_dict(), indent=2, sort_keys=True))

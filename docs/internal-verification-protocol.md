@@ -57,7 +57,8 @@ Render the protocol snapshot with:
 
 ```bash
 uv run python scripts/build_verification_protocol.py \
-  --config configs/eval/verification-protocol.toml
+  --config configs/eval/verification-protocol.toml \
+  --require-complete
 ```
 
 The builder writes:
@@ -69,11 +70,36 @@ The snapshot does not invent new trial data on its own. Instead it validates and
 summarizes the clean trial lists plus the corrupted-suite catalog that upstream
 builders already materialize.
 
+## Validation Modes
+
+### Full Data-Backed Rebuild
+
+The strict path is:
+
+1. `uv run python scripts/prepare_ffsvc2022_surrogate.py`
+2. `uv run python scripts/build_corrupted_dev_suites.py --config configs/base.toml --plan configs/corruption/corrupted-dev-suites.toml`
+3. `uv run python scripts/build_verification_protocol.py --config configs/eval/verification-protocol.toml --require-complete`
+
+`build_corrupted_dev_suites.py` depends on the surrogate dev manifest under
+`artifacts/manifests/ffsvc2022-surrogate/`. If that input is missing, the script
+now stops with an explicit prerequisite error instead of a raw traceback.
+
+### Repo-Local Smoke
+
+For repo-local validation without server-only surrogate artifacts, use:
+
+```bash
+uv run pytest tests/unit/test_verification_protocol.py
+```
+
+That synthetic smoke covers both the happy path and the completeness guard used
+by `--require-complete`.
+
 ## Expected Workflow
 
 1. Regenerate the clean surrogate manifests and trial lists.
 2. Rebuild the corrupted dev suites.
-3. Rebuild the verification protocol snapshot.
+3. Rebuild the verification protocol snapshot with `--require-complete`.
 4. Run score evaluation and threshold calibration against the relevant bundle.
 
 This keeps the protocol deterministic, reviewable, and traceable back to the

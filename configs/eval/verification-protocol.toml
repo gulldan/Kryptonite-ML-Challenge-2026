@@ -17,7 +17,7 @@ corrupted_suite_catalog_path = "artifacts/eval/corrupted-dev-suites/corrupted_de
 validation_commands = [
   "uv run python scripts/prepare_ffsvc2022_surrogate.py",
   "uv run python scripts/build_corrupted_dev_suites.py --config configs/base.toml --plan configs/corruption/corrupted-dev-suites.toml",
-  "uv run python scripts/build_verification_protocol.py --config configs/eval/verification-protocol.toml",
+  "uv run python scripts/build_verification_protocol.py --config configs/eval/verification-protocol.toml --require-complete",
 ]
 notes = [
   "The clean protocol stays anchored to the held-out dev manifest and two complementary trial lists: the public FFSVC-style reference list and the strict speaker-disjoint list for threshold tuning.",

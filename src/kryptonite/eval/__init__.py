@@ -244,7 +244,10 @@ from .verification_protocol import (
     render_verification_protocol_markdown,
     write_verification_protocol_report,
 )
-from .verification_protocol_builder import build_verification_protocol_report
+from .verification_protocol_builder import (
+    assert_verification_protocol_complete,
+    build_verification_protocol_report,
+)
 from .verification_protocol_config import (
     DEFAULT_PROTOCOL_REQUIRED_SLICE_FIELDS,
     VerificationProtocolCleanSetConfig,
@@ -502,6 +505,7 @@ __all__ = [
     "build_verification_evaluation_report",
     "build_verification_operating_points",
     "build_verification_protocol_report",
+    "assert_verification_protocol_complete",
     "build_verification_threshold_calibration_report",
     "compute_verification_metrics",
     "export_manifest_fbank_embeddings",

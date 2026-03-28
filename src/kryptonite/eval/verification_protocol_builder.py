@@ -123,6 +123,33 @@ def build_verification_protocol_report(
     )
 
 
+def assert_verification_protocol_complete(report: VerificationProtocolReport) -> None:
+    if report.summary.is_complete:
+        return
+
+    lines = [f"Verification protocol `{report.protocol_id}` is incomplete."]
+    if report.summary.missing_required_slice_fields:
+        lines.append(
+            "Missing required slices: " + ", ".join(report.summary.missing_required_slice_fields)
+        )
+    if report.summary.production_bundle_count == 0:
+        lines.append("Production-like bundles: none.")
+
+    warning_lines = [
+        *(
+            f"{bundle.bundle_id}: {warning}"
+            for bundle in (*report.clean_bundles, *report.production_bundles)
+            for warning in bundle.warnings
+        ),
+        *(note for note in report.notes if note.startswith(("Missing ", "Failed ", "Ignored "))),
+    ]
+    if warning_lines:
+        lines.append("Warnings:")
+        lines.extend(f"- {warning}" for warning in warning_lines)
+
+    raise ValueError("\n".join(lines))
+
+
 def _build_bundle(
     *,
     bundle_id: str,
@@ -342,4 +369,7 @@ def _resolve_project_root(project_root: Path | str | None) -> Path:
     return Path(project_root).resolve()
 
 
-__all__ = ["build_verification_protocol_report"]
+__all__ = [
+    "assert_verification_protocol_complete",
+    "build_verification_protocol_report",
+]

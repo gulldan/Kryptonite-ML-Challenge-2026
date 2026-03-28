@@ -78,22 +78,34 @@ def main() -> None:
     args = parse_args()
     config = load_project_config(config_path=args.config, overrides=args.override)
     plan = load_corrupted_dev_suites_plan(args.plan)
-    report = build_corrupted_dev_suites(
-        project_root=config.paths.project_root,
-        plan=plan,
-        normalization_config=config.normalization,
-        silence_config=config.silence_augmentation,
-        plan_path=args.plan,
-        noise_manifest_path=args.noise_manifest,
-        rir_manifest_path=args.rir_manifest,
-        room_config_manifest_path=args.room_config_manifest,
-        codec_plan_path=args.codec_plan,
-        far_field_plan_path=args.far_field_plan,
-        ffmpeg_path=args.ffmpeg_path,
-        max_workers=(
-            args.workers if args.workers is not None else max(1, int(config.runtime.num_workers))
-        ),
-    )
+    try:
+        report = build_corrupted_dev_suites(
+            project_root=config.paths.project_root,
+            plan=plan,
+            normalization_config=config.normalization,
+            silence_config=config.silence_augmentation,
+            plan_path=args.plan,
+            noise_manifest_path=args.noise_manifest,
+            rir_manifest_path=args.rir_manifest,
+            room_config_manifest_path=args.room_config_manifest,
+            codec_plan_path=args.codec_plan,
+            far_field_plan_path=args.far_field_plan,
+            ffmpeg_path=args.ffmpeg_path,
+            max_workers=(
+                args.workers
+                if args.workers is not None
+                else max(1, int(config.runtime.num_workers))
+            ),
+        )
+    except FileNotFoundError as exc:
+        missing_path = exc.filename or str(exc)
+        raise SystemExit(
+            "Missing prerequisite file for corrupted dev suite build:\n"
+            f"{missing_path}\n"
+            "Run `uv run python scripts/prepare_ffsvc2022_surrogate.py` first to "
+            "materialize the surrogate dev manifests, or point the plan/manifest "
+            "flags at an explicit synthetic fixture bundle."
+        ) from exc
     print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
 
 
