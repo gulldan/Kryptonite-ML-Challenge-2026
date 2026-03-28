@@ -8,6 +8,7 @@ import pytest
 import torch
 
 import kryptonite.eval.backend_benchmark_builder as backend_benchmark_builder
+import kryptonite.eval.backend_benchmark_runtime as backend_benchmark_runtime
 from kryptonite.config import load_project_config
 from kryptonite.eval import (
     BackendBenchmarkWorkloadResult,
@@ -116,7 +117,33 @@ def test_load_backend_benchmark_config_requires_batch1_and_batched(tmp_path: Pat
         load_backend_benchmark_config(config_path=config_path)
 
 
-def _write_backend_benchmark_fixture(tmp_path: Path, *, monkeypatch) -> Path:
+def test_backend_benchmark_artifacts_accept_single_profile_report(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    config_path = _write_backend_benchmark_fixture(
+        tmp_path,
+        monkeypatch=monkeypatch,
+        use_single_profile=True,
+    )
+    config = load_backend_benchmark_config(config_path=config_path)
+
+    artifacts = backend_benchmark_runtime.resolve_backend_benchmark_artifacts(config=config)
+
+    assert len(artifacts.tensorrt_profiles) == 1
+    profile = artifacts.tensorrt_profiles[0]
+    assert profile.profile_id == "default"
+    assert profile.min_shape == (1, 80, 16)
+    assert profile.opt_shape == (4, 120, 16)
+    assert profile.max_shape == (8, 640, 16)
+
+
+def _write_backend_benchmark_fixture(
+    tmp_path: Path,
+    *,
+    monkeypatch,
+    use_single_profile: bool = False,
+) -> Path:
     checkpoint_dir = tmp_path / "artifacts" / "baselines" / "campp" / "run-001"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir / "campp_encoder.pt"
@@ -183,26 +210,13 @@ def _write_backend_benchmark_fixture(tmp_path: Path, *, monkeypatch) -> Path:
     tensorrt_report_path.parent.mkdir(parents=True, exist_ok=True)
     tensorrt_report_path.write_text(
         json.dumps(
-            {
-                "engine_path": "artifacts/model-bundle-campp-test/model.plan",
-                "source_checkpoint_path": exported.source_checkpoint_path,
-                "input_name": exported.input_name,
-                "output_name": exported.output_name,
-                "profiles": [
-                    {
-                        "profile_id": "short",
-                        "min_shape": [1, 80, 16],
-                        "opt_shape": [4, 120, 16],
-                        "max_shape": [8, 160, 16],
-                    },
-                    {
-                        "profile_id": "long",
-                        "min_shape": [1, 160, 16],
-                        "opt_shape": [4, 320, 16],
-                        "max_shape": [8, 640, 16],
-                    },
-                ],
-            },
+            _build_tensorrt_report_payload(
+                engine_path="artifacts/model-bundle-campp-test/model.plan",
+                source_checkpoint_path=exported.source_checkpoint_path,
+                input_name=exported.input_name,
+                output_name=exported.output_name,
+                use_single_profile=use_single_profile,
+            ),
             indent=2,
             sort_keys=True,
         )
@@ -267,6 +281,44 @@ def _write_backend_benchmark_fixture(tmp_path: Path, *, monkeypatch) -> Path:
         encoding="utf-8",
     )
     return config_path
+
+
+def _build_tensorrt_report_payload(
+    *,
+    engine_path: str,
+    source_checkpoint_path: str,
+    input_name: str,
+    output_name: str,
+    use_single_profile: bool,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "engine_path": engine_path,
+        "source_checkpoint_path": source_checkpoint_path,
+        "input_name": input_name,
+        "output_name": output_name,
+    }
+    if use_single_profile:
+        payload["profile"] = {
+            "min_shape": [1, 80, 16],
+            "opt_shape": [4, 120, 16],
+            "max_shape": [8, 640, 16],
+        }
+        return payload
+    payload["profiles"] = [
+        {
+            "profile_id": "short",
+            "min_shape": [1, 80, 16],
+            "opt_shape": [4, 120, 16],
+            "max_shape": [8, 160, 16],
+        },
+        {
+            "profile_id": "long",
+            "min_shape": [1, 160, 16],
+            "opt_shape": [4, 320, 16],
+            "max_shape": [8, 640, 16],
+        },
+    ]
+    return payload
 
 
 def _build_fake_results(

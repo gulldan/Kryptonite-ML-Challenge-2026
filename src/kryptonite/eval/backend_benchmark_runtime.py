@@ -649,8 +649,17 @@ def _load_json_object(path: Path) -> dict[str, object]:
 
 def _parse_tensorrt_profiles(payload: dict[str, object]) -> tuple[TensorRTFP16Profile, ...]:
     raw_profiles = payload.get("profiles")
+    if raw_profiles is None:
+        raw_profile = payload.get("profile")
+        if not isinstance(raw_profile, dict):
+            raise ValueError(
+                "TensorRT report must define a non-empty `profiles` list or a `profile` object."
+            )
+        raw_profiles = [raw_profile]
     if not isinstance(raw_profiles, list) or not raw_profiles:
-        raise ValueError("TensorRT report must define a non-empty `profiles` list.")
+        raise ValueError(
+            "TensorRT report must define a non-empty `profiles` list or a `profile` object."
+        )
     profiles: list[TensorRTFP16Profile] = []
     for index, raw_profile in enumerate(raw_profiles):
         if not isinstance(raw_profile, dict):
@@ -658,9 +667,7 @@ def _parse_tensorrt_profiles(payload: dict[str, object]) -> tuple[TensorRTFP16Pr
         profile = {str(key): value for key, value in raw_profile.items()}
         profiles.append(
             TensorRTFP16Profile(
-                profile_id=_require_string(
-                    profile.get("profile_id"), f"profiles[{index}].profile_id"
-                ),
+                profile_id=_coerce_string(profile.get("profile_id")) or "default",
                 min_shape=_require_int_tuple(
                     profile.get("min_shape"), f"profiles[{index}].min_shape"
                 ),
