@@ -1,0 +1,51 @@
+title = "Teacher vs Student Robust Dev Comparison"
+ticket_id = "KVA-532"
+report_id = "teacher-student-robust-dev"
+output_root = "artifacts/eval/teacher-student-robust-dev"
+device = "cuda"
+notes = [
+  "Update each run_root to a real baseline run before executing the script.",
+  "Rebuild the corrupted-dev suite catalog first if the selected suites do not exist yet.",
+]
+
+[selection]
+clean_weight = 0.25
+corrupted_weight = 0.75
+eer_weight = 0.7
+min_dcf_weight = 0.3
+
+[corrupted_suites]
+catalog_path = "artifacts/eval/corrupted-dev-suites/corrupted_dev_suites_catalog.json"
+suite_ids = [
+  "dev_snr",
+  "dev_reverb",
+  "dev_codec",
+  "dev_distance",
+  "dev_channel",
+  "dev_silence",
+]
+run_clean_dev = true
+
+[[candidate]]
+candidate_id = "wavlm_peft_teacher"
+label = "WavLM PEFT teacher"
+role = "teacher"
+family = "teacher_peft"
+run_root = "artifacts/baselines/teacher-peft/<run-id>"
+notes = [
+  "Requires a completed teacher PEFT run with checkpoint_metadata.json, adapter/, feature_extractor/, and heads.pt.",
+]
+
+[[candidate]]
+candidate_id = "campp_student"
+label = "CAM++ student"
+role = "student"
+family = "campp"
+run_root = "artifacts/baselines/campp/<run-id>"
+
+[[candidate]]
+candidate_id = "eres2netv2_student"
+label = "ERes2NetV2 student"
+role = "student"
+family = "eres2netv2"
+run_root = "artifacts/baselines/eres2netv2/<run-id>"

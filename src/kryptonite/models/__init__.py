@@ -1,7 +1,11 @@
 """Model definitions and inference-facing interfaces."""
 
 from .campp import ArcMarginLoss, CAMPPlusConfig, CAMPPlusEncoder, CosineClassifier
-from .eres2netv2 import ERes2NetV2Config, ERes2NetV2Encoder
+from .eres2netv2 import (
+    ERes2NetV2Config,
+    ERes2NetV2Encoder,
+    load_eres2netv2_encoder_from_checkpoint,
+)
 from .scoring import (
     average_normalized_embeddings,
     cosine_score_matrix,
@@ -18,6 +22,7 @@ __all__ = [
     "CosineClassifier",
     "ERes2NetV2Config",
     "ERes2NetV2Encoder",
+    "load_eres2netv2_encoder_from_checkpoint",
     "average_normalized_embeddings",
     "cosine_score_matrix",
     "cosine_score_pairs",

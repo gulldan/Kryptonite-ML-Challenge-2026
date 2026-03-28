@@ -10,11 +10,13 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn.functional as torch_functional
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from torch import nn
 from transformers import AutoFeatureExtractor, AutoModel
 
 from .config import TeacherPeftAdapterConfig, TeacherPeftModelConfig
+
+KNOWN_TEACHER_PEFT_CHECKPOINT_NAMES = ("teacher_peft",)
 
 
 class TeacherPeftEncoder(nn.Module):
@@ -131,6 +133,91 @@ def build_feature_batch(
         return_tensors="pt",
     )
     return {key: value.to(device=device) for key, value in batch.items()}
+
+
+def resolve_teacher_peft_checkpoint_path(
+    *,
+    checkpoint_path: str | Path,
+    project_root: str | Path,
+) -> Path:
+    from kryptonite.deployment import resolve_project_path
+
+    resolved = resolve_project_path(str(project_root), str(checkpoint_path))
+    if resolved.is_dir():
+        if (resolved / "checkpoint_metadata.json").is_file():
+            return resolved
+        for candidate_name in KNOWN_TEACHER_PEFT_CHECKPOINT_NAMES:
+            candidate = resolved / candidate_name
+            if (candidate / "checkpoint_metadata.json").is_file():
+                return candidate
+        expected = ", ".join(
+            str(resolved / name / "checkpoint_metadata.json")
+            for name in KNOWN_TEACHER_PEFT_CHECKPOINT_NAMES
+        )
+        raise FileNotFoundError(
+            "Teacher PEFT run directory does not contain a known checkpoint directory. "
+            f"Expected one of: {expected}."
+        )
+    if resolved.is_file() and resolved.name == "checkpoint_metadata.json":
+        return resolved.parent
+    raise FileNotFoundError(
+        f"Checkpoint not found at {resolved}. Provide either the checkpoint directory, "
+        "the run directory, or checkpoint_metadata.json."
+    )
+
+
+def load_teacher_peft_encoder_from_checkpoint(
+    *,
+    checkpoint_path: str | Path,
+    project_root: str | Path = ".",
+    token: str | None = None,
+    trainable: bool = False,
+) -> tuple[Path, dict[str, Any], Any, TeacherPeftEncoder]:
+    checkpoint_dir = resolve_teacher_peft_checkpoint_path(
+        checkpoint_path=checkpoint_path,
+        project_root=project_root,
+    )
+    metadata_path = checkpoint_dir / "checkpoint_metadata.json"
+    heads_path = checkpoint_dir / "heads.pt"
+    adapter_dir = checkpoint_dir / "adapter"
+    feature_extractor_dir = checkpoint_dir / "feature_extractor"
+
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if not isinstance(metadata, dict):
+        raise ValueError(f"Checkpoint metadata must be a JSON object: {metadata_path}")
+    model_payload = metadata.get("model")
+    if not isinstance(model_payload, dict):
+        raise ValueError("Teacher checkpoint metadata is missing the `model` section.")
+    baseline_payload = metadata.get("baseline_config")
+    if not isinstance(baseline_payload, dict):
+        raise ValueError("Teacher checkpoint metadata is missing the `baseline_config` section.")
+    embedding_dim = int(model_payload.get("embedding_dim", 0))
+    if embedding_dim <= 0:
+        raise ValueError("Teacher checkpoint metadata must define a positive model.embedding_dim.")
+    projection_dropout = float(baseline_payload.get("model", {}).get("projection_dropout", 0.0))
+
+    backbone = AutoModel.from_pretrained(
+        str(model_payload.get("model_id", "")).strip(),
+        revision=model_payload.get("revision"),
+        token=token,
+    )
+    backbone = PeftModel.from_pretrained(backbone, adapter_dir, is_trainable=trainable)
+    feature_extractor = AutoFeatureExtractor.from_pretrained(feature_extractor_dir, token=token)
+    encoder = TeacherPeftEncoder(
+        backbone=backbone,
+        hidden_size=resolve_hidden_size(backbone),
+        embedding_dim=embedding_dim,
+        projection_dropout=projection_dropout,
+    )
+    payload = torch.load(heads_path, map_location="cpu", weights_only=True)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Teacher head checkpoint must be an object payload: {heads_path}")
+    encoder_state = payload.get("encoder_head_state_dict")
+    if not isinstance(encoder_state, dict):
+        raise ValueError("Teacher head checkpoint is missing `encoder_head_state_dict`.")
+    encoder.load_state_dict(dict(encoder_state), strict=False)
+    encoder.eval()
+    return checkpoint_dir, metadata, feature_extractor, encoder
 
 
 def write_teacher_checkpoint(
