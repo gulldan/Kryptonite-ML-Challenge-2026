@@ -103,6 +103,16 @@ rationale = "Not ready."
 export_readiness = "not_ready"
 evidence_paths = ["docs/campp-stage3-training.md"]
 rejected_reason = "Missing staged handoff."
+
+[[option]]
+family_id = "redimnet"
+label = "ReDimNet exploratory branch"
+role = "alternative"
+status = "deferred"
+summary = "Deferred until comparable repo-native evidence exists."
+rationale = "Missing repo-native baseline, shortlist, and export handoff."
+export_readiness = "deferred_until_baseline_exists"
+evidence_paths = ["docs/campp-stage3-training.md"]
 """.strip()
         + "\n",
         encoding="utf-8",
@@ -117,6 +127,7 @@ rejected_reason = "Missing staged handoff."
     assert report.selected_production_student.metrics.score_gap == 0.5
     assert report.selected_stretch_teacher.family_id == "teacher"
     assert report.rejected_options[0].family_id == "other"
+    assert report.deferred_options[0].family_id == "redimnet"
     assert Path(written.report_json_path).is_file()
     assert Path(written.report_markdown_path).is_file()
 
@@ -126,8 +137,10 @@ rejected_reason = "Missing staged handoff."
 
     markdown = Path(written.report_markdown_path).read_text(encoding="utf-8")
     assert "## Rejected Alternatives" in markdown
+    assert "## Deferred Options" in markdown
     assert "CAM++" in markdown
     assert "Other baseline" in markdown
+    assert "ReDimNet exploratory branch" in markdown
 
 
 def test_checked_in_final_family_decision_config_builds_against_repository() -> None:
@@ -140,4 +153,5 @@ def test_checked_in_final_family_decision_config_builds_against_repository() -> 
     assert report.selected_production_student.family_id == "campp"
     assert report.selected_stretch_teacher.family_id == "wavlm_w2vbert_peft"
     assert any(option.family_id == "eres2netv2" for option in report.rejected_options)
+    assert any(option.family_id == "redimnet_branch" for option in report.deferred_options)
     assert report.selected_production_student.metrics.score_gap is not None

@@ -8,6 +8,8 @@ work starts.
 - Production student family: `CAM++`
 - Stretch teacher branch: `WavLM / w2v-BERT` in `PEFT` mode
 - Rejected export-first alternative: `ERes2NetV2`
+- Deferred exploratory alternative: `ReDimNet / ReDimNet2` while `KVA-535`
+  stays outside the main shortlist until baseline/export evidence exists
 
 ## Why This Decision Exists
 
@@ -51,6 +53,23 @@ from training to final-candidate selection.
 In short: `ERes2NetV2` stays as a useful comparison baseline, not as the next
 export-critical path.
 
+## Why ReDimNet / ReDimNet2 Stays Deferred
+
+- `KVA-535` asked whether an optional `ReDimNet / ReDimNet2` branch has real
+  quality or latency upside for this repository.
+- The answer today is not "never"; it is "not yet under a fair contract."
+- There is no checked-in repo-native baseline config, checkpoint, verification
+  report, shortlist flow, or export handoff for `ReDimNet / ReDimNet2`.
+- That means promoting it into the current shortlist would create a third model
+  family without the same baseline-to-export evidence chain already available
+  for `CAM++` and partially available for `ERes2NetV2`.
+
+`KVA-535` is therefore closed by explicitly deferring the branch until the
+student export path is stable. If this family is revisited later, it should
+first land a repo-native baseline and evaluation surface comparable to
+`docs/eres2netv2-baseline.md` and `docs/campp-model-selection.md` before any
+quality/latency comparison is treated as decision-grade evidence.
+
 ## Why The Teacher Branch Stays Stretch-Only
 
 - Teacher-style work still has upside for robustness and future distillation.
@@ -78,6 +97,9 @@ not block the student export/parity sequence.
   `artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/`
 - ERes2NetV2 baseline artifact:
   `artifacts/baselines/eres2netv2/20260326T184454Z-d0eba6dc018d/`
+- Comparison maturity references:
+  `docs/campp-model-selection.md`,
+  `docs/eres2netv2-baseline.md`
 - Stretch-teacher and dependency framing:
   `docs/release-postmortem.md`,
   `configs/release/release-postmortem-v2.toml`

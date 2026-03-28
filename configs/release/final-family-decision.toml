@@ -1,7 +1,7 @@
 title = "Kryptonite 2026 Final Family Decision"
 decision_id = "kryptonite-2026-final-family"
 accepted_at = "2026-03-27"
-summary = "Freeze CAM++ as the production student family for the next export cycle and keep the WavLM / w2v-BERT PEFT branch as stretch-only teacher work."
+summary = "Freeze CAM++ as the production student family for the next export cycle, keep the WavLM / w2v-BERT PEFT branch as stretch-only teacher work, and explicitly defer the optional ReDimNet / ReDimNet2 branch until the student export path is stable."
 context = """
 The checked-in release postmortem makes KVA-536 the first gate for the next
 iteration: export, parity, and fallback packaging must target one family rather
@@ -9,9 +9,13 @@ than duplicating deployment work across incompatible candidates.
 
 The repository already contains real baseline artifacts for CAM++ and
 ERes2NetV2, but only CAM++ has the staged stage-2/stage-3 training path, a
-bounded shortlist contract, and a final-candidate selection workflow. Teacher
-work remains strategically interesting, yet backlog v2 explicitly de-scopes it
-from the next must-have milestone until one student family is exportable.
+bounded shortlist contract, and a final-candidate selection workflow.
+ReDimNet / ReDimNet2 does not yet have a checked-in repo-native baseline,
+verification artifact, shortlist flow, or export handoff, so KVA-535 cannot
+produce a like-for-like quality/latency comparison without first duplicating
+core baseline and deployment work. Teacher work remains strategically
+interesting, yet backlog v2 explicitly de-scopes it from the next must-have
+milestone until one student family is exportable.
 """
 decision = """
 Use CAM++ as the only production-student family for KVA-538, KVA-539, and the
@@ -19,7 +23,9 @@ later KVA-544 fallback chain. Keep the WavLM / w2v-BERT PEFT branch as the
 stretch teacher path, but do not allow it to block the export/parity track.
 Reject ERes2NetV2 as the immediate export target because it currently stops at a
 baseline recipe and would require extra model-selection and deployment handoff
-work before parity can even be measured.
+work before parity can even be measured. Defer the optional ReDimNet /
+ReDimNet2 branch from the current shortlist until the repository has a
+comparable repo-native baseline and export-evaluation contract for that family.
 """
 output_root = "artifacts/release-decisions/kryptonite-2026-final-family"
 selected_production_student = "campp"
@@ -28,6 +34,7 @@ decision_drivers = [
   "The next export cycle must freeze one family before KVA-538 and KVA-539 start.",
   "CAM++ is the only repo-native student family with baseline, stage-2, stage-3, shortlist, and final-candidate selection contracts already checked in.",
   "ERes2NetV2 currently has only a baseline path, so choosing it now would add scope before ONNX parity exists.",
+  "ReDimNet / ReDimNet2 currently has no repo-native baseline, shortlist, or export handoff in this repository, so it should not enter the main shortlist before the student export path is stable.",
   "Teacher-heavy work stays stretch-only until a student export path is real and benchmarkable.",
 ]
 next_step_issues = ["KVA-538", "KVA-539", "KVA-544"]
@@ -82,6 +89,30 @@ evidence_paths = [
   "docs/eres2netv2-baseline.md",
 ]
 rejected_reason = "No staged fine-tuning, shortlist, or final-candidate export handoff exists yet."
+
+[[option]]
+family_id = "redimnet_branch"
+label = "ReDimNet / ReDimNet2 exploratory branch"
+role = "alternative"
+status = "deferred"
+summary = "Keep out of the current shortlist until it has repo-native baseline and export evidence."
+rationale = """
+KVA-535 asks whether ReDimNet / ReDimNet2 has real quality or latency upside
+over CAM++ and ERes2NetV2 for this repository. Today there is no checked-in
+baseline config, checkpoint, verification report, shortlist flow, or export
+handoff for that family, so any comparison would be structurally weaker than
+the repo-native evidence already available for CAM++ and ERes2NetV2. The branch
+is therefore deferred until the student export path is stable enough to justify
+bringing a third family into the same evaluation contract.
+"""
+export_readiness = "deferred_until_repo_native_baseline_exists"
+evidence_paths = [
+  "docs/final-family-decision.md",
+  "docs/release-postmortem.md",
+  "configs/release/release-postmortem-v2.toml",
+  "docs/campp-model-selection.md",
+  "docs/eres2netv2-baseline.md",
+]
 
 [[option]]
 family_id = "wavlm_w2vbert_peft"
