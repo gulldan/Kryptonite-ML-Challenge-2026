@@ -100,6 +100,8 @@ See [docs/configuration.md](./docs/configuration.md) for config overrides and se
 See [docs/reproducibility.md](./docs/reproducibility.md) for seed control and fingerprint checks.
 See [docs/ci.md](./docs/ci.md) for the current CI smoke scope.
 See [docs/model-task-contract.md](./docs/model-task-contract.md) for the repository-level ADR that fixes the primary verification task, compatible identification modes, and the expected handoff artifacts.
+See [docs/epic-00-research-baseline.md](./docs/epic-00-research-baseline.md) for the curated closeout of the initial research block and the validation path that unlocks the later core epics.
+See [docs/internal-verification-protocol.md](./docs/internal-verification-protocol.md) for the clean plus corrupted verification-protocol snapshot, its required slice fields, and the strict completeness check used for full protocol rebuilds.
 See [docs/experiment-matrix-v1.md](./docs/experiment-matrix-v1.md) for the sequenced experiment plan, GPU-hour budget ranges, and the explicit split between the student must-have lane and deferred teacher work.
 See [docs/system-architecture-v1.md](./docs/system-architecture-v1.md) for the end-to-end pipeline diagram, module boundaries, interfaces, logging points, and export/serve placement.
 See [deployment/README.md](./deployment/README.md) for the train/infer container packaging flow.
