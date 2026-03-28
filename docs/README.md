@@ -7,8 +7,10 @@ Exploratory notes should stay in `notebooks/` until they become stable enough to
 Key serving notes:
 
 - `docs/epic-00-research-baseline.md` for the single EPIC-00 closeout entrypoint that ties together rules, task contract, verification protocol, architecture, and experiment ordering
+- `docs/epic-04-corruption-bank-closeout.md` for the closeout entrypoint that ties together the corruption banks, scheduler, and frozen corrupted-dev bundles
 - `docs/model-task-contract.md` for the repository-level ADR that fixes the primary verification task, compatible identification modes, trial semantics, and handoff artifacts
 - `docs/internal-verification-protocol.md` for the clean plus corrupted verification-protocol snapshot, required slice fields, and the strict completeness gate for full rebuilds
+- `docs/audio-corrupted-dev-suites.md` for the deterministic corrupted verification bundles that downstream scoring and export work should reuse instead of re-sampling perturbations
 - `docs/experiment-matrix-v1.md` for the sequenced experiment plan, GPU-hour budget ranges, and the explicit must-have vs stretch split
 - `docs/teacher-peft.md` for the runnable WavLM / w2v-BERT stretch-teacher branch, PEFT limits, and checkpoint layout
 - `docs/campp-distillation.md` for the runnable CAM++ student-distillation recipe, teacher-guided losses, and baseline-vs-distilled comparison contract

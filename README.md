@@ -125,6 +125,8 @@ See [docs/audio-rir-bank.md](./docs/audio-rir-bank.md) for room-impulse-response
 See [docs/audio-codec-simulation.md](./docs/audio-codec-simulation.md) for deterministic FFmpeg-based codec/channel preset generation and preview reporting.
 See [docs/audio-far-field-simulation.md](./docs/audio-far-field-simulation.md) for deterministic near/mid/far distance simulation presets, kernel controls, and preview reporting.
 See [docs/audio-augmentation-scheduler.md](./docs/audio-augmentation-scheduler.md) for the clean/light/medium/heavy curriculum policy over the assembled corruption banks.
+See [docs/audio-corrupted-dev-suites.md](./docs/audio-corrupted-dev-suites.md) for the deterministic `dev_snr`/`dev_reverb`/`dev_codec`/`dev_distance`/`dev_channel`/`dev_silence` evaluation bundles built on top of those banks.
+See [docs/epic-04-corruption-bank-closeout.md](./docs/epic-04-corruption-bank-closeout.md) for the curated closeout of the full corruption-bank block and the validation path that unlocks the later training, scoring, and deployment phases.
 See [docs/audio-embedding-atlas.md](./docs/audio-embedding-atlas.md) for interactive 2D projection of precomputed embeddings plus the manifest-backed baseline export path for immediate dataset inspection.
 See [docs/embedding-scoring.md](./docs/embedding-scoring.md) for the shared L2-normalization and cosine scoring contract used by offline verification and the thin HTTP scoring API.
 See [docs/export-boundary.md](./docs/export-boundary.md) for the machine-readable `encoder_input -> embedding` contract that keeps decode/VAD/Fbank outside exported ONNX/TensorRT graphs.
