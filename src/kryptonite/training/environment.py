@@ -76,6 +76,8 @@ CORE_PACKAGE_SPECS: tuple[PackageSpec, ...] = (
     PackageSpec(group="train", distribution="onnx", module="onnx"),
     PackageSpec(group="train", distribution="onnxruntime", module="onnxruntime"),
     PackageSpec(group="train", distribution="hydra-core", module="hydra"),
+    PackageSpec(group="train", distribution="transformers", module="transformers"),
+    PackageSpec(group="train", distribution="peft", module="peft"),
     PackageSpec(group="train", distribution="typer", module="typer"),
     PackageSpec(group="tracking", distribution="mlflow", module="mlflow"),
     PackageSpec(group="tracking", distribution="wandb", module="wandb"),

@@ -8,6 +8,7 @@ Key serving notes:
 
 - `docs/model-task-contract.md` for the repository-level ADR that fixes the primary verification task, compatible identification modes, trial semantics, and handoff artifacts
 - `docs/experiment-matrix-v1.md` for the sequenced experiment plan, GPU-hour budget ranges, and the explicit must-have vs stretch split
+- `docs/teacher-peft.md` for the runnable WavLM / w2v-BERT stretch-teacher branch, PEFT limits, and checkpoint layout
 - `docs/system-architecture-v1.md` for the end-to-end pipeline diagram, module ownership, interfaces, logging points, and export/serve placement
 - `docs/onnx-export.md` for the real CAM++ encoder-only ONNX bundle, validation scope, and handoff limits before parity promotion
 - `docs/tensorrt-fp16-engine.md` for the repo-native FP16 engine build workflow, validation gates, and metadata promotion rules

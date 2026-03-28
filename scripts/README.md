@@ -35,6 +35,7 @@ Current entrypoints include:
 - `scripts/run_campp_sweep_shortlist.py` for running the bounded CAM++ stage-3 shortlist and ranking candidates on clean + corrupted dev suites
 - `scripts/run_campp_model_selection.py` for selecting the final CAM++ stage-3 candidate from a shortlist report and evaluating optional checkpoint averages
 - `scripts/run_eres2netv2_baseline.py` for training the repo-native ERes2NetV2 baseline and writing checkpoints, dev embeddings, trials, and cosine scores
+- `scripts/run_teacher_peft.py` for running the stretch WavLM / w2v-BERT branch with LoRA-only adaptation and baseline-compatible embedding/verification artifacts
 - `scripts/production_dataloader_smoke.py` for inspecting the balanced/resumable production train dataloader against a real train manifest
 - `scripts/feature_cache_report.py` for reproducible feature-cache materialization plus CPU/GPU benchmark and policy reports
 - `scripts/normalize_audio_dataset.py` for deterministic 16 kHz mono normalization, manifest rewriting, and quarantine reporting

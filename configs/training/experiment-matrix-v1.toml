@@ -229,13 +229,21 @@ gpu_hours_low = 20.0
 gpu_hours_high = 32.0
 depends_on = []
 evidence_paths = [
+  "configs/training/teacher-peft.toml",
+  "scripts/run_teacher_peft.py",
+  "docs/teacher-peft.md",
   "configs/release/final-family-decision.toml",
   "configs/release/release-postmortem-v2.toml",
   "docs/final-family-decision.md",
   "docs/release-postmortem.md",
 ]
+command = """
+uv run python scripts/run_teacher_peft.py \
+  --config configs/training/teacher-peft.toml \
+  --device cuda
+"""
 notes = [
-  "No runnable teacher PEFT entrypoint is checked in yet; treat this budget as planning-only.",
+  "A runnable teacher PEFT entrypoint is now checked in, but the branch still stays intentionally outside the must-have export lane.",
   "The final-family decision keeps this row as stretch-only and explicitly prevents it from blocking export/parity work.",
 ]
 
