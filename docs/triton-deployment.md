@@ -96,14 +96,20 @@ and checks that Triton returns a non-empty output tensor with the configured out
 
 ## TensorRT Handoff
 
-TensorRT packaging is supported only when a real plan file already exists. The builder can switch
-the same repository layout from ONNX to TensorRT:
+TensorRT packaging now assumes the FP16 engine has already been materialized by
+the dedicated workflow in [docs/tensorrt-fp16-engine.md](./tensorrt-fp16-engine.md).
+Build the engine first, then switch the same repository layout from ONNX to
+TensorRT:
 
 ```bash
+uv run python scripts/build_tensorrt_fp16_engine.py \
+  --config configs/release/tensorrt-fp16.toml
+
 uv run python scripts/build_triton_model_repository.py \
   --config configs/deployment/infer.toml \
   --backend-mode tensorrt \
-  --engine-path artifacts/model-bundle/model.plan
+  --engine-path artifacts/model-bundle-campp-onnx/model.plan \
+  --override 'deployment.model_bundle_root="artifacts/model-bundle-campp-onnx"'
 ```
 
 In that mode the builder writes:
@@ -113,7 +119,6 @@ In that mode the builder writes:
 
 What this does not claim:
 
-- there is no repo-native export step that materializes `model.plan`
 - there is no raw-audio TensorRT deployment path yet
 - there is no claim that the current `gpu-server` path has replaced the torch runtime with TensorRT
 
