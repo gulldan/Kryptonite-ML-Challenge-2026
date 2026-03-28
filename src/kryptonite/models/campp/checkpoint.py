@@ -10,6 +10,8 @@ from kryptonite.deployment import resolve_project_path
 from .model import CAMPPlusConfig, CAMPPlusEncoder
 
 KNOWN_CAMPP_CHECKPOINT_NAMES = (
+    "campp_consistency_encoder.pt",
+    "campp_distilled_encoder.pt",
     "campp_stage3_encoder.pt",
     "campp_stage2_encoder.pt",
     "campp_stage1_encoder.pt",
