@@ -1,0 +1,71 @@
+title = "Kryptonite backend benchmark"
+report_id = "kryptonite-2026-backend-benchmark"
+summary = """
+Benchmark the promoted CAM++ export stack across PyTorch, ONNX Runtime, and
+TensorRT on deterministic feature-tensor workloads. The report freezes cold
+start, warm latency, throughput, stability jitter, memory snapshots, and
+quality drift versus the PyTorch checkpoint across batch=1 and batched modes.
+"""
+project_root = "."
+output_root = "artifacts/release/current/backend-benchmark"
+
+validation_commands = [
+  "uv run python scripts/build_backend_benchmark_report.py --config configs/release/backend-benchmark.toml",
+  "uv run python scripts/build_final_benchmark_pack.py --config configs/eval/final-benchmark-pack.example.toml",
+]
+
+notes = [
+  "Run this workflow on gpu-server after syncing the repo-local .venv with train/infer extras plus TensorRT.",
+  "The benchmark measures the encoder boundary only; raw-audio load, VAD, chunking, and Fbank extraction stay outside the timed region.",
+  "GPU memory snapshots rely on process-local nvidia-smi telemetry when available and fall back to process RSS otherwise.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle-campp-onnx/metadata.json"
+tensorrt_report_path = "artifacts/release/current/fp16/tensorrt_fp16_engine_report.json"
+
+[evaluation]
+seed = 20260328
+device = "auto"
+onnxruntime_provider = "auto"
+warmup_iterations = 10
+benchmark_iterations = 50
+backends = ["torch", "onnxruntime", "tensorrt"]
+max_mean_abs_diff = 0.01
+max_cosine_distance = 0.001
+
+[[workloads]]
+id = "single_short"
+batch_size = 1
+frame_count = 100
+description = "Single-utterance short sequence near the short TensorRT profile."
+
+[[workloads]]
+id = "single_mid"
+batch_size = 1
+frame_count = 240
+description = "Single-utterance medium sequence aligned with the mid profile."
+
+[[workloads]]
+id = "single_long"
+batch_size = 1
+frame_count = 480
+description = "Single-utterance long sequence that exercises the long profile."
+
+[[workloads]]
+id = "batch4_short"
+batch_size = 4
+frame_count = 100
+description = "Batched short sequence for throughput-sensitive serving bursts."
+
+[[workloads]]
+id = "batch4_mid"
+batch_size = 4
+frame_count = 240
+description = "Batched medium sequence representative of steady online traffic."
+
+[[workloads]]
+id = "batch4_long"
+batch_size = 4
+frame_count = 480
+description = "Batched long sequence that stresses the upper latency envelope."

@@ -44,6 +44,7 @@ Current entrypoints include:
 - `scripts/infer_smoke.py` for inference-runtime and API startup smoke validation
 - `scripts/build_triton_model_repository.py` for packaging the current encoder-boundary ONNX or TensorRT artifact into a Triton model repository with generated `config.pbtxt` and sample infer request
 - `scripts/triton_infer_smoke.py` for probing a running Triton server through `/v2/models/<name>/infer` with the generated sample request
+- `scripts/build_backend_benchmark_report.py` for freezing one config-driven PyTorch vs ONNX Runtime vs TensorRT benchmark report with latency graphs for batch=1 and batched workloads
 - `scripts/inference_stress_report.py` for release-oriented stress validation across deterministic corrupted/extreme-duration inputs, malformed requests, and batch bursts
 - `scripts/build_final_family_decision.py` for rendering the config-driven ADR that freezes the next export-target family and rejected alternatives
 - `scripts/build_final_benchmark_pack.py` for building one self-contained release pack that copies frozen quality/stress/config artifacts and computes pairwise candidate comparisons
