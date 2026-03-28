@@ -111,7 +111,7 @@ def validate_tensorrt_engine(
     model = model.to(device="cuda", dtype=torch.float32)
     model.eval()
 
-    runner = _TensorRTEngineRunner(
+    runner = TensorRTEngineRunner(
         engine_path=engine_path,
         input_name=input_name,
         output_name=output_name,
@@ -212,7 +212,7 @@ def validate_tensorrt_engine(
     return tuple(results)
 
 
-class _TensorRTEngineRunner:
+class TensorRTEngineRunner:
     def __init__(
         self,
         *,
@@ -430,4 +430,8 @@ def _import_torch() -> Any:
     return torch
 
 
-__all__ = ["build_serialized_tensorrt_engine", "validate_tensorrt_engine"]
+__all__ = [
+    "TensorRTEngineRunner",
+    "build_serialized_tensorrt_engine",
+    "validate_tensorrt_engine",
+]
