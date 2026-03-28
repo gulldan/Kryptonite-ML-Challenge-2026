@@ -7,6 +7,17 @@ from .config import (
     CAMPPlusOptimizationConfig,
     load_campp_baseline_config,
 )
+from .consistency_config import (
+    CAMPPlusConsistencyConfig,
+    ConsistencyLossConfig,
+    ConsistencyRobustDevConfig,
+    ConsistencyStudentConfig,
+    load_campp_consistency_config,
+)
+from .consistency_pipeline import (
+    CAMPPlusConsistencyRunArtifacts,
+    run_campp_consistency,
+)
 from .distillation_config import (
     CAMPPlusDistillationConfig,
     DistillationLossConfig,
@@ -15,8 +26,6 @@ from .distillation_config import (
     load_campp_distillation_config,
 )
 from .distillation_pipeline import (
-    BASELINE_COMPARISON_JSON_NAME,
-    BASELINE_COMPARISON_MARKDOWN_NAME,
     BaselineComparisonSummary,
     CAMPPlusDistillationRunArtifacts,
     run_campp_distillation,
@@ -72,10 +81,10 @@ from .sweep_shortlist_config import (
 )
 
 __all__ = [
-    "BASELINE_COMPARISON_JSON_NAME",
-    "BASELINE_COMPARISON_MARKDOWN_NAME",
     "BaselineComparisonSummary",
     "CAMPPlusBaselineConfig",
+    "CAMPPlusConsistencyConfig",
+    "CAMPPlusConsistencyRunArtifacts",
     "CAMPPlusDataConfig",
     "CAMPPlusDistillationConfig",
     "CAMPPlusDistillationRunArtifacts",
@@ -89,6 +98,9 @@ __all__ = [
     "CAMPPlusStage3Config",
     "CAMPPlusStage3RunArtifacts",
     "CheckpointAveragingConfig",
+    "ConsistencyLossConfig",
+    "ConsistencyRobustDevConfig",
+    "ConsistencyStudentConfig",
     "CorruptedSuitesConfig",
     "DistillationLossConfig",
     "DistillationStudentConfig",
@@ -104,6 +116,7 @@ __all__ = [
     "Stage3HardNegativeConfig",
     "Stage3MarginScheduleConfig",
     "load_campp_baseline_config",
+    "load_campp_consistency_config",
     "load_campp_distillation_config",
     "load_campp_model_selection_config",
     "load_campp_sweep_shortlist_report",
@@ -122,6 +135,7 @@ __all__ = [
     "SweepSuiteEvaluation",
     "render_campp_sweep_shortlist_markdown",
     "run_campp_baseline",
+    "run_campp_consistency",
     "run_campp_distillation",
     "run_campp_model_selection",
     "run_campp_sweep_shortlist",

@@ -130,11 +130,11 @@ def test_evaluate_candidate_resolves_output_root_from_project_root(
         candidate: TeacherStudentRobustDevCandidateConfig,
         runtime: RuntimeConfig,
         suites: tuple[CorruptedSuiteEntry, ...],
-        config: TeacherStudentRobustDevConfig,
+        device: str,
         project_root: Path,
         report_output_root: Path,
     ) -> tuple[tuple[TeacherStudentRobustDevSuiteEvaluation, ...], CostFields]:
-        del candidate, runtime, suites, config, project_root
+        del candidate, runtime, suites, device, project_root
         captured["report_output_root"] = report_output_root
         return (
             (

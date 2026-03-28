@@ -1,0 +1,74 @@
+# CAM++ consistency: clean/corrupted invariance fine-tuning (KRYP-056)
+#
+# Scope notes:
+#   - reuses the export-frozen CAM++ stage-3 family as the only student lane
+#   - warm-starts from a completed stage-3 checkpoint
+#   - applies clean/corrupted consistency on aligned utterance crops from the same row
+#   - always writes baseline-vs-consistency and robust-dev ablation artifacts
+
+base_stage3_config = "configs/training/campp-stage3.toml"
+
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-consistency"',
+  'tracking.run_name_prefix="campp-consistency"',
+  'runtime.num_workers=4',
+  'training.precision="bf16"',
+  'training.batch_size=16',
+  'training.eval_batch_size=16',
+  'training.max_epochs=4',
+  'augmentation_scheduler.max_augmentations_per_sample=2',
+  'augmentation_scheduler.clean_probability_start=0.35',
+  'augmentation_scheduler.clean_probability_end=0.25',
+  'augmentation_scheduler.light_probability_start=0.35',
+  'augmentation_scheduler.light_probability_end=0.35',
+  'augmentation_scheduler.medium_probability_start=0.20',
+  'augmentation_scheduler.medium_probability_end=0.25',
+  'augmentation_scheduler.heavy_probability_start=0.10',
+  'augmentation_scheduler.heavy_probability_end=0.15',
+  'silence_augmentation.enabled=true',
+]
+
+[data]
+train_manifest = "artifacts/manifests/train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/dev_manifest.jsonl"
+output_root = "artifacts/baselines/campp-consistency"
+trials_manifest = ""
+checkpoint_name = "campp_consistency_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.0001
+min_learning_rate = 0.00001
+weight_decay = 0.0001
+warmup_epochs = 0
+gradient_accumulation_steps = 2
+grad_clip_norm = 5.0
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+notes = [
+  "KRYP-056: clean/corrupted consistency fine-tuning on top of CAM++ stage-3",
+  "The stage-3 checkpoint stays the baseline anchor and is re-evaluated inside each consistency run.",
+]
+
+[student]
+# Set this to the completed CAM++ stage-3 run directory or to the checkpoint file itself.
+# For ad hoc runs prefer the CLI override:
+#   --student-checkpoint /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/campp-stage3/<run-id>
+checkpoint = "artifacts/baselines/campp-stage3/<run-id>"
+
+[consistency]
+clean_classification_weight = 1.0
+corrupted_classification_weight = 0.5
+embedding_weight = 0.25
+score_weight = 0.1
+
+[robust_dev]
+enabled = true
+catalog_path = "artifacts/eval/corrupted-dev-suites/corrupted_dev_suites_catalog.json"
+clean_weight = 0.25
+corrupted_weight = 0.75

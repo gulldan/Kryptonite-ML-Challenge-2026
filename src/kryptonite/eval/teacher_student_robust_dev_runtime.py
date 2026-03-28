@@ -107,7 +107,7 @@ def evaluate_candidate(
         candidate=candidate,
         runtime=runtime_config,
         suites=suites,
-        config=config,
+        device=config.device,
         project_root=project_root,
         report_output_root=(
             resolve_project_path(str(project_root), config.output_root)
@@ -290,13 +290,13 @@ def evaluate_candidate_suites(
     candidate: TeacherStudentRobustDevCandidateConfig,
     runtime: RuntimeConfig,
     suites: tuple[CorruptedSuiteEntry, ...],
-    config: TeacherStudentRobustDevConfig,
+    device: str,
     project_root: Path,
     report_output_root: Path,
 ) -> tuple[tuple[TeacherStudentRobustDevSuiteEvaluation, ...], CostFields]:
     from kryptonite.training.speaker_baseline import export_dev_embeddings, resolve_device
 
-    device = resolve_device(config.device if config.device != "auto" else runtime.device)
+    runtime_device = resolve_device(device if device != "auto" else runtime.device)
     audio_request = AudioLoadRequest.from_config(runtime.normalization, vad=runtime.vad)
     feature_request = FbankExtractionRequest.from_config(runtime.features)
     measured_cost: CostFields
@@ -308,7 +308,7 @@ def evaluate_candidate_suites(
             checkpoint_path=candidate.run_root,
             project_root=project_root,
         )
-        model = model.to(device)
+        model = model.to(runtime_device)
         measured_cost = CostFields(
             total_parameters=parameter_count(model),
             trainable_parameters=parameter_count(model),
@@ -330,7 +330,7 @@ def evaluate_candidate_suites(
                 audio_request=audio_request,
                 feature_request=feature_request,
                 chunking=runtime.chunking,
-                device=device,
+                device=runtime_device,
                 embedding_source=f"teacher_student_robust_dev:{candidate.candidate_id}",
             )
 
@@ -341,7 +341,7 @@ def evaluate_candidate_suites(
             checkpoint_path=candidate.run_root,
             project_root=project_root,
         )
-        model = model.to(device)
+        model = model.to(runtime_device)
         measured_cost = CostFields(
             total_parameters=parameter_count(model),
             trainable_parameters=parameter_count(model),
@@ -363,7 +363,7 @@ def evaluate_candidate_suites(
                 audio_request=audio_request,
                 feature_request=feature_request,
                 chunking=runtime.chunking,
-                device=device,
+                device=runtime_device,
                 embedding_source=f"teacher_student_robust_dev:{candidate.candidate_id}",
             )
 
@@ -378,7 +378,7 @@ def evaluate_candidate_suites(
             token=os.environ.get("HUGGINGFACE_HUB_TOKEN"),
             trainable=True,
         )
-        model = model.to(device)
+        model = model.to(runtime_device)
         measured_cost = CostFields(
             total_parameters=parameter_count(model),
             trainable_parameters=trainable_parameter_count(model),
@@ -404,7 +404,7 @@ def evaluate_candidate_suites(
                 sample_rate_hz=runtime.normalization.target_sample_rate_hz,
                 chunking=runtime.chunking,
                 eval_batch_size=max(1, runtime.eval_batch_size),
-                device=device,
+                device=runtime_device,
                 embedding_source=f"teacher_student_robust_dev:{candidate.candidate_id}",
             )
 
