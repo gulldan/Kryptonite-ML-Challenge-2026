@@ -25,14 +25,35 @@ engine_output_path = "artifacts/model-bundle-campp-onnx/model.plan"
 
 [build]
 workspace_size_mib = 2048
+promote_validated_backend = true
+require_onnxruntime_parity = true
+
+[[build.profiles]]
+profile_id = "short"
 min_batch_size = 1
 opt_batch_size = 4
 max_batch_size = 8
 min_frame_count = 80
-opt_frame_count = 200
+opt_frame_count = 120
+max_frame_count = 160
+
+[[build.profiles]]
+profile_id = "mid"
+min_batch_size = 1
+opt_batch_size = 4
+max_batch_size = 8
+min_frame_count = 80
+opt_frame_count = 256
+max_frame_count = 384
+
+[[build.profiles]]
+profile_id = "long"
+min_batch_size = 1
+opt_batch_size = 4
+max_batch_size = 8
+min_frame_count = 80
+opt_frame_count = 512
 max_frame_count = 800
-promote_validated_backend = true
-require_onnxruntime_parity = true
 
 [evaluation]
 seed = 20260328
@@ -48,11 +69,11 @@ batch_size = 1
 frame_count = 100
 
 [[evaluation.samples]]
-sample_id = "medium"
+sample_id = "mid"
 batch_size = 1
-frame_count = 200
+frame_count = 240
 
 [[evaluation.samples]]
 sample_id = "long"
 batch_size = 1
-frame_count = 400
+frame_count = 480

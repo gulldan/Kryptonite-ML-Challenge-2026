@@ -19,7 +19,7 @@ def build_serialized_tensorrt_engine(
     *,
     onnx_model_path: Path,
     input_name: str,
-    profile: TensorRTFP16Profile,
+    profiles: tuple[TensorRTFP16Profile, ...],
     workspace_size_mib: int,
 ) -> bytes:
     trt = _import_tensorrt()
@@ -59,14 +59,17 @@ def build_serialized_tensorrt_engine(
     )
     build_config.set_flag(trt.BuilderFlag.FP16)
 
-    optimization_profile = builder.create_optimization_profile()
-    optimization_profile.set_shape(
-        input_name,
-        profile.min_shape,
-        profile.opt_shape,
-        profile.max_shape,
-    )
-    build_config.add_optimization_profile(optimization_profile)
+    if not profiles:
+        raise ValueError("TensorRT engine build requires at least one optimization profile.")
+    for profile in profiles:
+        optimization_profile = builder.create_optimization_profile()
+        optimization_profile.set_shape(
+            input_name,
+            profile.min_shape,
+            profile.opt_shape,
+            profile.max_shape,
+        )
+        build_config.add_optimization_profile(optimization_profile)
 
     serialized_engine = builder.build_serialized_network(network, build_config)
     if serialized_engine is None:
@@ -83,6 +86,7 @@ def validate_tensorrt_engine(
     output_name: str,
     feature_dim: int,
     embedding_dim: int,
+    profiles: tuple[TensorRTFP16Profile, ...],
     samples: tuple[TensorRTFP16SampleConfig, ...],
     seed: int,
     warmup_iterations: int,
@@ -111,6 +115,7 @@ def validate_tensorrt_engine(
         engine_path=engine_path,
         input_name=input_name,
         output_name=output_name,
+        profiles=profiles,
     )
     results: list[TensorRTFP16SampleResult] = []
     for index, sample in enumerate(samples):
@@ -136,13 +141,36 @@ def validate_tensorrt_engine(
             warmup_iterations=warmup_iterations,
             benchmark_iterations=benchmark_iterations,
         )
+        selected_profile = _select_profile(
+            profiles,
+            shape=(
+                sample.batch_size,
+                sample.frame_count,
+                feature_dim,
+            ),
+        )
+        selected_profile_id = selected_profile.profile_id
+
+        def _run_selected_tensorrt_sample(
+            sample_input: Any = sample_input,
+            profile_id: str = selected_profile_id,
+        ) -> Any:
+            return runner.run(sample_input, profile_id=profile_id)
+
         tensorrt_latency_ms = _benchmark_cuda_callable(
             torch=torch,
-            function=lambda sample_input=sample_input: runner.run(sample_input),
+            function=_run_selected_tensorrt_sample,
             warmup_iterations=warmup_iterations,
             benchmark_iterations=benchmark_iterations,
         )
-        tensorrt_output = runner.run(sample_input).detach().to(dtype=torch.float32)
+        tensorrt_output = (
+            runner.run(
+                sample_input,
+                profile_id=selected_profile_id,
+            )
+            .detach()
+            .to(dtype=torch.float32)
+        )
 
         if tuple(int(dim) for dim in tensorrt_output.shape) != (sample.batch_size, embedding_dim):
             raise RuntimeError(
@@ -165,6 +193,7 @@ def validate_tensorrt_engine(
         results.append(
             TensorRTFP16SampleResult(
                 sample_id=sample.sample_id,
+                profile_id=selected_profile_id,
                 batch_size=sample.batch_size,
                 frame_count=sample.frame_count,
                 output_shape=(sample.batch_size, embedding_dim),
@@ -184,7 +213,14 @@ def validate_tensorrt_engine(
 
 
 class _TensorRTEngineRunner:
-    def __init__(self, *, engine_path: Path, input_name: str, output_name: str) -> None:
+    def __init__(
+        self,
+        *,
+        engine_path: Path,
+        input_name: str,
+        output_name: str,
+        profiles: tuple[TensorRTFP16Profile, ...],
+    ) -> None:
         self._trt = _import_tensorrt()
         self._torch = _import_torch()
         logger = self._trt.Logger(self._trt.Logger.WARNING)
@@ -199,13 +235,37 @@ class _TensorRTEngineRunner:
         self._context = context
         self._input_name = input_name
         self._output_name = output_name
+        self._profiles = profiles
+        self._active_profile_index: int | None = None
 
-    def run(self, input_tensor: Any) -> Any:
+    def run(self, input_tensor: Any, *, profile_id: str | None = None) -> Any:
         torch = self._torch
         if not bool(input_tensor.is_cuda):
             raise ValueError("TensorRT execution expects CUDA tensors.")
         prepared_input = input_tensor.contiguous()
-        self._set_input_shape(tuple(int(dim) for dim in prepared_input.shape))
+        if int(prepared_input.ndim) != 3:
+            raise ValueError(
+                "TensorRT execution expects [batch, frames, mel_bins] tensors, "
+                f"got shape {tuple(int(dim) for dim in prepared_input.shape)}."
+            )
+        input_shape: tuple[int, int, int] = (
+            int(prepared_input.shape[0]),
+            int(prepared_input.shape[1]),
+            int(prepared_input.shape[2]),
+        )
+        stream = torch.cuda.current_stream(prepared_input.device)
+        profile = (
+            _profile_by_id(self._profiles, profile_id)
+            if profile_id is not None
+            else _select_profile(self._profiles, shape=input_shape)
+        )
+        if not profile.supports_shape(input_shape):
+            raise RuntimeError(
+                "TensorRT optimization profile does not cover the requested input shape: "
+                f"{profile.profile_id!r} vs {input_shape}."
+            )
+        self._activate_profile(profile=profile, stream_handle=int(stream.cuda_stream))
+        self._set_input_shape(input_shape)
         output_shape = tuple(int(dim) for dim in self._context.get_tensor_shape(self._output_name))
         output_dtype = _torch_dtype_from_trt(
             trt=self._trt,
@@ -215,12 +275,36 @@ class _TensorRTEngineRunner:
         output_tensor = torch.empty(output_shape, device=prepared_input.device, dtype=output_dtype)
         self._set_tensor_address(self._input_name, int(prepared_input.data_ptr()))
         self._set_tensor_address(self._output_name, int(output_tensor.data_ptr()))
-        stream = torch.cuda.current_stream(prepared_input.device)
         ok = bool(self._context.execute_async_v3(stream_handle=int(stream.cuda_stream)))
         if not ok:
             raise RuntimeError("TensorRT execute_async_v3 returned false.")
         stream.synchronize()
         return output_tensor
+
+    def _activate_profile(self, *, profile: TensorRTFP16Profile, stream_handle: int) -> None:
+        profile_index = _profile_index_by_id(self._profiles, profile.profile_id)
+        if self._active_profile_index == profile_index:
+            return
+
+        setter_async = getattr(self._context, "set_optimization_profile_async", None)
+        if callable(setter_async):
+            result = setter_async(profile_index, stream_handle)
+            if result is False:
+                raise RuntimeError("TensorRT execution context rejected the optimization profile.")
+            self._active_profile_index = profile_index
+            return
+
+        if hasattr(self._context, "active_optimization_profile"):
+            self._context.active_optimization_profile = profile_index
+            self._active_profile_index = profile_index
+            return
+
+        if profile_index == 0:
+            self._active_profile_index = 0
+            return
+        raise RuntimeError(
+            "TensorRT execution context does not expose optimization profile selection."
+        )
 
     def _set_input_shape(self, shape: tuple[int, ...]) -> None:
         setter = getattr(self._context, "set_input_shape", None)
@@ -254,6 +338,47 @@ def _benchmark_cuda_callable(
     torch.cuda.synchronize()
     elapsed_ms = (time.perf_counter() - started_at) * 1_000.0
     return elapsed_ms / float(benchmark_iterations)
+
+
+def _select_profile(
+    profiles: tuple[TensorRTFP16Profile, ...],
+    *,
+    shape: tuple[int, int, int],
+) -> TensorRTFP16Profile:
+    matching = [profile for profile in profiles if profile.supports_shape(shape)]
+    if not matching:
+        raise RuntimeError(f"No TensorRT optimization profile covers input shape {shape}.")
+    batch_size, frame_count, _ = shape
+    return min(
+        matching,
+        key=lambda profile: (
+            profile.max_shape[1],
+            profile.max_shape[0],
+            abs(profile.opt_shape[1] - frame_count),
+            abs(profile.opt_shape[0] - batch_size),
+            profile.profile_id,
+        ),
+    )
+
+
+def _profile_by_id(
+    profiles: tuple[TensorRTFP16Profile, ...],
+    profile_id: str,
+) -> TensorRTFP16Profile:
+    for profile in profiles:
+        if profile.profile_id == profile_id:
+            return profile
+    raise RuntimeError(f"Unknown TensorRT optimization profile {profile_id!r}.")
+
+
+def _profile_index_by_id(
+    profiles: tuple[TensorRTFP16Profile, ...],
+    profile_id: str,
+) -> int:
+    for index, profile in enumerate(profiles):
+        if profile.profile_id == profile_id:
+            return index
+    raise RuntimeError(f"Unknown TensorRT optimization profile {profile_id!r}.")
 
 
 def _run_torch_encoder(*, torch: Any, model: Any, input_tensor: Any) -> Any:

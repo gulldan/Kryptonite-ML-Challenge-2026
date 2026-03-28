@@ -10,12 +10,22 @@ TENSORRT_FP16_REPORT_MARKDOWN_NAME = "tensorrt_fp16_engine_report.md"
 
 @dataclass(frozen=True, slots=True)
 class TensorRTFP16Profile:
+    profile_id: str
     min_shape: tuple[int, int, int]
     opt_shape: tuple[int, int, int]
     max_shape: tuple[int, int, int]
 
+    def supports_shape(self, shape: tuple[int, int, int]) -> bool:
+        if len(shape) != 3:
+            return False
+        return all(
+            lower <= value <= upper
+            for value, lower, upper in zip(shape, self.min_shape, self.max_shape, strict=True)
+        )
+
     def to_dict(self) -> dict[str, object]:
         return {
+            "profile_id": self.profile_id,
             "min_shape": list(self.min_shape),
             "opt_shape": list(self.opt_shape),
             "max_shape": list(self.max_shape),
@@ -25,6 +35,7 @@ class TensorRTFP16Profile:
 @dataclass(frozen=True, slots=True)
 class TensorRTFP16SampleResult:
     sample_id: str
+    profile_id: str
     batch_size: int
     frame_count: int
     output_shape: tuple[int, int]
@@ -40,6 +51,7 @@ class TensorRTFP16SampleResult:
     def to_dict(self) -> dict[str, object]:
         return {
             "sample_id": self.sample_id,
+            "profile_id": self.profile_id,
             "batch_size": self.batch_size,
             "frame_count": self.frame_count,
             "output_shape": list(self.output_shape),
@@ -119,7 +131,7 @@ class TensorRTFP16Report:
     embedding_dim: int
     engine_size_bytes: int
     workspace_size_mib: int
-    profile: TensorRTFP16Profile
+    profiles: tuple[TensorRTFP16Profile, ...]
     samples: tuple[TensorRTFP16SampleResult, ...]
     promotion: TensorRTFP16PromotionState
     validation_commands: tuple[str, ...]
@@ -145,7 +157,7 @@ class TensorRTFP16Report:
             "embedding_dim": self.embedding_dim,
             "engine_size_bytes": self.engine_size_bytes,
             "workspace_size_mib": self.workspace_size_mib,
-            "profile": self.profile.to_dict(),
+            "profiles": [profile.to_dict() for profile in self.profiles],
             "samples": [sample.to_dict() for sample in self.samples],
             "promotion": self.promotion.to_dict(),
             "validation_commands": list(self.validation_commands),

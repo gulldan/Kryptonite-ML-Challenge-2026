@@ -31,6 +31,9 @@ The checked-in config assumes:
   `artifacts/model-bundle-campp-onnx/model.plan`;
 - the human-readable report should be written to
   `artifacts/release/current/fp16/`.
+- the engine should embed three optimization profiles tuned around
+  `short`, `mid`, and `long` frame-count traffic instead of a single
+  overprovisioned dynamic range.
 
 ## Generated Artifacts
 
@@ -59,6 +62,17 @@ The workflow validates the encoder boundary directly:
 - accuracy gates: mean absolute diff and cosine distance vs the source PyTorch
   checkpoint;
 - latency gate: TensorRT must beat PyTorch by the configured speedup ratio.
+
+The checked-in `configs/release/tensorrt-fp16.toml` now defines three
+optimization profiles:
+
+- `short`: optimized around ~120 frames and capped at 160 frames
+- `mid`: optimized around ~256 frames and capped at 384 frames
+- `long`: optimized around ~512 frames and capped at 800 frames
+
+Validation samples are bound to the smallest profile that covers their
+`[batch, frames, mel_bins]` shape, so typical short/mid/long requests exercise
+the intended engine ranges without triggering a rebuild.
 
 This deliberately avoids claiming raw-audio runtime parity. Raw-audio frontend
 steps still live outside the engine boundary fixed in

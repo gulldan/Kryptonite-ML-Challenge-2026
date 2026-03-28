@@ -21,20 +21,19 @@ class TensorRTFP16ArtifactsConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class TensorRTFP16BuildConfig:
-    workspace_size_mib: int = 2_048
+class TensorRTFP16BuildProfileConfig:
+    profile_id: str = "default"
     min_batch_size: int = 1
     opt_batch_size: int = 4
     max_batch_size: int = 8
     min_frame_count: int = 80
     opt_frame_count: int = 200
     max_frame_count: int = 800
-    promote_validated_backend: bool = True
-    require_onnxruntime_parity: bool = True
 
     def __post_init__(self) -> None:
+        if not self.profile_id.strip():
+            raise ValueError("build.profiles[].profile_id must be a non-empty string.")
         for field_name in (
-            "workspace_size_mib",
             "min_batch_size",
             "opt_batch_size",
             "max_batch_size",
@@ -48,6 +47,45 @@ class TensorRTFP16BuildConfig:
             raise ValueError("batch sizes must satisfy min <= opt <= max.")
         if not self.min_frame_count <= self.opt_frame_count <= self.max_frame_count:
             raise ValueError("frame counts must satisfy min <= opt <= max.")
+
+    def covers(self, *, batch_size: int, frame_count: int) -> bool:
+        return (
+            self.min_batch_size <= batch_size <= self.max_batch_size
+            and self.min_frame_count <= frame_count <= self.max_frame_count
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TensorRTFP16BuildConfig:
+    workspace_size_mib: int = 2_048
+    profiles: tuple[TensorRTFP16BuildProfileConfig, ...] = (TensorRTFP16BuildProfileConfig(),)
+    promote_validated_backend: bool = True
+    require_onnxruntime_parity: bool = True
+
+    def __post_init__(self) -> None:
+        if self.workspace_size_mib <= 0:
+            raise ValueError("workspace_size_mib must be positive.")
+        if not self.profiles:
+            raise ValueError("build.profiles must define at least one optimization profile.")
+        profile_ids = [profile.profile_id for profile in self.profiles]
+        if len(set(profile_ids)) != len(profile_ids):
+            raise ValueError("build.profiles must use unique profile_id values.")
+
+    @property
+    def min_batch_size(self) -> int:
+        return min(profile.min_batch_size for profile in self.profiles)
+
+    @property
+    def max_batch_size(self) -> int:
+        return max(profile.max_batch_size for profile in self.profiles)
+
+    @property
+    def min_frame_count(self) -> int:
+        return min(profile.min_frame_count for profile in self.profiles)
+
+    @property
+    def max_frame_count(self) -> int:
+        return max(profile.max_frame_count for profile in self.profiles)
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +168,16 @@ class TensorRTFP16Config:
                 raise ValueError(
                     f"Sample {sample.sample_id!r} frame count exceeds build.max_frame_count."
                 )
+            if not any(
+                profile.covers(
+                    batch_size=sample.batch_size,
+                    frame_count=sample.frame_count,
+                )
+                for profile in self.build.profiles
+            ):
+                raise ValueError(
+                    f"Sample {sample.sample_id!r} is not covered by any build.profiles entry."
+                )
 
 
 def load_tensorrt_fp16_config(*, config_path: Path | str) -> TensorRTFP16Config:
@@ -163,30 +211,7 @@ def load_tensorrt_fp16_config(*, config_path: Path | str) -> TensorRTFP16Config:
                 build.get("workspace_size_mib", 2_048),
                 field_name="build.workspace_size_mib",
             ),
-            min_batch_size=_coerce_positive_int(
-                build.get("min_batch_size", 1),
-                field_name="build.min_batch_size",
-            ),
-            opt_batch_size=_coerce_positive_int(
-                build.get("opt_batch_size", 4),
-                field_name="build.opt_batch_size",
-            ),
-            max_batch_size=_coerce_positive_int(
-                build.get("max_batch_size", 8),
-                field_name="build.max_batch_size",
-            ),
-            min_frame_count=_coerce_positive_int(
-                build.get("min_frame_count", 80),
-                field_name="build.min_frame_count",
-            ),
-            opt_frame_count=_coerce_positive_int(
-                build.get("opt_frame_count", 200),
-                field_name="build.opt_frame_count",
-            ),
-            max_frame_count=_coerce_positive_int(
-                build.get("max_frame_count", 800),
-                field_name="build.max_frame_count",
-            ),
+            profiles=_parse_build_profiles(build),
             promote_validated_backend=_coerce_bool(
                 build.get("promote_validated_backend", True),
                 field_name="build.promote_validated_backend",
@@ -224,6 +249,79 @@ def load_tensorrt_fp16_config(*, config_path: Path | str) -> TensorRTFP16Config:
         notes=_coerce_optional_string_tuple(payload.get("notes")),
     )
     return config
+
+
+def _parse_build_profiles(raw_build: dict[str, Any]) -> tuple[TensorRTFP16BuildProfileConfig, ...]:
+    raw_profiles = raw_build.get("profiles")
+    if raw_profiles is None:
+        return (
+            TensorRTFP16BuildProfileConfig(
+                profile_id="default",
+                min_batch_size=_coerce_positive_int(
+                    raw_build.get("min_batch_size", 1),
+                    field_name="build.min_batch_size",
+                ),
+                opt_batch_size=_coerce_positive_int(
+                    raw_build.get("opt_batch_size", 4),
+                    field_name="build.opt_batch_size",
+                ),
+                max_batch_size=_coerce_positive_int(
+                    raw_build.get("max_batch_size", 8),
+                    field_name="build.max_batch_size",
+                ),
+                min_frame_count=_coerce_positive_int(
+                    raw_build.get("min_frame_count", 80),
+                    field_name="build.min_frame_count",
+                ),
+                opt_frame_count=_coerce_positive_int(
+                    raw_build.get("opt_frame_count", 200),
+                    field_name="build.opt_frame_count",
+                ),
+                max_frame_count=_coerce_positive_int(
+                    raw_build.get("max_frame_count", 800),
+                    field_name="build.max_frame_count",
+                ),
+            ),
+        )
+    if not isinstance(raw_profiles, list) or not raw_profiles:
+        raise ValueError("build.profiles must be a non-empty array of tables.")
+
+    profiles: list[TensorRTFP16BuildProfileConfig] = []
+    for index, item in enumerate(raw_profiles):
+        payload = _coerce_mapping(item, field_name=f"build.profiles[{index}]")
+        profiles.append(
+            TensorRTFP16BuildProfileConfig(
+                profile_id=_coerce_string(
+                    payload.get("profile_id"),
+                    field_name=f"build.profiles[{index}].profile_id",
+                ),
+                min_batch_size=_coerce_positive_int(
+                    payload.get("min_batch_size", 1),
+                    field_name=f"build.profiles[{index}].min_batch_size",
+                ),
+                opt_batch_size=_coerce_positive_int(
+                    payload.get("opt_batch_size", 4),
+                    field_name=f"build.profiles[{index}].opt_batch_size",
+                ),
+                max_batch_size=_coerce_positive_int(
+                    payload.get("max_batch_size", 8),
+                    field_name=f"build.profiles[{index}].max_batch_size",
+                ),
+                min_frame_count=_coerce_positive_int(
+                    payload.get("min_frame_count", 80),
+                    field_name=f"build.profiles[{index}].min_frame_count",
+                ),
+                opt_frame_count=_coerce_positive_int(
+                    payload.get("opt_frame_count", 200),
+                    field_name=f"build.profiles[{index}].opt_frame_count",
+                ),
+                max_frame_count=_coerce_positive_int(
+                    payload.get("max_frame_count", 800),
+                    field_name=f"build.profiles[{index}].max_frame_count",
+                ),
+            )
+        )
+    return tuple(profiles)
 
 
 def _parse_samples(raw: object) -> tuple[TensorRTFP16SampleConfig, ...]:
@@ -331,6 +429,7 @@ def _coerce_float(raw: object, *, field_name: str) -> float:
 __all__ = [
     "TensorRTFP16ArtifactsConfig",
     "TensorRTFP16BuildConfig",
+    "TensorRTFP16BuildProfileConfig",
     "TensorRTFP16Config",
     "TensorRTFP16EvaluationConfig",
     "TensorRTFP16SampleConfig",

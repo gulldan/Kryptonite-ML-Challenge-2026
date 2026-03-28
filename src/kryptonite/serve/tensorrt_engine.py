@@ -80,16 +80,32 @@ def build_tensorrt_fp16_report(
         contract.output_tensor.axes[-1].size,
         axis_name="embedding_dim",
     )
-    profile = TensorRTFP16Profile(
-        min_shape=(config.build.min_batch_size, config.build.min_frame_count, mel_bins),
-        opt_shape=(config.build.opt_batch_size, config.build.opt_frame_count, mel_bins),
-        max_shape=(config.build.max_batch_size, config.build.max_frame_count, mel_bins),
+    profiles = tuple(
+        TensorRTFP16Profile(
+            profile_id=profile_config.profile_id,
+            min_shape=(
+                profile_config.min_batch_size,
+                profile_config.min_frame_count,
+                mel_bins,
+            ),
+            opt_shape=(
+                profile_config.opt_batch_size,
+                profile_config.opt_frame_count,
+                mel_bins,
+            ),
+            max_shape=(
+                profile_config.max_batch_size,
+                profile_config.max_frame_count,
+                mel_bins,
+            ),
+        )
+        for profile_config in config.build.profiles
     )
 
     engine_bytes = _build_serialized_tensorrt_engine(
         onnx_model_path=onnx_model_path,
         input_name=input_name,
-        profile=profile,
+        profiles=profiles,
         workspace_size_mib=config.build.workspace_size_mib,
     )
     engine_path.write_bytes(engine_bytes)
@@ -104,6 +120,7 @@ def build_tensorrt_fp16_report(
         output_name=output_name,
         feature_dim=mel_bins,
         embedding_dim=embedding_dim,
+        profiles=profiles,
         samples=config.evaluation.samples,
         seed=config.evaluation.seed,
         warmup_iterations=config.evaluation.warmup_iterations,
@@ -137,7 +154,7 @@ def build_tensorrt_fp16_report(
         embedding_dim=embedding_dim,
         engine_size_bytes=engine_path.stat().st_size,
         workspace_size_mib=config.build.workspace_size_mib,
-        profile=profile,
+        profiles=profiles,
         samples=sample_results,
         promotion=TensorRTFP16PromotionState(
             requested=config.build.promote_validated_backend,
@@ -203,25 +220,32 @@ def render_tensorrt_fp16_markdown(report: TensorRTFP16Report) -> str:
         f"- Source checkpoint: `{report.source_checkpoint_path}`",
         f"- Overall status: `{'pass' if report.summary.passed else 'fail'}`",
         "",
-        "## Profile",
+        "## Optimization Profiles",
         "",
         f"- Input name: `{report.input_name}`",
         f"- Output name: `{report.output_name}`",
         f"- Embedding dim: `{report.embedding_dim}`",
         f"- Workspace size MiB: `{report.workspace_size_mib}`",
-        f"- min shape: `{list(report.profile.min_shape)}`",
-        f"- opt shape: `{list(report.profile.opt_shape)}`",
-        f"- max shape: `{list(report.profile.max_shape)}`",
         f"- Engine size bytes: `{report.engine_size_bytes}`",
         "",
-        "## Validation Samples",
-        "",
-        (
-            "| Sample | Shape | max abs diff | mean abs diff | cosine distance | "
-            "Torch ms | TensorRT ms | speedup | quality | speed |"
-        ),
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
+    for profile in report.profiles:
+        lines.append(
+            f"- `{profile.profile_id}`: min `{list(profile.min_shape)}`, "
+            f"opt `{list(profile.opt_shape)}`, max `{list(profile.max_shape)}`"
+        )
+    lines.extend(
+        [
+            "",
+            "## Validation Samples",
+            "",
+            (
+                "| Sample | Profile | Shape | max abs diff | mean abs diff | cosine distance | "
+                "Torch ms | TensorRT ms | speedup | quality | speed |"
+            ),
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
     for sample in report.samples:
         lines.append(_render_sample_row(sample))
 
@@ -285,6 +309,7 @@ def _render_sample_row(sample: TensorRTFP16SampleResult) -> str:
     return (
         "| "
         f"{sample.sample_id} | "
+        f"`{sample.profile_id}` | "
         f"`[{sample.batch_size}, {sample.frame_count}, -]` | "
         f"`{sample.max_abs_diff:.8f}` | "
         f"`{sample.mean_abs_diff:.8f}` | "
