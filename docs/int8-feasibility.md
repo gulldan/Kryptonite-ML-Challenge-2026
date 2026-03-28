@@ -48,7 +48,8 @@ The checked-in config is expected to return `no_go` today. That is the honest
 outcome for the current repository state because:
 
 - the promoted FP16 TensorRT engine is not materialized yet;
-- the ONNX parity report path is still empty;
+- the ONNX parity workflow is now defined, but its release artifact still has to
+  be generated locally into `artifacts/release/current/`;
 - matched FP16 vs INT8 verification/stress artifacts are not frozen yet;
 - the local demo model bundle remains a structural ONNX stub when only demo
   artifacts are present.

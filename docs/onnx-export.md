@@ -83,6 +83,6 @@ the symbolic-shape guard failures triggered by the reshape-based form.
 
 Use this bundle as the source for:
 
-- `KVA-539` ONNX Runtime parity work
+- `KVA-539` ONNX Runtime parity work via [docs/onnx-runtime-parity.md](./onnx-runtime-parity.md)
 - `KVA-540` TensorRT engine build
 - Triton packaging via [docs/triton-deployment.md](./triton-deployment.md)

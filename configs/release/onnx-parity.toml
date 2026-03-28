@@ -1,0 +1,68 @@
+title = "Kryptonite ONNX Runtime parity"
+report_id = "kryptonite-2026-onnx-parity"
+summary = """
+Compare the exported CAM++ encoder-only ONNX bundle against the current PyTorch
+checkpoint on the manifest-backed dev trials, including deterministic probe-side
+corruptions. This report is the gate that promotes ONNX Runtime from
+export-smoke-only status to parity-backed status.
+"""
+project_root = "."
+output_root = "artifacts/release/current"
+
+validation_commands = [
+  "uv run python scripts/build_onnx_parity_report.py --config configs/release/onnx-parity.toml",
+  "uv run python scripts/build_int8_feasibility_report.py --config configs/release/int8-feasibility.toml",
+]
+
+notes = [
+  "The report reuses the runtime-owned audio load, chunking, and Fbank frontend frozen into the export boundary.",
+  "Corruptions are deterministic and probe-side only so the suite stays reproducible even when full frozen corrupted-dev artifacts are absent locally.",
+  "The current checked-in dev protocol is still small, so score and cosine drift are the primary parity gates while EER stays on a wider bound to absorb discrete threshold jumps.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle-campp-onnx/metadata.json"
+trial_rows_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_trials.jsonl"
+metadata_rows_path = "artifacts/baselines/campp/20260326T184437Z-2cf1cdc8af62/dev_embedding_metadata.jsonl"
+
+[evaluation]
+seed = 20260328
+prefer_demo_subset = true
+max_trial_count = 8
+score_normalize = true
+promote_validated_backend = true
+
+[[variants]]
+id = "clean"
+kind = "identity"
+description = "Reference clean dev trials with the frozen runtime frontend."
+
+[[variants]]
+id = "probe_noise"
+kind = "gaussian_noise"
+description = "Deterministic additive Gaussian noise on probe-side utterances."
+apply_to_roles = ["test"]
+snr_db = 18.0
+
+[[variants]]
+id = "probe_clip"
+kind = "clip"
+description = "Deterministic gain plus hard clipping on probe-side utterances."
+apply_to_roles = ["test"]
+pre_gain_db = 8.0
+clip_amplitude = 0.7
+
+[[variants]]
+id = "probe_pause"
+kind = "pause"
+description = "Deterministic interior silence insertion on probe-side utterances."
+apply_to_roles = ["test"]
+pause_ratio = 0.18
+
+[tolerances]
+max_chunk_max_abs_diff = 0.025
+max_pooled_max_abs_diff = 0.025
+max_pooled_cosine_distance = 0.0005
+max_score_abs_diff = 0.0015
+max_eer_delta = 0.25
+max_min_dcf_delta = 0.05
