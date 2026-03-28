@@ -27,6 +27,8 @@ The repository state on `2026-03-28` changes how that list should be read:
 - offline `AS-norm` / `TAS-norm` workflows are already checked in;
 - the stretch teacher lane now has one runnable `PEFT` entrypoint, but remains
   explicitly outside the must-have release path;
+- the stretch distillation lane now also has one runnable `CAM++` recipe, but
+  it stays explicitly outside the must-have release path for the same reason;
 - teacher-heavy work is explicitly de-scoped from the must-have path by
   `KVA-531`, `KVA-533`, `KVA-536`, and the release postmortem.
 
@@ -80,11 +82,14 @@ row is encoder training versus offline scoring.
   `docs/cohort-embedding-bank.md`
 - Scope control for teacher/distillation:
   `docs/teacher-peft.md`,
+  `docs/campp-distillation.md`,
   `docs/final-family-decision.md`,
   `docs/release-postmortem.md`,
+  `configs/training/campp-distillation.toml`,
   `configs/training/teacher-peft.toml`,
   `configs/release/final-family-decision.toml`,
   `configs/release/release-postmortem-v2.toml`,
+  `scripts/run_campp_distillation.py`,
   `scripts/run_teacher_peft.py`
 
 ## Rebuild

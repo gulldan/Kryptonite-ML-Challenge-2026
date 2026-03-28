@@ -24,7 +24,7 @@ output_root = "artifacts/planning/kryptonite-2026-experiment-matrix-v1"
 assumptions = [
   "GPU-hour estimates target one 24 GB RTX 4090-class GPU on gpu-server and are planning estimates, not measured benchmark numbers.",
   "Offline AS-norm and TAS-norm work can run on exported embeddings without reserving dedicated GPU time; their budgets stay near-zero for sequencing clarity.",
-  "Teacher PEFT and distillation remain planning-only rows because the repository does not yet contain runnable PEFT/distillation entrypoints.",
+  "Teacher PEFT and distillation now have runnable repository entrypoints, but both stay explicitly in the stretch lane and must not block export/parity work.",
   "For CAM++ and ERes2NetV2 baselines, use real train/dev manifests on gpu-server instead of the demo smoke manifests checked into the baseline configs.",
 ]
 
@@ -262,13 +262,23 @@ gpu_hours_low = 12.0
 gpu_hours_high = 20.0
 depends_on = ["campp_stage3", "teacher_peft"]
 evidence_paths = [
+  "configs/training/campp-distillation.toml",
+  "scripts/run_campp_distillation.py",
+  "docs/campp-distillation.md",
   "configs/release/final-family-decision.toml",
   "configs/release/release-postmortem-v2.toml",
   "configs/data-inventory/dataton-rules-matrix.toml",
   "docs/release-postmortem.md",
   "docs/dataton-rules-matrix.md",
 ]
+command = """
+uv run python scripts/run_campp_distillation.py \
+  --config configs/training/campp-distillation.toml \
+  --student-checkpoint /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/campp-stage3/<run-id> \
+  --teacher-checkpoint /mnt/storage/Kryptonite-ML-Challenge-2026/artifacts/baselines/teacher-peft/<run-id> \
+  --device cuda
+"""
 notes = [
-  "No runnable distillation pipeline is checked in yet; treat this budget as planning-only.",
+  "A runnable CAM++ distillation recipe is now checked in, but the final-family decision still keeps it outside the must-have export lane.",
   "Keep it behind both the teacher proof point and the student-family freeze so it does not sprawl into parallel model programs.",
 ]

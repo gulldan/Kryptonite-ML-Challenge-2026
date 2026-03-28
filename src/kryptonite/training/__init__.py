@@ -6,7 +6,14 @@ from .augmentation_scheduler import (
     render_augmentation_scheduler_markdown,
     write_augmentation_scheduler_report,
 )
-from .campp import CAMPPlusRunArtifacts, load_campp_baseline_config, run_campp_baseline
+from .campp import (
+    CAMPPlusDistillationRunArtifacts,
+    CAMPPlusRunArtifacts,
+    load_campp_baseline_config,
+    load_campp_distillation_config,
+    run_campp_baseline,
+    run_campp_distillation,
+)
 from .deployment import build_training_artifact_report
 from .environment import build_training_environment_report, render_training_environment_report
 from .eres2netv2 import (
@@ -20,6 +27,7 @@ from .teacher_peft import TeacherPeftRunArtifacts, load_teacher_peft_config, run
 __all__ = [
     "AugmentationScheduler",
     "BalancedSpeakerBatchSampler",
+    "CAMPPlusDistillationRunArtifacts",
     "CAMPPlusRunArtifacts",
     "ERes2NetV2RunArtifacts",
     "TeacherPeftRunArtifacts",
@@ -28,11 +36,13 @@ __all__ = [
     "build_training_artifact_report",
     "build_training_environment_report",
     "load_campp_baseline_config",
+    "load_campp_distillation_config",
     "load_eres2netv2_baseline_config",
     "load_teacher_peft_config",
     "render_augmentation_scheduler_markdown",
     "render_training_environment_report",
     "run_campp_baseline",
+    "run_campp_distillation",
     "run_eres2netv2_baseline",
     "run_teacher_peft",
     "write_augmentation_scheduler_report",

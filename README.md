@@ -135,6 +135,7 @@ See [docs/evaluation-package.md](./docs/evaluation-package.md) for the shared of
 See [docs/threshold-calibration.md](./docs/threshold-calibration.md) for the named `balanced/min_dcf/demo/production` threshold profiles and the slice-aware calibration bundle workflow.
 See [docs/eres2netv2-baseline.md](./docs/eres2netv2-baseline.md) for the ERes2NetV2 baseline path with the same artifact contract for side-by-side comparison against CAM++.
 See [docs/teacher-peft.md](./docs/teacher-peft.md) for the runnable WavLM / w2v-BERT stretch-teacher path, LoRA-only constraints, and checkpoint layout for later distillation work.
+See [docs/campp-distillation.md](./docs/campp-distillation.md) for the runnable CAM++ distillation path, frozen-teacher supervision contract, and baseline-vs-distilled comparison artifacts.
 See [docs/model-card.md](./docs/model-card.md) for the release-oriented model card, training-data classes, and caveats.
 See [docs/release-runbook.md](./docs/release-runbook.md) for the current rollout, smoke, monitoring, and rollback procedures.
 See [docs/submission-release-bundle.md](./docs/submission-release-bundle.md) for the self-contained handoff bundle that stages frozen configs, model artifacts, docs, demo assets, and an optional archive.
