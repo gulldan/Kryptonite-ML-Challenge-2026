@@ -1,32 +1,27 @@
 # Docs
 
-Curated architecture notes, runbooks, model cards, and benchmark summaries belong here.
+Эта папка больше не является плоским каталогом из десятков равноправных заметок.
+Наверху оставлены только документы, которые реально нужны для онбординга и повседневной работы.
 
-Exploratory notes should stay in `notebooks/` until they become stable enough to promote into documentation.
+## Начать здесь
 
-Key serving notes:
+- [system-architecture-v1.md](./system-architecture-v1.md) — как устроен pipeline и где проходят модульные границы.
+- [code-architecture.md](./code-architecture.md) — как читать сам код, куда класть новую логику и где source of truth.
+- [release-runbook.md](./release-runbook.md) — как поднять demo/API, проверить health и что смотреть при сбоях.
+- [model-task-contract.md](./model-task-contract.md) — какая задача считается канонической и какие артефакты обязательны.
+- [model-card.md](./model-card.md) — короткая внешняя рамка решения и его ограничения.
 
-- `docs/epic-00-research-baseline.md` for the single EPIC-00 closeout entrypoint that ties together rules, task contract, verification protocol, architecture, and experiment ordering
-- `docs/epic-04-corruption-bank-closeout.md` for the closeout entrypoint that ties together the corruption banks, scheduler, and frozen corrupted-dev bundles
-- `docs/model-task-contract.md` for the repository-level ADR that fixes the primary verification task, compatible identification modes, trial semantics, and handoff artifacts
-- `docs/internal-verification-protocol.md` for the clean plus corrupted verification-protocol snapshot, required slice fields, and the strict completeness gate for full rebuilds
-- `docs/audio-corrupted-dev-suites.md` for the deterministic corrupted verification bundles that downstream scoring and export work should reuse instead of re-sampling perturbations
-- `docs/experiment-matrix-v1.md` for the sequenced experiment plan, GPU-hour budget ranges, and the explicit must-have vs stretch split
-- `docs/teacher-peft.md` for the runnable WavLM / w2v-BERT stretch-teacher branch, PEFT limits, and checkpoint layout
-- `docs/campp-distillation.md` for the runnable CAM++ student-distillation recipe, teacher-guided losses, and baseline-vs-distilled comparison contract
-- `docs/campp-consistency.md` for the runnable CAM++ clean/corrupted consistency recipe, pairwise invariance losses, and built-in robust-dev ablation
-- `docs/system-architecture-v1.md` for the end-to-end pipeline diagram, module ownership, interfaces, logging points, and export/serve placement
-- `docs/onnx-export.md` for the real CAM++ encoder-only ONNX bundle, validation scope, and handoff limits before parity promotion
-- `docs/tensorrt-fp16-engine.md` for the repo-native FP16 engine build workflow, validation gates, and metadata promotion rules
-- `docs/web-demo.md` for the browser demo and runtime entrypoints
-- `docs/triton-deployment.md` for the encoder-boundary Triton model repository, launch flow, and TensorRT handoff constraints
-- `docs/inference-observability.md` for structured logs and Prometheus-compatible metrics
-- `docs/end-to-end-regression-suite.md` for the release-oriented serving regression contract
-- `docs/inference-stress-test.md` for the serving-path stress matrix, malformed-input contract, and hard-limit reporting flow
-- `docs/final-benchmark-pack.md` for the release pack that freezes quality/latency/memory and exact configs
-- `docs/final-family-decision.md` for the frozen export-target family ADR that feeds the next ONNX/parity cycle
-- `docs/model-card.md` for the release scope, training-data classes, caveats, and deployment assumptions
-- `docs/release-runbook.md` for preflight, rollout, monitoring, and rollback procedures
-- `docs/submission-release-bundle.md` for the handoff bundle that packages configs, model artifacts, docs, demo assets, and an optional archive
-- `docs/release-postmortem.md` for the release retrospective, backlog v2, and the reproducible postmortem workflow
-- `docs/dataton-rules-matrix.md` for the competition-facing allow/deny/unknown matrix and risk register around external data, models, and augmentations
+## По задачам
+
+- [data.md](./data.md) — откуда берутся данные, какой surrogate используется сейчас и где смотреть правила/ограничения.
+- [training.md](./training.md) — как поднимать training environment и какой путь обучения считать основным.
+- [configuration.md](./configuration.md) — карта конфигов, overrides и secrets.
+
+## Reference
+
+- [reference/audio-pipeline.md](./reference/audio-pipeline.md) — единый audio contract: normalization, VAD, Fbank, chunking, corruption policy.
+
+## Archive
+
+Все детальные deep-dive, release notes, benchmark-записки, stage-specific training docs и исторические ADR перенесены в
+[archive/README.md](./archive/README.md).

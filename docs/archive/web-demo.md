@@ -2,20 +2,40 @@
 
 ## Goal
 
-Expose a lightweight browser UI for the current speaker-verification runtime without introducing a
-separate frontend toolchain.
+Expose a dedicated browser UI for the current speaker-verification runtime with a separate frontend
+toolchain in `apps/web`.
 
-The demo is intentionally built on top of the existing FastAPI adapter and shared
-`Inferencer`, so the browser flow exercises the same runtime/backend selection, enrollment store,
-audio loading, and verification code paths as the JSON API.
+The demo still runs on top of the existing FastAPI adapter and shared `Inferencer`, so the browser
+flow exercises the same runtime/backend selection, enrollment store, audio loading, and
+verification code paths as the JSON API. The difference is that the UI itself now lives in a
+proper `Bun` + `Vite` + `React` + `TypeScript 7` app and is built into `apps/web/dist`.
 
 ## Entry Points
 
 Start the service:
 
 ```bash
+bun --cwd apps/web install
+bun --cwd apps/web run build
 uv run python apps/api/main.py --config configs/deployment/infer.toml
 ```
+
+For split local development:
+
+```bash
+uv run python apps/api/main.py --config configs/deployment/infer.toml
+bun --cwd apps/web install
+bun --cwd apps/web run dev
+```
+
+Open the Vite app during local UI work:
+
+```text
+http://127.0.0.1:5173
+```
+
+The Vite dev server proxies `/demo/api/*`, `/enrollments`, and `/health` back to the FastAPI
+runtime on `127.0.0.1:8080`.
 
 Or run the containerized local stack from the repository root:
 
@@ -73,6 +93,20 @@ Browser actions use dedicated JSON endpoints under `/demo/api/*`:
 
 The browser sends audio as base64-encoded JSON payloads. That keeps the demo self-contained and
 avoids an extra multipart dependency in the runtime environment.
+
+## Frontend Toolchain
+
+The product UI lives in `apps/web` with:
+
+- `bun` for dependency install and script execution
+- `Vite` for dev/build
+- `React` for the UI surface
+- `TypeScript 7` via `@typescript/native-preview` and `tsgo`
+- `oxlint` and `oxfmt` as the primary JS/TS lint + format tools
+- `Vitest` for frontend tests
+
+The backend serves the built frontend bundle from `apps/web/dist`. If the bundle is missing,
+`/demo` returns a small HTML page telling the operator to build the frontend first.
 
 ## GPU Mode
 

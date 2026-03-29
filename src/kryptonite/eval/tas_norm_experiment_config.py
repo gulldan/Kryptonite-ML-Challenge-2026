@@ -6,6 +6,12 @@ import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from kryptonite.common.parsing import (
+    coerce_optional_string as _coerce_optional_string,
+    coerce_string_list as _coerce_string_list,
+    coerce_table as _coerce_table,
+)
+
 from .cohort_bank import CohortEmbeddingBankSelection
 from .tas_norm import TasNormTrainingConfig
 
@@ -281,44 +287,11 @@ def load_tas_norm_experiment_config(*, config_path: Path | str) -> TasNormExperi
         ),
         notes=tuple(_coerce_string_list(raw.get("notes", []), "notes")),
     )
-
-
-def _coerce_table(raw: object, field_name: str) -> dict[str, object]:
-    if not isinstance(raw, dict):
-        raise ValueError(f"{field_name} must be a table.")
-    return {str(key): value for key, value in raw.items()}
-
-
 def _require_string(raw: dict[str, object], field_name: str) -> str:
     value = _coerce_optional_string(raw.get(field_name))
     if value is None:
         raise ValueError(f"{field_name} must be a non-empty string.")
     return value
-
-
-def _coerce_optional_string(raw: object) -> str | None:
-    if raw is None:
-        return None
-    if not isinstance(raw, str):
-        raise ValueError("expected a string.")
-    stripped = raw.strip()
-    return stripped or None
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
 
 
 def _coerce_positive_int(raw: object, field_name: str) -> int:

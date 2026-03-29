@@ -7,6 +7,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from kryptonite.common.parsing import (
+    coerce_optional_string as _coerce_optional_string,
+    coerce_string_list as _coerce_string_list,
+)
+
 SUPPORTED_RELEASE_POSTMORTEM_OUTCOMES = frozenset({"worked", "missed", "risk"})
 SUPPORTED_RELEASE_POSTMORTEM_DISPOSITIONS = frozenset({"next_iteration", "de_scoped", "monitor"})
 SUPPORTED_RELEASE_POSTMORTEM_PRIORITIES = frozenset({"P0", "P1", "P2", "P3"})
@@ -220,24 +225,6 @@ def _load_backlog_items(raw: object) -> list[ReleaseBacklogItemConfig]:
         )
         for entry in entries
     ]
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
-
-
 def _coerce_table_list(raw: object, field_name: str) -> list[dict[str, Any]]:
     if raw is None:
         return []
@@ -249,17 +236,6 @@ def _coerce_table_list(raw: object, field_name: str) -> list[dict[str, Any]]:
             raise ValueError(f"{field_name}[{index}] must be a table.")
         values.append({str(key): value for key, value in item.items()})
     return values
-
-
-def _coerce_optional_string(raw: object) -> str | None:
-    if raw is None:
-        return None
-    if not isinstance(raw, str):
-        raise ValueError("related_issue must be a string when provided.")
-    stripped = raw.strip()
-    return stripped or None
-
-
 __all__ = [
     "ReleaseBacklogItemConfig",
     "ReleasePostmortemConfig",

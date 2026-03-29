@@ -6,6 +6,8 @@ import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from kryptonite.common.parsing import coerce_string_list as _coerce_string_list
+
 SUPPORTED_SUBMISSION_BUNDLE_MODES = frozenset({"candidate", "smoke"})
 DEFAULT_SUBMISSION_BUNDLE_CODE_FINGERPRINT_PATHS = (
     "pyproject.toml",
@@ -175,24 +177,6 @@ def load_submission_bundle_config(*, config_path: Path | str) -> SubmissionBundl
         triton_repository_root=triton_repository_root,
         notes=tuple(_coerce_string_list(raw.get("notes", []), "notes")),
     )
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
-
-
 __all__ = [
     "DEFAULT_SUBMISSION_BUNDLE_CODE_FINGERPRINT_PATHS",
     "SUPPORTED_SUBMISSION_BUNDLE_MODES",

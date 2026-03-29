@@ -46,9 +46,7 @@ batch = list(
 `AudioLoadRequest.from_config(...)` binds the loader to the same `16 kHz` /
 mono preprocessing policy already described in
 [audio-normalization.md](./audio-normalization.md), and optionally to the
-configured loudness policy from
-[audio-loudness-normalization.md](./audio-loudness-normalization.md), and to the
-configured VAD/trimming mode from
+configured loudness policy there, and to the configured VAD/trimming mode from
 [audio-vad-trimming.md](./audio-vad-trimming.md). For ablations or future
 datasets, the request can be constructed manually.
 

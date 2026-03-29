@@ -2,12 +2,12 @@ from pathlib import Path
 
 
 def test_research_baseline_docs_exist_and_cover_epic_zero_outputs() -> None:
-    epic_baseline = Path("docs/epic-00-research-baseline.md")
-    rules_matrix = Path("docs/dataton-rules-matrix.md")
+    epic_baseline = Path("docs/archive/epic-00-research-baseline.md")
+    rules_matrix = Path("docs/archive/dataton-rules-matrix.md")
     task_contract = Path("docs/model-task-contract.md")
-    verification_protocol = Path("docs/internal-verification-protocol.md")
+    verification_protocol = Path("docs/archive/internal-verification-protocol.md")
     system_architecture = Path("docs/system-architecture-v1.md")
-    experiment_matrix = Path("docs/experiment-matrix-v1.md")
+    experiment_matrix = Path("docs/archive/experiment-matrix-v1.md")
     verification_protocol_config = Path("configs/eval/verification-protocol.toml")
 
     assert epic_baseline.is_file()
@@ -43,11 +43,8 @@ def test_research_baseline_docs_exist_and_cover_epic_zero_outputs() -> None:
     assert "--require-complete" in protocol_config_text
 
 
-def test_research_baseline_docs_are_linked_from_repository_indexes() -> None:
-    root_readme = Path("README.md").read_text(encoding="utf-8")
-    docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
+def test_research_baseline_docs_are_linked_from_archive_index() -> None:
+    archive_readme = Path("docs/archive/README.md").read_text(encoding="utf-8")
 
-    assert "docs/epic-00-research-baseline.md" in root_readme
-    assert "docs/internal-verification-protocol.md" in root_readme
-    assert "docs/epic-00-research-baseline.md" in docs_readme
-    assert "docs/internal-verification-protocol.md" in docs_readme
+    assert "docs/archive/epic-00-research-baseline.md" in archive_readme
+    assert "docs/archive/internal-verification-protocol.md" in archive_readme

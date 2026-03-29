@@ -1,4 +1,8 @@
-"""Metrics, reports, and benchmark logic."""
+"""Compatibility barrel for evaluation, reporting, and benchmark APIs.
+
+New code should prefer importing from concrete submodules under ``kryptonite.eval``.
+This package-level surface stays broad for backwards compatibility with scripts and apps.
+"""
 
 from .as_norm import (
     DEFAULT_AS_NORM_STD_EPSILON,

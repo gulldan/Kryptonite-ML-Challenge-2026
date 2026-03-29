@@ -115,13 +115,11 @@ def test_checked_in_experiment_matrix_config_builds_against_repository() -> None
     assert "distillation" in experiment_ids
 
 
-def test_experiment_matrix_docs_are_linked_from_repository_indexes() -> None:
-    root_readme = Path("README.md").read_text(encoding="utf-8")
-    docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
-    doc_text = Path("docs/experiment-matrix-v1.md").read_text(encoding="utf-8")
+def test_experiment_matrix_docs_are_linked_from_archive_index() -> None:
+    archive_readme = Path("docs/archive/README.md").read_text(encoding="utf-8")
+    doc_text = Path("docs/archive/experiment-matrix-v1.md").read_text(encoding="utf-8")
 
-    assert "docs/experiment-matrix-v1.md" in root_readme
-    assert "docs/experiment-matrix-v1.md" in docs_readme
+    assert "docs/archive/experiment-matrix-v1.md" in archive_readme
     assert "configs/training/experiment-matrix-v1.toml" in doc_text
     assert "scripts/build_experiment_matrix.py" in doc_text
     assert "KVA-531" in doc_text

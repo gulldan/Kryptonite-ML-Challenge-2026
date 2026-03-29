@@ -40,8 +40,8 @@ project_overrides = [
 ]
 
 [data]
-train_manifest = "artifacts/manifests/train_manifest.jsonl"
-dev_manifest   = "artifacts/manifests/dev_manifest.jsonl"
+train_manifest = "artifacts/manifests/ffsvc2022-surrogate/train_manifest.jsonl"
+dev_manifest   = "artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl"
 output_root    = "artifacts/baselines/campp-stage2"
 trials_manifest = ""
 checkpoint_name = "campp_stage2_encoder.pt"

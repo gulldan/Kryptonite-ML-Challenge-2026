@@ -7,6 +7,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import cast
 
+from kryptonite.common.parsing import (
+    coerce_optional_string as _coerce_optional_string,
+    coerce_string_list as _coerce_string_list,
+)
+
 DEFAULT_PROTOCOL_REQUIRED_SLICE_FIELDS: tuple[str, ...] = (
     "duration_bucket",
     "noise_slice",
@@ -139,33 +144,6 @@ def _load_clean_set(raw: object) -> VerificationProtocolCleanSetConfig:
         metadata_manifest_path=str(entry.get("metadata_manifest_path", "")).strip(),
         notes=tuple(_coerce_string_list(entry.get("notes", []), "clean_sets.notes")),
     )
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
-
-
-def _coerce_optional_string(raw: object) -> str | None:
-    if raw is None:
-        return None
-    if not isinstance(raw, str):
-        raise ValueError("Configured path values must be strings when provided.")
-    stripped = raw.strip()
-    return stripped or None
-
-
 __all__ = [
     "DEFAULT_PROTOCOL_REQUIRED_SLICE_FIELDS",
     "VerificationProtocolCleanSetConfig",

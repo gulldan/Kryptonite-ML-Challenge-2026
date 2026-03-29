@@ -149,6 +149,52 @@ uv run python scripts/prepare_ffsvc2022_surrogate.py --trials-per-bucket 128
 If any of those invariants fail, `scripts/prepare_ffsvc2022_surrogate.py` now exits with an error
 instead of silently leaving a weak strict-dev split behind.
 
+## Audio-quality snapshot
+
+Latest curated quality pass on active surrogate manifests was generated on
+`2026-03-23T16:53:42+00:00` and includes:
+
+- active rows: `68,547` deduplicated rows
+- sample-rate mix with required explicit resampling:
+  - `16 kHz`: `35,234`
+  - `44.1 kHz`: `27,107`
+  - `48 kHz`: `6,206`
+- loudness: `99.1%` rows are below `-30 dBFS` (very low input energy)
+- silence-heavy: `68,349` rows (`99.7%`) have at least `20%` silent windows
+- channel mix: `1` channel on all active rows
+
+How to reproduce:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/dataset_audio_quality_report.py
+```
+
+Output artifacts are in `artifacts/eda/dataset-audio-quality/`.
+
+## Data cleanup backlog (surrogate active manifests)
+
+Open the generated backlog report:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/data_issues_backlog_report.py
+```
+
+Current decisions that are now part of the surrogate policy:
+
+- `fix`: explicit resampling to `16 kHz` must be enforced in preprocessing.
+- `fix`: official dev trial references to quarantined duplicates must be canonicalized.
+- `quarantine`: confirmed duplicate-content rows (`ffsvc22_dev_002177`, `ffsvc22_dev_063743`) remain out of active manifests.
+- `keep`: very quiet recordings are retained, but loudness must be explicit in experimental comparisons.
+- `keep`: silence-heavy rows are retained, with VAD/trimming treated as explicit ablations.
+
+Backlog report location: `artifacts/eda/data-issues-backlog/data_issues_backlog.md`
+
+Stop rules to preserve reproducibility:
+
+- do not tune thresholds against official trials while canonical mismatch exists;
+- do not reintroduce quarantined rows into active manifests without a fresh audit;
+- never treat loudness or silence assumptions as implicit defaults.
+
 ## Recommended Next Steps
 
 After acquisition:

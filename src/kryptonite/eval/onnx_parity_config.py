@@ -6,6 +6,14 @@ import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from kryptonite.common.parsing import (
+    coerce_optional_float as _coerce_optional_float,
+    coerce_required_float as _coerce_required_float,
+    coerce_required_int as _coerce_required_int,
+    coerce_string_list as _coerce_string_list,
+    coerce_table as _coerce_table,
+)
+
 _SUPPORTED_PARITY_VARIANTS = frozenset({"identity", "gaussian_noise", "clip", "pause"})
 _SUPPORTED_PARITY_ROLES = frozenset({"enrollment", "test"})
 
@@ -249,60 +257,12 @@ def load_onnx_parity_config(*, config_path: Path | str) -> ONNXParityConfig:
         ),
         notes=tuple(_coerce_string_list(raw.get("notes", []), "notes")),
     )
-
-
-def _coerce_table(raw: object, field_name: str) -> dict[str, object]:
-    if not isinstance(raw, dict):
-        raise ValueError(f"{field_name} must be a table.")
-    return {str(key): value for key, value in raw.items()}
-
-
-def _coerce_optional_float(raw: object) -> float | None:
-    if raw is None or raw == "":
-        return None
-    if isinstance(raw, bool):
-        raise ValueError("configured numeric values must not be booleans.")
-    if isinstance(raw, (int, float)):
-        return float(raw)
-    raise ValueError("configured numeric values must be numbers.")
-
-
 def _coerce_optional_int(raw: object) -> int | None:
     if raw is None or raw == "":
         return None
     if isinstance(raw, bool) or not isinstance(raw, int):
         raise ValueError("configured integer values must be integers.")
     return raw
-
-
-def _coerce_required_float(raw: object, field_name: str) -> float:
-    if isinstance(raw, bool):
-        raise ValueError(f"{field_name} must be a number.")
-    if isinstance(raw, (int, float)):
-        return float(raw)
-    raise ValueError(f"{field_name} must be a number.")
-
-
-def _coerce_required_int(raw: object, field_name: str) -> int:
-    if isinstance(raw, bool) or not isinstance(raw, int):
-        raise ValueError(f"{field_name} must be an integer.")
-    return raw
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
 
 
 __all__ = [

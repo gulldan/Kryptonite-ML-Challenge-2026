@@ -5,7 +5,7 @@ from __future__ import annotations
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from kryptonite.config import ProjectConfig, load_project_config
 from kryptonite.training.baseline_config import (
@@ -13,6 +13,11 @@ from kryptonite.training.baseline_config import (
     BaselineObjectiveConfig,
     BaselineOptimizationConfig,
     BaselineProvenanceConfig,
+)
+from kryptonite.training.config_helpers import (
+    _coerce_string_list,
+    _load_provenance_config,
+    _optional_section,
 )
 
 TeacherPeftDataConfig = BaselineDataConfig
@@ -182,38 +187,8 @@ def load_teacher_peft_config(
         optimization=optimization,
         provenance=provenance,
     )
-
-
-def _optional_section(data: dict[str, Any], name: str, default: dict[str, Any]) -> dict[str, Any]:
-    value = data.get(name)
-    if value is None:
-        return dict(default)
-    if not isinstance(value, dict):
-        raise ValueError(f"Config section {name!r} must be a table.")
-    return {**default, **value}
-
-
-def _coerce_string_list(value: object) -> list[str]:
-    if value is None:
-        return []
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-        raise ValueError("Expected a TOML array of strings")
-    return cast(list[str], list(value))
-
-
 def _load_adapter_config(section: dict[str, Any]) -> TeacherPeftAdapterConfig:
     values = dict(section)
     if "target_modules" in values:
         values["target_modules"] = tuple(_coerce_string_list(values["target_modules"]))
     return TeacherPeftAdapterConfig(**values)
-
-
-def _load_provenance_config(section: dict[str, Any]) -> BaselineProvenanceConfig:
-    values = dict(section)
-    for key in ("ruleset", "initialization"):
-        if key in values:
-            values[key] = str(values[key]).strip().lower()
-    for key in ("teacher_resources", "pretrained_resources", "notes"):
-        if key in values:
-            values[key] = tuple(_coerce_string_list(values[key]))
-    return BaselineProvenanceConfig(**values)

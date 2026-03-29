@@ -1,4 +1,8 @@
-"""Training recipes, losses, optimization, experiment flow, and env probes."""
+"""Compatibility barrel for training recipes and orchestration helpers.
+
+The canonical architecture lives in the subpackages; this module re-exports the
+stable surface used by scripts and thin app entrypoints.
+"""
 
 from .augmentation_scheduler import (
     AugmentationScheduler,

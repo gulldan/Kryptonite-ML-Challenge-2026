@@ -21,6 +21,10 @@ from kryptonite.data.codec_bank.ffmpeg import apply_codec_preset
 from kryptonite.data.convolution import fft_convolve_1d
 from kryptonite.data.far_field_bank import load_far_field_bank_plan
 from kryptonite.data.far_field_bank.simulation import render_far_field_preset
+from kryptonite.data.silence_policy import (
+    build_scaled_silence_config as _scaled_silence_config,
+    has_effective_silence_profile as _has_effective_silence_profile,
+)
 from kryptonite.data.silence_augmentation import apply_silence_augmentation
 from kryptonite.deployment import resolve_project_path
 
@@ -586,49 +590,3 @@ def _severity_from_distance_field(value: str) -> SuiteSeverity:
             "far": "heavy",
         }.get(value, "medium"),
     )
-
-
-def _has_effective_silence_profile(config: SilenceAugmentationConfig) -> bool:
-    return any(
-        (
-            config.max_leading_padding_seconds > 0.0,
-            config.max_trailing_padding_seconds > 0.0,
-            config.max_inserted_pauses > 0 and config.max_inserted_pause_seconds > 0.0,
-            config.pause_ratio_min < 1.0,
-            config.pause_ratio_max > 1.0,
-        )
-    )
-
-
-def _scaled_silence_config(
-    config: SilenceAugmentationConfig,
-    *,
-    scale: float,
-) -> SilenceAugmentationConfig:
-    max_inserted_pauses = 0
-    if config.max_inserted_pauses > 0:
-        max_inserted_pauses = max(1, round(config.max_inserted_pauses * scale))
-    return SilenceAugmentationConfig(
-        enabled=True,
-        max_leading_padding_seconds=round(config.max_leading_padding_seconds * scale, 6),
-        max_trailing_padding_seconds=round(config.max_trailing_padding_seconds * scale, 6),
-        max_inserted_pauses=max_inserted_pauses,
-        min_inserted_pause_seconds=round(config.min_inserted_pause_seconds, 6),
-        max_inserted_pause_seconds=round(config.max_inserted_pause_seconds * scale, 6),
-        pause_ratio_min=round(_scale_pause_ratio(config.pause_ratio_min, scale), 6),
-        pause_ratio_max=round(_scale_pause_ratio(config.pause_ratio_max, scale), 6),
-        min_detected_pause_seconds=round(config.min_detected_pause_seconds, 6),
-        max_perturbed_pause_seconds=round(
-            config.min_detected_pause_seconds
-            + (config.max_perturbed_pause_seconds - config.min_detected_pause_seconds) * scale,
-            6,
-        ),
-        analysis_frame_ms=round(config.analysis_frame_ms, 6),
-        silence_threshold_dbfs=round(config.silence_threshold_dbfs, 6),
-    )
-
-
-def _scale_pause_ratio(value: float, scale: float) -> float:
-    if value >= 1.0:
-        return 1.0 + ((value - 1.0) * scale)
-    return 1.0 - ((1.0 - value) * scale)

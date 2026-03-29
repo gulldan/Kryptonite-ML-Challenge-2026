@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import cast
 
+from kryptonite.common.parsing import coerce_string_list as _coerce_string_list
+
 
 @dataclass(frozen=True, slots=True)
 class FinalBenchmarkCandidateConfig:
@@ -147,24 +149,6 @@ def _parse_candidate(index: int, raw: object) -> FinalBenchmarkCandidateConfig:
             _coerce_string_list(section.get("notes", []), f"candidate[{candidate_id}].notes")
         ),
     )
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must not be empty.")
-        values.append(stripped)
-    return values
-
-
 __all__ = [
     "FinalBenchmarkCandidateConfig",
     "FinalBenchmarkPackConfig",

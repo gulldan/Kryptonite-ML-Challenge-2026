@@ -2,11 +2,11 @@ from pathlib import Path
 
 
 def test_release_docs_exist_and_cover_required_topics() -> None:
-    final_family = Path("docs/final-family-decision.md")
+    final_family = Path("docs/archive/final-family-decision.md")
     model_card = Path("docs/model-card.md")
     runbook = Path("docs/release-runbook.md")
-    submission_bundle = Path("docs/submission-release-bundle.md")
-    postmortem = Path("docs/release-postmortem.md")
+    submission_bundle = Path("docs/archive/submission-release-bundle.md")
+    postmortem = Path("docs/archive/release-postmortem.md")
     final_family_config = Path("configs/release/final-family-decision.toml")
     postmortem_config = Path("configs/release/release-postmortem-v2.toml")
 
@@ -64,14 +64,13 @@ def test_release_docs_exist_and_cover_required_topics() -> None:
 def test_release_docs_are_linked_from_repository_indexes() -> None:
     root_readme = Path("README.md").read_text(encoding="utf-8")
     docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
+    archive_readme = Path("docs/archive/README.md").read_text(encoding="utf-8")
 
-    assert "docs/final-family-decision.md" in root_readme
     assert "docs/model-card.md" in root_readme
     assert "docs/release-runbook.md" in root_readme
-    assert "docs/submission-release-bundle.md" in root_readme
-    assert "docs/release-postmortem.md" in root_readme
-    assert "docs/final-family-decision.md" in docs_readme
     assert "docs/model-card.md" in docs_readme
     assert "docs/release-runbook.md" in docs_readme
-    assert "docs/submission-release-bundle.md" in docs_readme
-    assert "docs/release-postmortem.md" in docs_readme
+
+    assert "docs/archive/final-family-decision.md" in archive_readme
+    assert "docs/archive/submission-release-bundle.md" in archive_readme
+    assert "docs/archive/release-postmortem.md" in archive_readme

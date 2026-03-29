@@ -1,4 +1,8 @@
-"""Serving adapters and backend wrappers."""
+"""Compatibility barrel for serving runtime and release-facing adapters.
+
+For new code, import runtime HTTP/backend pieces from concrete ``kryptonite.serve``
+submodules instead of treating this file as the architectural map of the package.
+"""
 
 from .deployment import build_infer_artifact_report
 from .enrollment_cache import (

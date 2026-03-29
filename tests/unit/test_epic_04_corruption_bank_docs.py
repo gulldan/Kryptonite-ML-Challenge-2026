@@ -2,14 +2,14 @@ from pathlib import Path
 
 
 def test_epic_04_closeout_doc_exists_and_covers_corruption_outputs() -> None:
-    epic_closeout = Path("docs/epic-04-corruption-bank-closeout.md")
-    noise_doc = Path("docs/audio-noise-bank.md")
-    rir_doc = Path("docs/audio-rir-bank.md")
-    codec_doc = Path("docs/audio-codec-simulation.md")
-    far_field_doc = Path("docs/audio-far-field-simulation.md")
-    silence_doc = Path("docs/audio-silence-augmentation.md")
-    scheduler_doc = Path("docs/audio-augmentation-scheduler.md")
-    corrupted_suites_doc = Path("docs/audio-corrupted-dev-suites.md")
+    epic_closeout = Path("docs/archive/epic-04-corruption-bank-closeout.md")
+    noise_doc = Path("docs/archive/audio-noise-bank.md")
+    rir_doc = Path("docs/archive/audio-rir-bank.md")
+    codec_doc = Path("docs/archive/audio-codec-simulation.md")
+    far_field_doc = Path("docs/archive/audio-far-field-simulation.md")
+    silence_doc = Path("docs/archive/audio-silence-augmentation.md")
+    scheduler_doc = Path("docs/archive/audio-augmentation-scheduler.md")
+    corrupted_suites_doc = Path("docs/archive/audio-corrupted-dev-suites.md")
     noise_plan = Path("configs/corruption/noise-bank.toml")
     rir_plan = Path("configs/corruption/rir-bank.toml")
     codec_plan = Path("configs/corruption/codec-bank.toml")
@@ -64,11 +64,8 @@ def test_epic_04_closeout_doc_exists_and_covers_corruption_outputs() -> None:
     assert "build_corrupted_dev_suites.py" in corrupted_suites_text
 
 
-def test_epic_04_closeout_doc_is_linked_from_repository_indexes() -> None:
-    root_readme = Path("README.md").read_text(encoding="utf-8")
-    docs_readme = Path("docs/README.md").read_text(encoding="utf-8")
+def test_epic_04_closeout_doc_is_linked_from_archive_index() -> None:
+    archive_readme = Path("docs/archive/README.md").read_text(encoding="utf-8")
 
-    assert "docs/audio-corrupted-dev-suites.md" in root_readme
-    assert "docs/epic-04-corruption-bank-closeout.md" in root_readme
-    assert "docs/audio-corrupted-dev-suites.md" in docs_readme
-    assert "docs/epic-04-corruption-bank-closeout.md" in docs_readme
+    assert "docs/archive/audio-corrupted-dev-suites.md" in archive_readme
+    assert "docs/archive/epic-04-corruption-bank-closeout.md" in archive_readme

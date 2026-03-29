@@ -6,6 +6,12 @@ import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from kryptonite.common.parsing import (
+    coerce_required_int as _coerce_required_int,
+    coerce_string_list as _coerce_string_list,
+    coerce_table as _coerce_table,
+)
+
 _SUPPORTED_BACKEND_BENCHMARK_BACKENDS = frozenset({"torch", "onnxruntime", "tensorrt"})
 _SUPPORTED_BACKEND_BENCHMARK_DEVICES = frozenset({"auto", "cpu", "cuda"})
 _SUPPORTED_ONNXRUNTIME_PROVIDERS = frozenset({"auto", "cpu", "cuda"})
@@ -243,20 +249,6 @@ def load_backend_benchmark_config(*, config_path: Path | str) -> BackendBenchmar
         ),
         notes=tuple(_coerce_string_list(payload.get("notes", []), "notes")),
     )
-
-
-def _coerce_table(raw: object, field_name: str) -> dict[str, object]:
-    if not isinstance(raw, dict):
-        raise ValueError(f"{field_name} must be a TOML table.")
-    return {str(key): value for key, value in raw.items()}
-
-
-def _coerce_required_int(raw: object, field_name: str) -> int:
-    if isinstance(raw, bool) or not isinstance(raw, int):
-        raise ValueError(f"{field_name} must be an integer.")
-    return raw
-
-
 def _coerce_non_negative_int(raw: object, field_name: str) -> int:
     value = _coerce_required_int(raw, field_name)
     if value < 0:
@@ -287,22 +279,6 @@ def _coerce_string_choice(raw: object, field_name: str, choices: frozenset[str])
     if value not in choices:
         raise ValueError(f"{field_name} must be one of {sorted(choices)}.")
     return value
-
-
-def _coerce_string_list(raw: object, field_name: str) -> list[str]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValueError(f"{field_name} must be an array of strings.")
-    values: list[str] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, str):
-            raise ValueError(f"{field_name}[{index}] must be a string.")
-        stripped = item.strip()
-        if not stripped:
-            raise ValueError(f"{field_name}[{index}] must be a non-empty string.")
-        values.append(stripped)
-    return values
 
 
 def _coerce_backend_list(raw: object) -> list[str]:

@@ -13,6 +13,7 @@ import uvicorn
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from kryptonite.config import ProjectConfig
 from kryptonite.deployment import resolve_project_path
@@ -35,7 +36,7 @@ from .demo import (
     run_demo_enroll,
     run_demo_verify,
 )
-from .demo_ui import render_demo_page
+from .demo_ui import render_demo_page, resolve_demo_frontend_assets_dir
 from .inferencer import Inferencer
 from .scoring_service import EnrollmentNotFoundError
 from .telemetry import PROMETHEUS_CONTENT_TYPE, ServiceTelemetry
@@ -111,6 +112,10 @@ def _build_app(
     )
     demo_threshold = resolve_demo_threshold(config=config)
     demo_root = resolve_project_path(config.paths.project_root, config.deployment.demo_subset_root)
+    demo_assets_dir = resolve_demo_frontend_assets_dir()
+
+    if demo_assets_dir is not None:
+        app.mount("/assets", StaticFiles(directory=demo_assets_dir), name="demo-assets")
 
     @app.exception_handler(EnrollmentNotFoundError)
     async def _handle_enrollment_not_found(
