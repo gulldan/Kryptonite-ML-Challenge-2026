@@ -1,60 +1,69 @@
 # Kryptonite-ML-Challenge-2026
 
-Speaker verification: обучение моделей, оценка качества, API и demo.
+Speaker verification: обучение моделей, оценка качества (EER, minDCF).
 
 ## Установка
 
 ```bash
-uv sync --dev --group train --group tracking
+uv sync --dev --group train
 ```
 
 ## Обучить модель
 
 ```bash
-uv run python scripts/run_baseline.py --model campp --config configs/training/campp-baseline.toml --device cuda
-uv run python scripts/run_baseline.py --model eres2netv2 --config configs/training/eres2netv2-ffsvc2022-surrogate.toml --device cuda
+# CAM++ (512-dim embeddings)
+uv run python scripts/run_baseline.py \
+  --model campp \
+  --config configs/training/campp-baseline.toml \
+  --device cuda
+
+# ERes2NetV2 (192-dim embeddings)
+uv run python scripts/run_baseline.py \
+  --model eres2netv2 \
+  --config configs/training/eres2netv2-baseline.toml \
+  --device cuda
 ```
 
-Каждый запуск создаёт checkpoint, эмбеддинги и verification report (EER, minDCF, score gap).
+Результат: checkpoint, embeddings, verification report (EER, minDCF, score gap).
+
+### Переопределение параметров через CLI
+
+```bash
+uv run python scripts/run_baseline.py \
+  --model campp \
+  --config configs/training/campp-baseline.toml \
+  --device cuda \
+  --project-override 'training.batch_size=32' \
+  --project-override 'training.max_epochs=50' \
+  --project-override 'training.precision="bf16"'
+```
 
 ## Добавить новую модель
 
-Четыре файла:
-1. Encoder (`src/kryptonite/models/<name>/model.py`) — `nn.Module`, вход `[B, T, 80]` -> выход `[B, emb_dim]`
-2. Config loader (`src/kryptonite/training/<name>/config.py`) — ~50 строк
-3. Pipeline wrapper (`src/kryptonite/training/<name>/pipeline.py`) — ~35 строк, делегирует в `run_speaker_baseline()`
-4. TOML config (`configs/training/<name>-baseline.toml`)
+Три файла + конфиг. Подробнее: [docs/training.md](./docs/training.md)
 
-Подробнее: [docs/training.md](./docs/training.md)
+## Pipeline
 
-## Поднять demo
-
-```bash
-docker compose up --build
 ```
-
-- demo: `http://127.0.0.1:8080/demo`
-- health: `http://127.0.0.1:8080/health`
+Manifest (JSONL) -> Audio (16kHz) -> Fbank (80-bin) -> Encoder -> Embeddings
+                                                                      |
+                                          Cosine scoring <- Trial pairs
+                                                |
+                                          EER / minDCF
+```
 
 ## Структура
 
-```text
-src/kryptonite/       # вся логика: модели, training, eval, serving
-scripts/              # CLI entrypoints (см. scripts/README.md)
-configs/              # TOML конфиги
-apps/api/             # FastAPI serving
-docs/                 # архитектура, runbooks, contracts
 ```
-
-## Документация
-
-- [docs/training.md](./docs/training.md) — обучение и добавление моделей
-- [docs/code-architecture.md](./docs/code-architecture.md) — карта кода
-- [docs/system-architecture-v1.md](./docs/system-architecture-v1.md) — архитектура pipeline
-- [docs/configuration.md](./docs/configuration.md) — конфиги и overrides
-- [docs/release-runbook.md](./docs/release-runbook.md) — запуск и диагностика runtime
-- [docs/model-task-contract.md](./docs/model-task-contract.md) — задача и артефакты
-- [docs/model-card.md](./docs/model-card.md) — рамка решения
+src/kryptonite/
+  data/          # манифесты, аудио I/O, валидация
+  features/      # fbank, chunking
+  models/        # campp/, eres2netv2/, scoring
+  training/      # baseline pipeline, dataloader, optimizer
+  eval/          # verification metrics, reports
+scripts/         # CLI entrypoints
+configs/         # TOML конфиги
+```
 
 ## Правила
 

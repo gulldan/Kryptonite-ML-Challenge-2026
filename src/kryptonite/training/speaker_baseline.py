@@ -10,6 +10,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any, Protocol
 
+import numpy as np
 import polars as pl
 import torch
 import torch.nn.functional as torch_functional
@@ -302,6 +303,7 @@ def export_dev_embeddings(
 ) -> tuple[EmbeddingExportSummary, list[dict[str, Any]]]:
     model.eval()
     extractor = FbankExtractor(request=feature_request)
+    eval_chunking_request = UtteranceChunkingRequest.from_config(chunking)
     manifest_metadata_lookup = _load_manifest_metadata_lookup(
         manifest_path=manifest_path,
         project_root=project_root,
@@ -310,14 +312,14 @@ def export_dev_embeddings(
     embeddings: list[torch.Tensor] = []
     point_ids: list[str] = []
 
-    with torch.no_grad():
+    with torch.no_grad(), torch.amp.autocast(device.type, enabled=device.type == "cuda"):
         for index, row in enumerate(rows):
             loaded = load_manifest_audio(row, project_root=project_root, request=audio_request)
             eval_chunks = chunk_utterance(
                 loaded.audio.waveform,
                 sample_rate_hz=loaded.audio.sample_rate_hz,
                 stage="eval",
-                request=UtteranceChunkingRequest.from_config(chunking),
+                request=eval_chunking_request,
             )
             chunk_embeddings: list[torch.Tensor] = []
             for chunk in eval_chunks.chunks:
@@ -328,8 +330,11 @@ def export_dev_embeddings(
                 embedding = model(
                     features.unsqueeze(0).to(device=device, dtype=torch.float32)
                 ).squeeze(0)
-                chunk_embeddings.append(embedding.detach().to(device="cpu"))
-            pooled = pool_chunk_tensors(chunk_embeddings, pooling_mode=eval_chunks.pooling_mode)
+                chunk_embeddings.append(embedding)
+            pooled = pool_chunk_tensors(
+                [e.detach().cpu().float() for e in chunk_embeddings],
+                pooling_mode=eval_chunks.pooling_mode,
+            )
             normalized = torch_functional.normalize(pooled, dim=0)
             trial_item_id = row.utterance_id or row.audio_path
             point_id = f"utt-{index:05d}"
@@ -359,9 +364,7 @@ def export_dev_embeddings(
                 }
             )
 
-    import numpy as np
-
-    embeddings_matrix = torch.stack(embeddings, dim=0).to(dtype=torch.float32).numpy()
+    embeddings_matrix = torch.stack(embeddings, dim=0).float().numpy()
     npz_path = output_root / EMBEDDINGS_FILE_NAME
     jsonl_path = output_root / EMBEDDING_METADATA_JSONL_NAME
     parquet_path = output_root / EMBEDDING_METADATA_PARQUET_NAME
@@ -486,77 +489,58 @@ def score_trials(
     trial_rows: list[dict[str, Any]],
     embeddings_path: Path | None = None,
 ) -> ScoreSummary:
-    import numpy as np
-
     resolved_embeddings_path = embeddings_path or (output_root / EMBEDDINGS_FILE_NAME)
     embeddings_payload = np.load(resolved_embeddings_path)
-    embeddings = embeddings_payload["embeddings"]
-    point_id_to_embedding = {
-        row["trial_item_id"]: embeddings[index] for index, row in enumerate(metadata_rows)
-    }
-    for index, row in enumerate(metadata_rows):
-        audio_path = row.get("audio_path")
-        if not audio_path:
-            continue
-        normalized_audio_path = str(audio_path)
-        point_id_to_embedding[normalized_audio_path] = embeddings[index]
-        point_id_to_embedding.setdefault(Path(normalized_audio_path).name, embeddings[index])
-    point_id_to_embedding.update(
-        {
-            row["utterance_id"]: embeddings[index]
-            for index, row in enumerate(metadata_rows)
-            if row.get("utterance_id")
-        }
-    )
+    embeddings = np.asarray(embeddings_payload["embeddings"], dtype=np.float64)
 
-    scored_rows: list[dict[str, Any]] = []
-    positive_scores: list[float] = []
-    negative_scores: list[float] = []
+    # Build lookup: id -> row index (avoids storing embedding copies)
+    id_to_index: dict[str, int] = {}
+    for index, row in enumerate(metadata_rows):
+        id_to_index[row["trial_item_id"]] = index
+        audio_path = row.get("audio_path")
+        if audio_path:
+            id_to_index.setdefault(str(audio_path), index)
+            id_to_index.setdefault(Path(str(audio_path)).name, index)
+        utterance_id = row.get("utterance_id")
+        if utterance_id:
+            id_to_index.setdefault(utterance_id, index)
+
+    # Collect valid trial indices in pre-allocated arrays
+    left_indices: list[int] = []
+    right_indices: list[int] = []
     scored_trial_rows: list[dict[str, Any]] = []
-    left_embeddings: list[np.ndarray] = []
-    right_embeddings: list[np.ndarray] = []
     missing_embedding_count = 0
     for row in trial_rows:
         left_id = str(row.get("left_id", row.get("left_audio", "")))
         right_id = str(row.get("right_id", row.get("right_audio", "")))
-        left_embedding = point_id_to_embedding.get(left_id)
-        right_embedding = point_id_to_embedding.get(right_id)
-        if left_embedding is None or right_embedding is None:
+        left_idx = id_to_index.get(left_id)
+        right_idx = id_to_index.get(right_id)
+        if left_idx is None or right_idx is None:
             missing_embedding_count += 1
             continue
-        scored_trial_rows.append(
-            {
-                **row,
-                "left_id": left_id,
-                "right_id": right_id,
-            }
-        )
-        left_embeddings.append(np.asarray(left_embedding, dtype=np.float64))
-        right_embeddings.append(np.asarray(right_embedding, dtype=np.float64))
+        left_indices.append(left_idx)
+        right_indices.append(right_idx)
+        scored_trial_rows.append({**row, "left_id": left_id, "right_id": right_id})
 
-    pairwise_scores: np.ndarray
-    if left_embeddings:
+    # Vectorized scoring via index gather (no per-item copies)
+    if left_indices:
         pairwise_scores = cosine_score_pairs(
-            np.stack(left_embeddings, axis=0),
-            np.stack(right_embeddings, axis=0),
+            embeddings[left_indices],
+            embeddings[right_indices],
             normalize=True,
         )
     else:
         pairwise_scores = np.empty((0,), dtype=np.float64)
 
-    for row, score in zip(scored_trial_rows, pairwise_scores, strict=True):
-        label = int(row["label"])
-        score_value = float(score)
-        if label == 1:
-            positive_scores.append(score_value)
-        else:
-            negative_scores.append(score_value)
-        scored_rows.append(
-            {
-                **row,
-                "score": round(score_value, 8),
-            }
-        )
+    # Build output rows and separate pos/neg scores
+    labels = np.array([int(row["label"]) for row in scored_trial_rows], dtype=np.int32)
+    scored_rows: list[dict[str, Any]] = []
+    for row, score_value in zip(scored_trial_rows, pairwise_scores, strict=True):
+        scored_rows.append({**row, "score": round(float(score_value), 8)})
+
+    positive_mask = labels == 1
+    positive_scores = pairwise_scores[positive_mask].tolist() if len(labels) else []
+    negative_scores = pairwise_scores[~positive_mask].tolist() if len(labels) else []
 
     scores_path = output_root / SCORES_FILE_NAME
     scores_path.write_text(

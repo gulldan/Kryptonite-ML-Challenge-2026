@@ -43,17 +43,11 @@ def render_markdown_report(
         project_root=project_root,
     )
     relative_verification_report = None
-    relative_error_analysis_report = None
     if verification_report is not None:
         relative_verification_report = relative_to_project(
             Path(verification_report.report_markdown_path),
             project_root=project_root,
         )
-        if verification_report.error_analysis_markdown_path is not None:
-            relative_error_analysis_report = relative_to_project(
-                Path(verification_report.error_analysis_markdown_path),
-                project_root=project_root,
-            )
     lines = [
         f"# {title}",
         "",
@@ -111,10 +105,6 @@ def render_markdown_report(
     )
     if verification_report is not None:
         metrics = verification_report.summary.metrics
-        relative_slice_dashboard = relative_to_project(
-            Path(verification_report.slice_dashboard_path),
-            project_root=project_root,
-        )
         lines.extend(
             [
                 "",
@@ -125,11 +115,8 @@ def render_markdown_report(
                 f"- MinDCF: `{metrics.min_dcf}`",
                 f"- MinDCF threshold: `{metrics.min_dcf_threshold}`",
                 f"- Eval report: `{relative_verification_report}`",
-                f"- Slice dashboard: `{relative_slice_dashboard}`",
             ]
         )
-        if relative_error_analysis_report is not None:
-            lines.append(f"- Error analysis: `{relative_error_analysis_report}`")
     lines.extend(_render_cohort_bank_section(output_root=output_root, project_root=project_root))
     return "\n".join(lines) + "\n"
 

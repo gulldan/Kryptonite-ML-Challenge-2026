@@ -177,16 +177,17 @@ def build_production_train_dataloader(
         chunking_request=chunking_request,
         batches_per_epoch=batches_per_epoch,
     )
+    num_workers = project.runtime.num_workers
     loader_kwargs: dict[str, Any] = {
         "dataset": dataset,
         "batch_sampler": sampler,
-        "num_workers": project.runtime.num_workers,
+        "num_workers": num_workers,
         "pin_memory": pin_memory,
         "collate_fn": collate_training_examples,
-        "persistent_workers": False,
+        "persistent_workers": num_workers > 0,
     }
-    if project.runtime.num_workers > 0:
-        loader_kwargs["prefetch_factor"] = 2
+    if num_workers > 0:
+        loader_kwargs["prefetch_factor"] = 4
     loader = cast(DataLoader[TrainingBatch], DataLoader(**loader_kwargs))
     return dataset, sampler, loader
 
