@@ -15,7 +15,6 @@ from kryptonite.data import AudioLoadRequest, ManifestRow
 from kryptonite.deployment import resolve_project_path
 from kryptonite.features import FbankExtractionRequest, UtteranceChunkingRequest
 
-from .augmentation_runtime import TrainingAugmentationRuntime
 from .manifest_speaker_data import (
     ManifestSpeakerDataset,
     TrainingBatch,
@@ -33,7 +32,6 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         seed: int,
         chunking_request: UtteranceChunkingRequest,
         batches_per_epoch: int | None = None,
-        augmentation_runtime: TrainingAugmentationRuntime | None = None,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
@@ -44,7 +42,6 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         self._batch_size = batch_size
         self._seed = seed
         self._chunking_request = chunking_request
-        self._augmentation_runtime = augmentation_runtime
         self._speaker_to_row_indices = _group_rows_by_speaker(rows)
         self._speaker_ids = sorted(self._speaker_to_row_indices)
         self._batches_per_epoch = batches_per_epoch or max(1, math.ceil(len(rows) / batch_size))
@@ -127,24 +124,6 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
                     batch_seed=self._seed,
                     epoch_number=epoch_number,
                 )
-                recipe_rng = random.Random(
-                    _stable_seed(
-                        self._seed,
-                        "recipe",
-                        str(epoch_number),
-                        str(batch_index),
-                        str(position_in_batch),
-                        str(row_index),
-                    )
-                )
-                recipe = (
-                    None
-                    if self._augmentation_runtime is None
-                    else self._augmentation_runtime.sample_recipe(
-                        epoch_index=epoch_number,
-                        rng=recipe_rng,
-                    )
-                )
                 batch_requests.append(
                     TrainingSampleRequest(
                         row_index=row_index,
@@ -157,10 +136,6 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
                             str(row_index),
                         ),
                         crop_seconds=crop_seconds,
-                        clean_sample=recipe is None or recipe.clean_sample,
-                        recipe_stage="steady" if recipe is None else recipe.stage,
-                        recipe_intensity="clean" if recipe is None else recipe.intensity,
-                        augmentations=() if recipe is None else recipe.augmentations,
                     )
                 )
             batches.append(batch_requests)
@@ -186,15 +161,6 @@ def build_production_train_dataloader(
     if chunking_request.train_num_crops != 1:
         raise ValueError("Production dataloader currently supports train_num_crops=1 only.")
 
-    augmentation_runtime = TrainingAugmentationRuntime.from_project_config(
-        project_root=project_root,
-        scheduler_config=project.augmentation_scheduler,
-        silence_config=project.silence_augmentation,
-        total_epochs=total_epochs,
-    )
-    active_runtime = (
-        augmentation_runtime if augmentation_runtime.has_effective_augmentation else None
-    )
     dataset = ManifestSpeakerDataset(
         rows=rows,
         speaker_to_index=speaker_to_index,
@@ -203,7 +169,6 @@ def build_production_train_dataloader(
         feature_request=feature_request,
         chunking_request=chunking_request,
         seed=project.runtime.seed,
-        augmentation_runtime=active_runtime,
     )
     sampler = BalancedSpeakerBatchSampler(
         rows=rows,
@@ -211,7 +176,6 @@ def build_production_train_dataloader(
         seed=project.runtime.seed,
         chunking_request=chunking_request,
         batches_per_epoch=batches_per_epoch,
-        augmentation_runtime=active_runtime,
     )
     loader_kwargs: dict[str, Any] = {
         "dataset": dataset,

@@ -17,8 +17,85 @@ from kryptonite.data import normalize_manifest_entry
 from kryptonite.deployment import resolve_project_path
 from kryptonite.models import l2_normalize_embeddings
 
-from .embedding_atlas.io import align_metadata_rows, load_embedding_matrix, load_metadata_rows
 from .verification_data import load_verification_trial_rows, resolve_trial_side_identifier
+
+
+def _load_embedding_matrix(
+    path: Path | str,
+    *,
+    embeddings_key: str = "embeddings",
+    ids_key: str | None = None,
+) -> tuple[np.ndarray, list[str] | None]:
+    source_path = Path(path)
+    suffix = source_path.suffix.lower()
+    if suffix == ".npy":
+        embeddings = np.load(source_path)
+        point_ids = None
+    elif suffix == ".npz":
+        payload = np.load(source_path)
+        if embeddings_key not in payload:
+            available = ", ".join(sorted(payload.files))
+            raise ValueError(
+                f"Embeddings key {embeddings_key!r} missing from {source_path}; "
+                f"available: {available}"
+            )
+        embeddings = payload[embeddings_key]
+        point_ids = (
+            [str(v) for v in payload[ids_key].tolist()]
+            if ids_key is not None and ids_key in payload
+            else None
+        )
+    else:
+        raise ValueError(f"Unsupported embeddings format: {source_path}")
+    matrix = np.asarray(embeddings, dtype=np.float64)
+    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise ValueError(f"Expected non-empty 2D matrix in {source_path}, got {matrix.shape}")
+    if point_ids is not None and len(point_ids) != matrix.shape[0]:
+        raise ValueError(f"IDs/embeddings length mismatch in {source_path}")
+    return matrix, point_ids
+
+
+def _load_metadata_rows(path: Path | str) -> list[dict[str, object]]:
+    source_path = Path(path)
+    suffix = source_path.suffix.lower()
+    if suffix == ".jsonl":
+        rows: list[dict[str, object]] = []
+        for line in source_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                rows.append(dict(payload))
+        return rows
+    if suffix == ".parquet":
+        return [dict(row) for row in pl.read_parquet(source_path).iter_rows(named=True)]
+    raise ValueError(f"Unsupported metadata format: {source_path}")
+
+
+def _align_metadata_rows(
+    *,
+    metadata_rows: list[dict[str, object]],
+    point_id_field: str,
+    point_ids: list[str] | None,
+    expected_count: int,
+) -> list[dict[str, object]]:
+    if point_ids is None:
+        if len(metadata_rows) != expected_count:
+            raise ValueError(
+                f"Metadata count mismatch: expected {expected_count}, got {len(metadata_rows)}"
+            )
+        return metadata_rows
+    indexed: dict[str, dict[str, object]] = {}
+    for row in metadata_rows:
+        pid = _coerce_string(row.get(point_id_field))
+        if pid is None:
+            raise ValueError(f"Metadata rows must define non-empty {point_id_field!r}")
+        indexed[pid] = row
+    missing = [pid for pid in point_ids if pid not in indexed]
+    if missing:
+        raise ValueError(f"Metadata missing {len(missing)} ids: {', '.join(missing[:5])}")
+    return [indexed[pid] for pid in point_ids]
+
 
 COHORT_BANK_FORMAT_VERSION = "kryptonite.eval.cohort_bank.v1"
 COHORT_EMBEDDINGS_NPZ_NAME = "cohort_embeddings.npz"
@@ -159,13 +236,13 @@ def build_cohort_embedding_bank(
     )
     resolved_selection = selection or CohortEmbeddingBankSelection()
 
-    embeddings_matrix, point_ids = load_embedding_matrix(
+    embeddings_matrix, point_ids = _load_embedding_matrix(
         resolved_embeddings_path,
         embeddings_key=resolved_selection.embeddings_key,
         ids_key=resolved_selection.ids_key,
     )
-    aligned_metadata_rows = align_metadata_rows(
-        metadata_rows=load_metadata_rows(resolved_metadata_path),
+    aligned_metadata_rows = _align_metadata_rows(
+        metadata_rows=_load_metadata_rows(resolved_metadata_path),
         point_id_field=resolved_selection.point_id_field,
         point_ids=point_ids,
         expected_count=int(embeddings_matrix.shape[0]),
@@ -293,12 +370,12 @@ def build_cohort_embedding_bank(
 
 def load_cohort_embedding_bank(output_root: Path | str) -> LoadedCohortEmbeddingBank:
     resolved_output_root = Path(output_root)
-    embeddings_matrix, _ = load_embedding_matrix(
+    embeddings_matrix, _ = _load_embedding_matrix(
         resolved_output_root / COHORT_EMBEDDINGS_NPZ_NAME,
         embeddings_key="embeddings",
         ids_key="point_ids",
     )
-    metadata_rows = load_metadata_rows(resolved_output_root / COHORT_METADATA_PARQUET_NAME)
+    metadata_rows = _load_metadata_rows(resolved_output_root / COHORT_METADATA_PARQUET_NAME)
     summary_payload = json.loads((resolved_output_root / COHORT_SUMMARY_JSON_NAME).read_text())
     if not isinstance(summary_payload, dict):
         raise ValueError("Cohort summary JSON must contain an object payload.")

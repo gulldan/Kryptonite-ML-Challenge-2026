@@ -11,27 +11,9 @@ from typing import Any
 
 import numpy as np
 
-from .verification_dashboard import (
-    VERIFICATION_SLICE_DASHBOARD_HTML_NAME as DASHBOARD_HTML_NAME,
-)
-from .verification_dashboard import (
-    render_verification_slice_dashboard_html,
-)
 from .verification_data import (
     load_verification_metadata_rows,
     load_verification_trial_rows,
-    resolve_trial_side_identifier,
-)
-from .verification_error_analysis import (
-    VERIFICATION_ERROR_ANALYSIS_JSON_NAME as ERROR_ANALYSIS_JSON_NAME,
-)
-from .verification_error_analysis import (
-    VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME as ERROR_ANALYSIS_MARKDOWN_NAME,
-)
-from .verification_error_analysis import (
-    VerificationErrorAnalysisReport,
-    build_verification_error_analysis,
-    write_verification_error_analysis_report,
 )
 from .verification_metrics import (
     VerificationMetricsSummary,
@@ -40,7 +22,8 @@ from .verification_metrics import (
     compute_verification_metrics,
     normalize_verification_score_rows,
 )
-from .verification_slices import DEFAULT_SLICE_FIELDS, group_verification_rows_by_slice
+
+DEFAULT_SLICE_FIELDS = ("duration_bucket", "gender", "device", "channel", "language")
 
 VERIFICATION_REPORT_JSON_NAME = "verification_eval_report.json"
 VERIFICATION_REPORT_MARKDOWN_NAME = "verification_eval_report.md"
@@ -48,10 +31,6 @@ VERIFICATION_ROC_CURVE_JSONL_NAME = "verification_roc_curve.jsonl"
 VERIFICATION_DET_CURVE_JSONL_NAME = "verification_det_curve.jsonl"
 VERIFICATION_CALIBRATION_CURVE_JSONL_NAME = "verification_calibration_curve.jsonl"
 VERIFICATION_HISTOGRAM_JSON_NAME = "verification_score_histogram.json"
-VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME = "verification_slice_breakdown.jsonl"
-VERIFICATION_SLICE_DASHBOARD_HTML_NAME = DASHBOARD_HTML_NAME
-VERIFICATION_ERROR_ANALYSIS_JSON_NAME = ERROR_ANALYSIS_JSON_NAME
-VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME = ERROR_ANALYSIS_MARKDOWN_NAME
 _NORMAL_DIST = NormalDist()
 
 
@@ -140,26 +119,6 @@ class VerificationDetPoint:
 
 
 @dataclass(frozen=True, slots=True)
-class VerificationSliceSummary:
-    field_name: str
-    field_value: str
-    trial_count: int
-    positive_count: int
-    negative_count: int
-    mean_score: float
-    mean_positive_score: float | None
-    mean_negative_score: float | None
-    score_gap: float | None
-    eer: float | None
-    eer_threshold: float | None
-    min_dcf: float | None
-    min_dcf_threshold: float | None
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(frozen=True, slots=True)
 class VerificationEvaluationSummary:
     metrics: VerificationMetricsSummary
     score_statistics: VerificationScoreStatistics
@@ -168,7 +127,6 @@ class VerificationEvaluationSummary:
     det_point_count: int
     histogram_bin_count: int
     calibration_bin_count: int
-    slice_row_count: int
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,7 +137,6 @@ class VerificationEvaluationSummary:
             "det_point_count": self.det_point_count,
             "histogram_bin_count": self.histogram_bin_count,
             "calibration_bin_count": self.calibration_bin_count,
-            "slice_row_count": self.slice_row_count,
         }
 
 
@@ -189,10 +146,8 @@ class VerificationEvaluationReport:
     summary: VerificationEvaluationSummary
     histogram: tuple[VerificationHistogramBin, ...]
     calibration_bins: tuple[VerificationCalibrationBin, ...]
-    slice_breakdown: tuple[VerificationSliceSummary, ...]
     roc_points: tuple[VerificationOperatingPoint, ...]
     det_points: tuple[VerificationDetPoint, ...]
-    error_analysis: VerificationErrorAnalysisReport | None = None
 
     def to_dict(self, *, include_curves: bool = False) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -200,13 +155,10 @@ class VerificationEvaluationReport:
             "summary": self.summary.to_dict(),
             "histogram": [bucket.to_dict() for bucket in self.histogram],
             "calibration_bins": [bucket.to_dict() for bucket in self.calibration_bins],
-            "slice_breakdown": [row.to_dict() for row in self.slice_breakdown],
         }
         if include_curves:
             payload["roc_points"] = [point.to_dict() for point in self.roc_points]
             payload["det_points"] = [point.to_dict() for point in self.det_points]
-        if self.error_analysis is not None:
-            payload["error_analysis"] = self.error_analysis.to_dict()
         return payload
 
 
@@ -215,30 +167,22 @@ class WrittenVerificationEvaluationReport:
     output_root: str
     report_json_path: str
     report_markdown_path: str
-    slice_dashboard_path: str
     roc_curve_path: str
     det_curve_path: str
     calibration_curve_path: str
     histogram_path: str
-    slice_breakdown_path: str
     summary: VerificationEvaluationSummary
-    error_analysis_json_path: str | None = None
-    error_analysis_markdown_path: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "output_root": self.output_root,
             "report_json_path": self.report_json_path,
             "report_markdown_path": self.report_markdown_path,
-            "slice_dashboard_path": self.slice_dashboard_path,
             "roc_curve_path": self.roc_curve_path,
             "det_curve_path": self.det_curve_path,
             "calibration_curve_path": self.calibration_curve_path,
             "histogram_path": self.histogram_path,
-            "slice_breakdown_path": self.slice_breakdown_path,
             "summary": self.summary.to_dict(),
-            "error_analysis_json_path": self.error_analysis_json_path,
-            "error_analysis_markdown_path": self.error_analysis_markdown_path,
         }
 
 
@@ -282,37 +226,6 @@ def build_verification_evaluation_report(
         normalized_rows,
         calibration_bins=calibration_bins,
     )
-    resolved_trial_rows = trial_rows
-    if resolved_trial_rows is None and trials_path is not None:
-        resolved_trial_rows = load_verification_trial_rows(trials_path)
-    resolved_metadata_rows = metadata_rows
-    if resolved_metadata_rows is None and metadata_path is not None:
-        resolved_metadata_rows = load_verification_metadata_rows(metadata_path)
-    slice_breakdown = tuple(
-        _build_slice_breakdown(
-            raw_score_rows=score_rows,
-            normalized_rows=normalized_rows,
-            trial_rows=resolved_trial_rows,
-            metadata_rows=resolved_metadata_rows,
-            slice_fields=slice_fields,
-            p_target=p_target,
-            c_miss=c_miss,
-            c_fa=c_fa,
-        )
-    )
-    error_analysis = None
-    if resolved_trial_rows is not None or any(
-        resolve_trial_side_identifier(row, "left") or resolve_trial_side_identifier(row, "right")
-        for row in score_rows
-    ):
-        error_analysis = build_verification_error_analysis(
-            score_rows,
-            decision_threshold=metrics.eer_threshold,
-            threshold_source="eer",
-            trial_rows=resolved_trial_rows,
-            metadata_rows=resolved_metadata_rows,
-            slice_fields=slice_fields,
-        )
 
     summary = VerificationEvaluationSummary(
         metrics=metrics,
@@ -322,7 +235,6 @@ def build_verification_evaluation_report(
         det_point_count=len(det_points),
         histogram_bin_count=len(histogram),
         calibration_bin_count=len(calibration_curve),
-        slice_row_count=len(slice_breakdown),
     )
     return VerificationEvaluationReport(
         inputs=VerificationReportInputs(
@@ -342,10 +254,8 @@ def build_verification_evaluation_report(
         summary=summary,
         histogram=histogram,
         calibration_bins=tuple(calibration_curve),
-        slice_breakdown=slice_breakdown,
         roc_points=roc_points,
         det_points=det_points,
-        error_analysis=error_analysis,
     )
 
 
@@ -359,14 +269,10 @@ def write_verification_evaluation_report(
 
     report_json_path = output_path / VERIFICATION_REPORT_JSON_NAME
     report_markdown_path = output_path / VERIFICATION_REPORT_MARKDOWN_NAME
-    slice_dashboard_path = output_path / VERIFICATION_SLICE_DASHBOARD_HTML_NAME
     roc_curve_path = output_path / VERIFICATION_ROC_CURVE_JSONL_NAME
     det_curve_path = output_path / VERIFICATION_DET_CURVE_JSONL_NAME
     calibration_curve_path = output_path / VERIFICATION_CALIBRATION_CURVE_JSONL_NAME
     histogram_path = output_path / VERIFICATION_HISTOGRAM_JSON_NAME
-    slice_breakdown_path = output_path / VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME
-    error_analysis_json_path = None
-    error_analysis_markdown_path = None
 
     report_json_path.write_text(
         json.dumps(report.to_dict(include_curves=False), indent=2, sort_keys=True) + "\n",
@@ -374,10 +280,6 @@ def write_verification_evaluation_report(
     )
     report_markdown_path.write_text(
         render_verification_evaluation_markdown(report), encoding="utf-8"
-    )
-    slice_dashboard_path.write_text(
-        render_verification_slice_dashboard_html(report),
-        encoding="utf-8",
     )
     roc_curve_path.write_text(
         "".join(json.dumps(point.to_dict(), sort_keys=True) + "\n" for point in report.roc_points),
@@ -398,31 +300,16 @@ def write_verification_evaluation_report(
         + "\n",
         encoding="utf-8",
     )
-    slice_breakdown_path.write_text(
-        "".join(json.dumps(row.to_dict(), sort_keys=True) + "\n" for row in report.slice_breakdown),
-        encoding="utf-8",
-    )
-    if report.error_analysis is not None:
-        written_error_analysis = write_verification_error_analysis_report(
-            report.error_analysis,
-            output_root=output_path,
-        )
-        error_analysis_json_path = written_error_analysis.report_json_path
-        error_analysis_markdown_path = written_error_analysis.report_markdown_path
 
     return WrittenVerificationEvaluationReport(
         output_root=str(output_path),
         report_json_path=str(report_json_path),
         report_markdown_path=str(report_markdown_path),
-        slice_dashboard_path=str(slice_dashboard_path),
         roc_curve_path=str(roc_curve_path),
         det_curve_path=str(det_curve_path),
         calibration_curve_path=str(calibration_curve_path),
         histogram_path=str(histogram_path),
-        slice_breakdown_path=str(slice_breakdown_path),
         summary=report.summary,
-        error_analysis_json_path=error_analysis_json_path,
-        error_analysis_markdown_path=error_analysis_markdown_path,
     )
 
 
@@ -439,14 +326,6 @@ def render_verification_evaluation_markdown(report: VerificationEvaluationReport
         f"- Trials: `{report.inputs.trials_path}`",
         f"- Metadata: `{report.inputs.metadata_path}`",
     ]
-    if report.inputs.raw_scores_path is not None:
-        lines.append(f"- Raw scores: `{report.inputs.raw_scores_path}`")
-    if report.inputs.score_normalization is not None:
-        lines.append(f"- Score normalization: `{report.inputs.score_normalization}`")
-    if report.inputs.score_normalization_summary_path is not None:
-        lines.append(
-            f"- Score-normalization summary: `{report.inputs.score_normalization_summary_path}`"
-        )
     if report.inputs.embeddings_path is not None:
         lines.append(f"- Embeddings: `{report.inputs.embeddings_path}`")
     if report.inputs.cohort_bank_path is not None:
@@ -479,44 +358,6 @@ def render_verification_evaluation_markdown(report: VerificationEvaluationReport
             f"- Log loss: `{calibration.log_loss}`",
         ]
     )
-    if report.slice_breakdown:
-        lines.extend(["", "## Slice Breakdown", ""])
-        for field_name in dict.fromkeys(row.field_name for row in report.slice_breakdown):
-            lines.append(f"### `{field_name}`")
-            for row in sorted(
-                (item for item in report.slice_breakdown if item.field_name == field_name),
-                key=lambda item: (-item.trial_count, item.field_value),
-            )[:5]:
-                lines.append(
-                    "- "
-                    f"`{row.field_value}`: trials `{row.trial_count}`, "
-                    f"EER `{row.eer}`, minDCF `{row.min_dcf}`, gap `{row.score_gap}`"
-                )
-            lines.append("")
-    if report.error_analysis is not None:
-        error_summary = report.error_analysis.summary
-        lines.extend(
-            [
-                "",
-                "## Error Analysis",
-                "",
-                f"- Threshold source: `{error_summary.threshold_source}`",
-                f"- Decision threshold: `{error_summary.decision_threshold}`",
-                f"- False accepts: `{error_summary.false_accept_count}` "
-                f"({error_summary.false_accept_rate})",
-                f"- False rejects: `{error_summary.false_reject_count}` "
-                f"({error_summary.false_reject_rate})",
-            ]
-        )
-        if report.error_analysis.priority_findings:
-            lines.extend(["", "### Priority Weak Spots", ""])
-            for finding in report.error_analysis.priority_findings[:5]:
-                lines.append(
-                    "- "
-                    f"**{finding.title}**: {finding.evidence} "
-                    f"(errors `{finding.error_count}` / trials `{finding.trial_count}`, "
-                    f"rate `{finding.error_rate}`)"
-                )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -664,72 +505,6 @@ def _build_det_points(
     return det_points
 
 
-def _build_slice_breakdown(
-    *,
-    raw_score_rows: list[dict[str, Any]],
-    normalized_rows: list[dict[str, float | int]],
-    trial_rows: list[dict[str, Any]] | None,
-    metadata_rows: list[dict[str, Any]] | None,
-    slice_fields: tuple[str, ...],
-    p_target: float,
-    c_miss: float,
-    c_fa: float,
-) -> list[VerificationSliceSummary]:
-    grouped_rows = group_verification_rows_by_slice(
-        raw_score_rows=raw_score_rows,
-        normalized_rows=normalized_rows,
-        trial_rows=trial_rows,
-        metadata_rows=metadata_rows,
-        slice_fields=slice_fields,
-    )
-    if not grouped_rows:
-        return []
-
-    slice_rows: list[VerificationSliceSummary] = []
-    for (field_name, field_value), rows in sorted(
-        grouped_rows.items(),
-        key=lambda item: (item[0][0], -len(item[1]), item[0][1]),
-    ):
-        positive_scores = [float(row["score"]) for row in rows if int(row["label"]) == 1]
-        negative_scores = [float(row["score"]) for row in rows if int(row["label"]) == 0]
-        mean_positive = _rounded_optional_mean(positive_scores)
-        mean_negative = _rounded_optional_mean(negative_scores)
-        score_gap = (
-            None
-            if mean_positive is None or mean_negative is None
-            else round(mean_positive - mean_negative, 6)
-        )
-        metrics: VerificationMetricsSummary | None = None
-        if positive_scores and negative_scores:
-            metrics = compute_verification_metrics(
-                list(rows),
-                p_target=p_target,
-                c_miss=c_miss,
-                c_fa=c_fa,
-            )
-        slice_rows.append(
-            VerificationSliceSummary(
-                field_name=field_name,
-                field_value=field_value,
-                trial_count=len(rows),
-                positive_count=len(positive_scores),
-                negative_count=len(negative_scores),
-                mean_score=round(
-                    sum(float(row["score"]) for row in rows) / float(len(rows)),
-                    6,
-                ),
-                mean_positive_score=mean_positive,
-                mean_negative_score=mean_negative,
-                score_gap=score_gap,
-                eer=(None if metrics is None else metrics.eer),
-                eer_threshold=(None if metrics is None else metrics.eer_threshold),
-                min_dcf=(None if metrics is None else metrics.min_dcf),
-                min_dcf_threshold=(None if metrics is None else metrics.min_dcf_threshold),
-            )
-        )
-    return slice_rows
-
-
 def _fit_platt_scaler(scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
     design = np.column_stack([scores, np.ones_like(scores)])
     coefficients = np.zeros(2, dtype=np.float64)
@@ -770,14 +545,10 @@ __all__ = [
     "DEFAULT_SLICE_FIELDS",
     "VERIFICATION_CALIBRATION_CURVE_JSONL_NAME",
     "VERIFICATION_DET_CURVE_JSONL_NAME",
-    "VERIFICATION_ERROR_ANALYSIS_JSON_NAME",
-    "VERIFICATION_ERROR_ANALYSIS_MARKDOWN_NAME",
     "VERIFICATION_HISTOGRAM_JSON_NAME",
     "VERIFICATION_REPORT_JSON_NAME",
     "VERIFICATION_REPORT_MARKDOWN_NAME",
     "VERIFICATION_ROC_CURVE_JSONL_NAME",
-    "VERIFICATION_SLICE_DASHBOARD_HTML_NAME",
-    "VERIFICATION_SLICE_BREAKDOWN_JSONL_NAME",
     "VerificationCalibrationBin",
     "VerificationCalibrationSummary",
     "VerificationDetPoint",
@@ -786,7 +557,6 @@ __all__ = [
     "VerificationHistogramBin",
     "VerificationReportInputs",
     "VerificationScoreStatistics",
-    "VerificationSliceSummary",
     "WrittenVerificationEvaluationReport",
     "build_verification_evaluation_report",
     "load_verification_metadata_rows",

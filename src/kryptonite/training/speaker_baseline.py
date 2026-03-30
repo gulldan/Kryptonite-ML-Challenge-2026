@@ -17,7 +17,6 @@ from torch import nn
 
 from kryptonite.config import ChunkingConfig, ProjectConfig
 from kryptonite.data import AudioLoadRequest, ManifestRow, load_manifest_audio
-from kryptonite.demo_artifacts import generate_demo_artifacts
 from kryptonite.deployment import resolve_project_path
 from kryptonite.eval import (
     CohortEmbeddingBankSelection,
@@ -180,7 +179,9 @@ def prepare_demo_artifacts_if_needed(
     resolved_dev_manifest = resolve_project_path(str(project_root), dev_manifest)
     if resolved_train_manifest.exists() and resolved_dev_manifest.exists():
         return
-    generate_demo_artifacts(config=project)
+    raise FileNotFoundError(
+        f"Training manifests not found: {resolved_train_manifest}, {resolved_dev_manifest}"
+    )
 
 
 def resolve_device(requested: str) -> torch.device:

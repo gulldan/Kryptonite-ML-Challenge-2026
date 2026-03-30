@@ -53,6 +53,8 @@ docs/                 # архитектура, runbooks, contracts
 - [docs/system-architecture-v1.md](./docs/system-architecture-v1.md) — архитектура pipeline
 - [docs/configuration.md](./docs/configuration.md) — конфиги и overrides
 - [docs/release-runbook.md](./docs/release-runbook.md) — запуск и диагностика runtime
+- [docs/model-task-contract.md](./docs/model-task-contract.md) — задача и артефакты
+- [docs/model-card.md](./docs/model-card.md) — рамка решения
 
 ## Правила
 

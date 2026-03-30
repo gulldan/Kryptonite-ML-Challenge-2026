@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from kryptonite.deployment import resolve_project_path
-from kryptonite.eval.verification_threshold_calibration import (
-    VERIFICATION_THRESHOLD_CALIBRATION_JSON_NAME,
-)
 
 from .api_models import (
     DemoAudioUpload,
@@ -231,9 +228,7 @@ def _resolve_threshold_from_calibration(
     *,
     project_root: Path,
 ) -> DemoThresholdReference | None:
-    for path in _iter_latest_artifacts(
-        artifacts_root, VERIFICATION_THRESHOLD_CALIBRATION_JSON_NAME
-    ):
+    for path in _iter_latest_artifacts(artifacts_root, "verification_threshold_calibration.json"):
         payload = _load_json(path)
         global_profiles = payload.get("global_profiles")
         if not isinstance(global_profiles, list):

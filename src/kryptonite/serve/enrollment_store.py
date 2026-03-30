@@ -11,10 +11,22 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from .enrollment_cache import resolve_enrollment_cache_compatibility_id
-
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+
+def _resolve_enrollment_cache_compatibility_id(model_metadata: Mapping[str, Any]) -> str:
+    explicit = model_metadata.get("enrollment_cache_compatibility_id")
+    if isinstance(explicit, str) and explicit.strip():
+        return explicit.strip()
+    canonical = json.dumps(
+        dict(model_metadata),
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
 
 RUNTIME_ENROLLMENT_STORE_FORMAT_VERSION = "kryptonite.serve.runtime_enrollment_store.v1"
 RUNTIME_ENROLLMENT_STORE_DB_NAME = "runtime_enrollments.sqlite3"
@@ -54,7 +66,7 @@ class RuntimeEnrollmentStore:
         self._store_root = Path(store_root)
         self._store_root.mkdir(parents=True, exist_ok=True)
         self._path = self._store_root / RUNTIME_ENROLLMENT_STORE_DB_NAME
-        self._compatibility_id = resolve_enrollment_cache_compatibility_id(model_metadata)
+        self._compatibility_id = _resolve_enrollment_cache_compatibility_id(model_metadata)
         self._model_metadata_path = model_metadata_location
         self._model_metadata_sha256 = _sha256_file(Path(model_metadata_path))
         self._initialize()
