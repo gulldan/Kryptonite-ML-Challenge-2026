@@ -3,6 +3,31 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from typing import Any, Protocol
+
+from kryptonite.config import ProjectConfig
+
+
+class BaselineConfig(Protocol):
+    """Structural contract satisfied by every model-specific baseline config.
+
+    Each concrete config is a frozen dataclass with a model-specific ``model``
+    field (not captured here because the type varies).  The remaining fields are
+    identical across all baselines and are used by the generic pipeline runner.
+    """
+
+    @property
+    def project(self) -> ProjectConfig: ...
+    @property
+    def data(self) -> BaselineDataConfig: ...
+    @property
+    def objective(self) -> BaselineObjectiveConfig: ...
+    @property
+    def optimization(self) -> BaselineOptimizationConfig: ...
+    @property
+    def provenance(self) -> BaselineProvenanceConfig: ...
+
+    def to_dict(self) -> dict[str, Any]: ...
 
 
 @dataclass(frozen=True, slots=True)

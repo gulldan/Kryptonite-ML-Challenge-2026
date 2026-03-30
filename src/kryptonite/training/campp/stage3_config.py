@@ -16,7 +16,12 @@ from kryptonite.training.baseline_config import (
     BaselineProvenanceConfig,
 )
 
-from .config import _coerce_string_list, _load_model_config, _load_provenance_config, _optional_section
+from .config import (
+    _coerce_string_list,
+    _load_model_config,
+    _load_provenance_config,
+    _optional_section,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,6 +245,8 @@ def _load_stage3_section(raw: dict[str, Any]) -> Stage3Config:
         crop_curriculum=Stage3CropCurriculumConfig(**crop_merged),
         margin_schedule=Stage3MarginScheduleConfig(**margin_merged),
     )
+
+
 __all__ = [
     "CAMPPlusStage3Config",
     "Stage3Config",

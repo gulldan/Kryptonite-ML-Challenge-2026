@@ -1,53 +1,59 @@
 # Kryptonite-ML-Challenge-2026
 
-Репозиторий для speaker verification: обучение, воспроизводимая оценка, API и браузерное demo.
+Speaker verification: обучение моделей, оценка качества, API и demo.
 
-## Быстрый старт
-
-Если задача только поднять рабочий стек и посмотреть результат:
+## Установка
 
 ```bash
 uv sync --dev --group train --group tracking
+```
+
+## Обучить модель
+
+```bash
+uv run python scripts/run_baseline.py --model campp --config configs/training/campp-baseline.toml --device cuda
+uv run python scripts/run_baseline.py --model eres2netv2 --config configs/training/eres2netv2-ffsvc2022-surrogate.toml --device cuda
+```
+
+Каждый запуск создаёт checkpoint, эмбеддинги и verification report (EER, minDCF, score gap).
+
+## Добавить новую модель
+
+Четыре файла:
+1. Encoder (`src/kryptonite/models/<name>/model.py`) — `nn.Module`, вход `[B, T, 80]` -> выход `[B, emb_dim]`
+2. Config loader (`src/kryptonite/training/<name>/config.py`) — ~50 строк
+3. Pipeline wrapper (`src/kryptonite/training/<name>/pipeline.py`) — ~35 строк, делегирует в `run_speaker_baseline()`
+4. TOML config (`configs/training/<name>-baseline.toml`)
+
+Подробнее: [docs/training.md](./docs/training.md)
+
+## Поднять demo
+
+```bash
 docker compose up --build
 ```
 
-Откройте:
-
 - demo: `http://127.0.0.1:8080/demo`
 - health: `http://127.0.0.1:8080/health`
-- metrics: `http://127.0.0.1:8080/metrics`
 
-Остановить стек:
+## Структура
 
-```bash
-docker compose down -v
+```text
+src/kryptonite/       # вся логика: модели, training, eval, serving
+scripts/              # CLI entrypoints (см. scripts/README.md)
+configs/              # TOML конфиги
+apps/api/             # FastAPI serving
+docs/                 # архитектура, runbooks, contracts
 ```
 
-## Что читать дальше
+## Документация
 
-Если нужно быстро понять репозиторий, идите в таком порядке:
+- [docs/training.md](./docs/training.md) — обучение и добавление моделей
+- [docs/code-architecture.md](./docs/code-architecture.md) — карта кода
+- [docs/system-architecture-v1.md](./docs/system-architecture-v1.md) — архитектура pipeline
+- [docs/configuration.md](./docs/configuration.md) — конфиги и overrides
+- [docs/release-runbook.md](./docs/release-runbook.md) — запуск и диагностика runtime
 
-1. [docs/README.md](./docs/README.md) — новая карта документации.
-2. [docs/system-architecture-v1.md](./docs/system-architecture-v1.md) — архитектура и границы модулей.
-3. [docs/code-architecture.md](./docs/code-architecture.md) — как устроен сам код и где лежит source of truth.
-4. [docs/release-runbook.md](./docs/release-runbook.md) — как запускать, проверять и диагностировать runtime.
-5. [docs/model-task-contract.md](./docs/model-task-contract.md) — что именно считается задачей и артефактом решения.
+## Правила
 
-Если задача уже конкретная:
-
-- данные и суррогатный датасет: [docs/data.md](./docs/data.md)
-- обучение и текущий training path: [docs/training.md](./docs/training.md)
-- конфиги и override-механика: [docs/configuration.md](./docs/configuration.md)
-- краткая внешняя рамка решения: [docs/model-card.md](./docs/model-card.md)
-- подробный audio contract: [docs/reference/audio-pipeline.md](./docs/reference/audio-pipeline.md)
-
-## Что изменилось в документации
-
-Верхний уровень `docs/` теперь содержит только канонические документы для онбординга.
-Исторические deep-dive, абляции, closeout-заметки и release-артефакты перенесены в
-[docs/archive/README.md](./docs/archive/README.md).
-
-## Правила проекта
-
-- Основные правила лежат в [AGENTS.md](./AGENTS.md).
-- Полный индекс текущей документации: [docs/README.md](./docs/README.md).
+[AGENTS.md](./AGENTS.md)

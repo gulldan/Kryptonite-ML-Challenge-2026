@@ -520,4 +520,6 @@ def _severity_from_distance_field(value: str) -> SuiteSeverity:
             "far": "heavy",
         }.get(value, "medium"),
     )
+
+
 __all__ = ["TrainingAugmentationRuntime"]

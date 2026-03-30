@@ -1,4 +1,4 @@
-"""Run the stretch WavLM / w2v-BERT teacher branch in PEFT-only mode."""
+"""Train a speaker baseline for any supported model architecture."""
 
 from __future__ import annotations
 
@@ -7,14 +7,18 @@ from pathlib import Path
 
 import typer
 
-from kryptonite.training import load_teacher_peft_config, run_teacher_peft
-
 app = typer.Typer(add_completion=False, help=__doc__)
 
+MODEL_OPTION = typer.Option(
+    ...,
+    "--model",
+    help="Model architecture: campp, eres2netv2.",
+    case_sensitive=False,
+)
 CONFIG_OPTION = typer.Option(
-    Path("configs/training/teacher-peft.toml"),
+    ...,
     "--config",
-    help="Path to the teacher PEFT TOML config.",
+    help="Path to the baseline TOML config for the chosen model.",
 )
 ENV_FILE_OPTION = typer.Option(
     Path(".env"),
@@ -38,25 +42,39 @@ OUTPUT_OPTION = typer.Option(
     case_sensitive=False,
 )
 
+SUPPORTED_MODELS = ("campp", "eres2netv2")
+
 
 @app.command()
 def main(
+    model: str = MODEL_OPTION,
     config: Path = CONFIG_OPTION,
     env_file: Path = ENV_FILE_OPTION,
     project_override: list[str] | None = PROJECT_OVERRIDE_OPTION,
     device: str | None = DEVICE_OPTION,
     output: str = OUTPUT_OPTION,
 ) -> None:
-    teacher = load_teacher_peft_config(
-        config_path=config,
-        env_file=env_file,
-        project_overrides=project_override or [],
-    )
-    artifacts = run_teacher_peft(
-        teacher,
-        config_path=config,
-        device_override=device,
-    )
+    normalized_model = model.strip().lower()
+    overrides = project_override or []
+
+    if normalized_model == "campp":
+        from kryptonite.training import load_campp_baseline_config, run_campp_baseline
+
+        baseline = load_campp_baseline_config(
+            config_path=config, env_file=env_file, project_overrides=overrides
+        )
+        artifacts = run_campp_baseline(baseline, config_path=config, device_override=device)
+    elif normalized_model == "eres2netv2":
+        from kryptonite.training import load_eres2netv2_baseline_config, run_eres2netv2_baseline
+
+        baseline = load_eres2netv2_baseline_config(
+            config_path=config, env_file=env_file, project_overrides=overrides
+        )
+        artifacts = run_eres2netv2_baseline(baseline, config_path=config, device_override=device)
+    else:
+        raise typer.BadParameter(
+            f"Unknown model {model!r}. Supported: {', '.join(SUPPORTED_MODELS)}"
+        )
 
     if output == "json":
         typer.echo(json.dumps(artifacts.to_dict(), indent=2, sort_keys=True))
@@ -68,9 +86,9 @@ def main(
     typer.echo(
         "\n".join(
             [
-                "Teacher PEFT run complete",
+                f"{model} baseline run complete",
                 f"Output root: {artifacts.output_root}",
-                f"Checkpoint dir: {artifacts.checkpoint_path}",
+                f"Checkpoint: {artifacts.checkpoint_path}",
                 f"Embeddings: {artifacts.embeddings_path}",
                 f"Scores: {artifacts.scores_path}",
                 f"Report: {artifacts.report_path}",

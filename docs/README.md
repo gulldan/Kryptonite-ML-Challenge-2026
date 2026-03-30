@@ -1,27 +1,23 @@
 # Docs
 
-Эта папка больше не является плоским каталогом из десятков равноправных заметок.
-Наверху оставлены только документы, которые реально нужны для онбординга и повседневной работы.
+## Основное
 
-## Начать здесь
+- [training.md](./training.md) — обучение, добавление моделей, сравнение результатов
+- [code-architecture.md](./code-architecture.md) — карта кода и куда класть новую логику
+- [system-architecture-v1.md](./system-architecture-v1.md) — pipeline и модульные границы
+- [configuration.md](./configuration.md) — конфиги, overrides, secrets
+- [release-runbook.md](./release-runbook.md) — запуск demo/API, диагностика
 
-- [system-architecture-v1.md](./system-architecture-v1.md) — как устроен pipeline и где проходят модульные границы.
-- [code-architecture.md](./code-architecture.md) — как читать сам код, куда класть новую логику и где source of truth.
-- [release-runbook.md](./release-runbook.md) — как поднять demo/API, проверить health и что смотреть при сбоях.
-- [model-task-contract.md](./model-task-contract.md) — какая задача считается канонической и какие артефакты обязательны.
-- [model-card.md](./model-card.md) — короткая внешняя рамка решения и его ограничения.
+## Contracts
 
-## По задачам
-
-- [data.md](./data.md) — откуда берутся данные, какой surrogate используется сейчас и где смотреть правила/ограничения.
-- [training.md](./training.md) — как поднимать training environment и какой путь обучения считать основным.
-- [configuration.md](./configuration.md) — карта конфигов, overrides и secrets.
+- [model-task-contract.md](./model-task-contract.md) — задача, артефакты, trial types
+- [model-card.md](./model-card.md) — внешняя рамка решения
+- [data.md](./data.md) — данные и surrogate dataset
 
 ## Reference
 
-- [reference/audio-pipeline.md](./reference/audio-pipeline.md) — единый audio contract: normalization, VAD, Fbank, chunking, corruption policy.
+- [reference/audio-pipeline.md](./reference/audio-pipeline.md) — audio contract: normalization, VAD, Fbank, chunking
 
 ## Archive
 
-Все детальные deep-dive, release notes, benchmark-записки, stage-specific training docs и исторические ADR перенесены в
-[archive/README.md](./archive/README.md).
+Deep-dive docs: [archive/README.md](./archive/README.md)

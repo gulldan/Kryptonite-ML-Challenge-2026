@@ -23,7 +23,7 @@
 - `src/kryptonite/models/`
   - model families, encoder configs, scoring primitives
 - `src/kryptonite/training/`
-  - baseline recipes, augmentation runtime/scheduler, family-specific training configs
+  - generic baseline pipeline (`baseline_pipeline.py`), model-specific thin wrappers (`campp/`, `eres2netv2/`), augmentation runtime/scheduler
 - `src/kryptonite/eval/`
   - verification protocol, benchmark packs, calibration, score-normalization, offline reports
 - `src/kryptonite/serve/`
@@ -58,16 +58,14 @@
 ## Practical entrypoints
 
 - training:
-  - `scripts/run_campp_baseline.py`
-  - `scripts/run_campp_stage2_training.py`
-  - `scripts/run_campp_stage3_training.py`
+  - `scripts/run_baseline.py` — unified entry: `--model {campp,eres2netv2} --config ...`
+  - `scripts/run_campp_baseline.py`, `scripts/run_eres2netv2_baseline.py` — model-specific shortcuts
 - evaluation:
-  - `scripts/build_final_benchmark_pack.py`
-  - `scripts/run_verification_protocol_snapshot.py`
-  - `scripts/run_backend_benchmark.py`
-- runtime:
-  - `apps/api/`
-  - `scripts/run_web_demo.py`
+  - `scripts/evaluate_verification_scores.py` — EER / minDCF
+  - `scripts/build_final_benchmark_pack.py` — release benchmark pack
+- serving:
+  - `apps/api/` — FastAPI adapter
+  - `scripts/infer_smoke.py` — inference smoke test
 
 ## Where to put new code
 

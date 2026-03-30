@@ -34,7 +34,7 @@ raw audio
 - `src/kryptonite/data/`: ingestion, manifests, audio loading, normalization, VAD, metadata contracts.
 - `src/kryptonite/features/`: chunking, Fbank extraction, feature cache helpers.
 - `src/kryptonite/models/`: model families and shared cosine scoring utilities.
-- `src/kryptonite/training/`: baseline recipes, CAM++ stages, optimization/runtime logic.
+- `src/kryptonite/training/`: generic baseline pipeline (`run_speaker_baseline`), model-specific wrappers, staged training, optimization runtime.
 - `src/kryptonite/eval/`: verification protocol, reports, calibration, score normalization.
 - `src/kryptonite/serve/`: inferencer, enrollment state, HTTP surface, telemetry, deployment helpers.
 - `apps/api/`: thin serving adapter.

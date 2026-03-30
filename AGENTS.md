@@ -85,7 +85,7 @@ This repository should evolve as a monorepo with clear boundaries.
 - `src/kryptonite/eda/` handles dataset profiling, leakage checks, auditing, and reusable exploratory transforms
 - `src/kryptonite/features/` handles feature extraction and audio transforms
 - `src/kryptonite/models/` handles model definitions and inference interfaces
-- `src/kryptonite/training/` handles recipes, losses, optimization, and experiment flow
+- `src/kryptonite/training/` handles the generic baseline pipeline (`baseline_pipeline.py`), model-specific thin wrappers, optimization, and experiment flow. New model families delegate to `run_speaker_baseline()` instead of duplicating orchestration
 - `src/kryptonite/eval/` handles metrics, reports, and benchmark logic
 - `src/kryptonite/serve/` handles serving adapters and backend wrappers
 

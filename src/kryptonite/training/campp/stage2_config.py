@@ -16,7 +16,12 @@ from kryptonite.training.baseline_config import (
     BaselineProvenanceConfig,
 )
 
-from .config import _coerce_string_list, _load_model_config, _load_provenance_config, _optional_section
+from .config import (
+    _coerce_string_list,
+    _load_model_config,
+    _load_provenance_config,
+    _optional_section,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,6 +212,8 @@ def _load_stage2_section(raw: dict[str, Any]) -> Stage2Config:
         hard_negative=hard_negative,
         utterance_curriculum=utterance_curriculum,
     )
+
+
 __all__ = [
     "CAMPPlusStage2Config",
     "Stage2Config",
