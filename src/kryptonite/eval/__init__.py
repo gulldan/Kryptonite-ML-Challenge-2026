@@ -1,4 +1,4 @@
-"""Evaluation: verification metrics, reports, and cohort banks."""
+"""Evaluation: verification metrics, identification metrics, reports, and cohort banks."""
 
 from .cohort_bank import (
     COHORT_BANK_FORMAT_VERSION,
@@ -12,6 +12,24 @@ from .cohort_bank import (
     WrittenCohortEmbeddingBank,
     build_cohort_embedding_bank,
     load_cohort_embedding_bank,
+)
+from .identification_metrics import (
+    CMCPoint,
+    IdentificationMetricsSummary,
+    IdentificationOperatingPoint,
+    compute_identification_metrics,
+)
+from .identification_report import (
+    IDENTIFICATION_CMC_CURVE_JSONL_NAME,
+    IDENTIFICATION_OPERATING_POINTS_JSONL_NAME,
+    IDENTIFICATION_REPORT_JSON_NAME,
+    IDENTIFICATION_REPORT_MARKDOWN_NAME,
+    IdentificationEvaluationReport,
+    IdentificationReportInputs,
+    WrittenIdentificationEvaluationReport,
+    build_identification_evaluation_report,
+    render_identification_evaluation_markdown,
+    write_identification_evaluation_report,
 )
 from .verification_data import (
     load_verification_score_rows,
@@ -48,6 +66,7 @@ from .verification_report import (
 )
 
 __all__ = [
+    "CMCPoint",
     "COHORT_BANK_FORMAT_VERSION",
     "COHORT_EMBEDDINGS_NPZ_NAME",
     "COHORT_METADATA_JSONL_NAME",
@@ -56,6 +75,14 @@ __all__ = [
     "CohortEmbeddingBankSelection",
     "CohortEmbeddingBankSummary",
     "DEFAULT_SLICE_FIELDS",
+    "IDENTIFICATION_CMC_CURVE_JSONL_NAME",
+    "IDENTIFICATION_OPERATING_POINTS_JSONL_NAME",
+    "IDENTIFICATION_REPORT_JSON_NAME",
+    "IDENTIFICATION_REPORT_MARKDOWN_NAME",
+    "IdentificationEvaluationReport",
+    "IdentificationMetricsSummary",
+    "IdentificationOperatingPoint",
+    "IdentificationReportInputs",
     "LoadedCohortEmbeddingBank",
     "VERIFICATION_CALIBRATION_CURVE_JSONL_NAME",
     "VERIFICATION_DET_CURVE_JSONL_NAME",
@@ -74,16 +101,21 @@ __all__ = [
     "VerificationReportInputs",
     "VerificationScoreStatistics",
     "WrittenCohortEmbeddingBank",
+    "WrittenIdentificationEvaluationReport",
     "WrittenVerificationEvaluationReport",
     "build_cohort_embedding_bank",
+    "build_identification_evaluation_report",
     "build_verification_evaluation_report",
     "build_verification_operating_points",
+    "compute_identification_metrics",
     "compute_verification_metrics",
     "load_cohort_embedding_bank",
     "load_verification_metadata_rows",
     "load_verification_score_rows",
     "load_verification_trial_rows",
     "normalize_verification_score_rows",
+    "render_identification_evaluation_markdown",
     "render_verification_evaluation_markdown",
+    "write_identification_evaluation_report",
     "write_verification_evaluation_report",
 ]

@@ -15,8 +15,11 @@ from torch import nn
 from kryptonite.data import AudioLoadRequest
 from kryptonite.deployment import resolve_project_path
 from kryptonite.eval import (
+    WrittenIdentificationEvaluationReport,
+    build_identification_evaluation_report,
     build_verification_evaluation_report,
     load_verification_score_rows,
+    write_identification_evaluation_report,
     write_verification_evaluation_report,
 )
 from kryptonite.features import FbankExtractionRequest
@@ -240,6 +243,18 @@ def run_speaker_baseline(
         output_root=output_root,
     )
 
+    identification_report: WrittenIdentificationEvaluationReport | None = None
+    id_eval = build_identification_evaluation_report(
+        embeddings_path=embedding_summary.embeddings_path,
+        metadata_rows=metadata_rows,
+        metadata_path=embedding_summary.metadata_parquet_path,
+    )
+    if id_eval is not None:
+        identification_report = write_identification_evaluation_report(
+            id_eval,
+            output_root=output_root,
+        )
+
     reproducibility = build_reproducibility_snapshot(
         config=config.project,
         config_path=resolve_project_path(str(project_root), str(config_path)),
@@ -268,6 +283,7 @@ def run_speaker_baseline(
             embedding_summary=embedding_summary,
             score_summary=score_summary,
             verification_report=verification_report,
+            identification_report=identification_report,
             cohort_bank=cohort_bank,
             checkpoint_path=checkpoint_path,
             training_summary_path=training_summary_path,
@@ -294,6 +310,7 @@ def run_speaker_baseline(
         embedding_summary=embedding_summary,
         score_summary=score_summary,
         verification_report=verification_report,
+        identification_report=identification_report,
         tracking_run_dir=(None if tracker_run is None else str(tracker_run.run_dir)),
     )
 
@@ -305,6 +322,7 @@ def _finalize_tracker_run(
     embedding_summary: Any,
     score_summary: Any,
     verification_report: Any,
+    identification_report: WrittenIdentificationEvaluationReport | None,
     cohort_bank: Any,
     checkpoint_path: Path,
     training_summary_path: Path,
@@ -315,16 +333,22 @@ def _finalize_tracker_run(
     max_epochs: int,
 ) -> None:
     final_epoch = training_summary.epochs[-1]
-    tracker_run.log_metrics(
-        {
-            "train_loss": final_epoch.mean_loss,
-            "train_accuracy": final_epoch.accuracy,
-            "score_gap": score_summary.score_gap or 0.0,
-            "eer": verification_report.summary.metrics.eer,
-            "min_dcf": verification_report.summary.metrics.min_dcf,
-        },
-        step=max_epochs,
-    )
+    metrics: dict[str, float] = {
+        "train_loss": final_epoch.mean_loss,
+        "train_accuracy": final_epoch.accuracy,
+        "score_gap": score_summary.score_gap or 0.0,
+        "eer": verification_report.summary.metrics.eer,
+        "min_dcf": verification_report.summary.metrics.min_dcf,
+    }
+    if identification_report is not None:
+        metrics["rank_1_accuracy"] = identification_report.summary.rank_1_accuracy
+        metrics["rank_5_accuracy"] = identification_report.summary.rank_5_accuracy
+        metrics["rank_10_accuracy"] = identification_report.summary.rank_10_accuracy
+        if identification_report.summary.fnir_at_fpir_0_01 is not None:
+            metrics["fnir_at_fpir_0_01"] = identification_report.summary.fnir_at_fpir_0_01
+        if identification_report.summary.fnir_at_fpir_0_1 is not None:
+            metrics["fnir_at_fpir_0_1"] = identification_report.summary.fnir_at_fpir_0_1
+    tracker_run.log_metrics(metrics, step=max_epochs)
     artifact_paths = [
         checkpoint_path,
         training_summary_path,
@@ -347,14 +371,24 @@ def _finalize_tracker_run(
         reproducibility_path,
         report_path,
     ]
+    if identification_report is not None:
+        artifact_paths.extend(
+            [
+                Path(identification_report.report_json_path),
+                Path(identification_report.report_markdown_path),
+                Path(identification_report.cmc_curve_path),
+                Path(identification_report.operating_points_path),
+            ]
+        )
     for artifact_path in artifact_paths:
         tracker_run.log_artifact(artifact_path)
-    tracker_run.finish(
-        summary={
-            "checkpoint_path": str(checkpoint_path),
-            "score_gap": score_summary.score_gap,
-            "trial_count": score_summary.trial_count,
-            "eer": verification_report.summary.metrics.eer,
-            "min_dcf": verification_report.summary.metrics.min_dcf,
-        }
-    )
+    summary_dict: dict[str, Any] = {
+        "checkpoint_path": str(checkpoint_path),
+        "score_gap": score_summary.score_gap,
+        "trial_count": score_summary.trial_count,
+        "eer": verification_report.summary.metrics.eer,
+        "min_dcf": verification_report.summary.metrics.min_dcf,
+    }
+    if identification_report is not None:
+        summary_dict["rank_1_accuracy"] = identification_report.summary.rank_1_accuracy
+    tracker_run.finish(summary=summary_dict)

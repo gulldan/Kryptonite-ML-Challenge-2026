@@ -21,6 +21,7 @@ from kryptonite.data import AudioLoadRequest, ManifestRow, load_manifest_audio
 from kryptonite.deployment import resolve_project_path
 from kryptonite.eval import (
     CohortEmbeddingBankSelection,
+    WrittenIdentificationEvaluationReport,
     WrittenVerificationEvaluationReport,
     build_cohort_embedding_bank,
 )
@@ -141,6 +142,7 @@ class SpeakerBaselineRunArtifacts:
     embedding_summary: EmbeddingExportSummary
     score_summary: ScoreSummary
     verification_report: WrittenVerificationEvaluationReport | None = None
+    identification_report: WrittenIdentificationEvaluationReport | None = None
     tracking_run_dir: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -161,6 +163,9 @@ class SpeakerBaselineRunArtifacts:
             "score_summary": self.score_summary.to_dict(),
             "verification_report": (
                 None if self.verification_report is None else self.verification_report.to_dict()
+            ),
+            "identification_report": (
+                None if self.identification_report is None else self.identification_report.to_dict()
             ),
             "tracking_run_dir": self.tracking_run_dir,
         }
