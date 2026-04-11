@@ -1,0 +1,8 @@
+.vscode/
+.venv/
+data/
+experiments/
+__pycache__
+*.pt
+*.onnx
+*.py[cod]

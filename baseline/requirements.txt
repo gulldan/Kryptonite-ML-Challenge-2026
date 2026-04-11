@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.7.0
+torchaudio==2.7.0
+faiss-cpu==1.13.2
+numpy
+onnx
+onnxruntime-gpu==1.20.2
+pandas==2.2.2
+soundfile==0.12.1
+tqdm==4.66.6
+
