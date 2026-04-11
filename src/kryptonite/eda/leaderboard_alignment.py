@@ -14,6 +14,7 @@ PUBLIC_LB_SCORES = {
     "B4_trim_3crop": 0.1150,
     "B7_trim_3crop_reciprocal_top50": 0.1206,
     "B8_trim_3crop_reciprocal_local_scaling": 0.1223,
+    "C4_b8_labelprop_mutual10": 0.1249,
 }
 
 

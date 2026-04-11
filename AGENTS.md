@@ -115,6 +115,15 @@ This repository should evolve as a monorepo with clear boundaries.
 
 ### Experiment history policy
 
+- Every model run, validation run, leaderboard submission candidate, reranking/postprocessing
+  run, and hypothesis check must be recorded in `docs/challenge-experiment-history.md`
+  during the same work session.
+- Do not rely on files in `artifacts/` as the only record of an experiment. The history
+  entry must summarize what was run, why it was run, the command/config or code path,
+  key local metrics, public leaderboard score when available, artifact paths, and the
+  resulting decision.
+- Record rejected or failed hypotheses too when they affect the next decision. Mark them
+  as rejected/diagnostic and explain why, instead of silently dropping them.
 - Important experiment changes and outcomes must be recorded in `docs/challenge-experiment-history.md`, especially anything used for a leaderboard submission, presentation, or strategic decision.
 - Each recorded experiment should include the date, short experiment name, key code/config changes, local validation design and metric, public leaderboard score when available, artifact paths, and the decision or lesson learned.
 - Public leaderboard scores are external observations because public labels are hidden; record them explicitly instead of implying they are locally reproducible.

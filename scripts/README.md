@@ -18,9 +18,11 @@
 - `calibrate_verification_thresholds.py` — калибровка порогов
 - `build_verification_protocol.py` — snapshot verification protocol
 - `build_final_benchmark_pack.py` — release benchmark pack
+- `run_torch_checkpoint_c4_tail.py` — прогнать CAM++/ERes2NetV2 checkpoint через текущий C4 tail
 
 ## Data preparation
 
+- `build_participant_training_manifests.py` — собрать training/dev manifests из participant split CSV
 - `acquire_ffsvc2022_surrogate.py` — скачать FFSVC2022 surrogate
 - `prepare_ffsvc2022_surrogate.py` — собрать манифесты и сплиты
 - `normalize_audio_dataset.py` — нормализация аудио (16 kHz mono)
@@ -45,6 +47,7 @@
 - `run_eda_profile.py` — offline EDA profile for participant data into Parquet/CSV/JSON
 - `export_eda_csv_pack.py` — export a CSV-only analysis pack from EDA artifacts
 - `run_eda_retrieval_eval.py` — local retrieval P@K from precomputed embeddings
+- `run_public_graph_community.py` — собрать public graph/community submissions C1-C6 из cached embeddings
 - `validate_submission.py` — validate challenge `submission.csv` format and row order
 - `training_env_smoke.py` — проверка training environment
 - `production_dataloader_smoke.py` — проверка dataloader

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import polars as pl
 import soundfile as sf
 
+from kryptonite.data.participant_manifests import build_participant_training_manifests
 from kryptonite.eda import (
     assign_domain_buckets,
     build_dataset_summary,
@@ -14,6 +17,7 @@ from kryptonite.eda import (
     simulate_speaker_disjoint_split,
     validate_submission,
 )
+from kryptonite.eda.community import LabelPropagationConfig, label_propagation_rerank
 
 
 def test_audio_profile_summary_and_split_artifacts(tmp_path) -> None:
@@ -133,3 +137,74 @@ def test_submission_validator_checks_paths_and_neighbours(tmp_path) -> None:
 
     assert bad_report["passed"] is False
     assert bad_report["invalid_row_count"] == 1
+
+
+def test_participant_split_csvs_convert_to_training_manifests(tmp_path) -> None:
+    train_csv = tmp_path / "train_split.csv"
+    dev_csv = tmp_path / "val_split.csv"
+    train_csv.write_text(
+        "speaker_id,filepath\nspeaker_a,train/speaker_a/00000.flac\n",
+        encoding="utf-8",
+    )
+    dev_csv.write_text(
+        "speaker_id,filepath\nspeaker_b,train/speaker_b/00000.flac\n",
+        encoding="utf-8",
+    )
+
+    result = build_participant_training_manifests(
+        train_split_csv=train_csv,
+        dev_split_csv=dev_csv,
+        output_dir=tmp_path / "manifests",
+        project_root=tmp_path,
+        dataset_name="participants_test",
+    )
+
+    train_manifest = tmp_path / result["train_manifest"]
+    dev_manifest = tmp_path / result["dev_manifest"]
+    assert train_manifest.is_file()
+    assert dev_manifest.is_file()
+    train_row = json.loads(train_manifest.read_text(encoding="utf-8"))
+    dev_row = json.loads(dev_manifest.read_text(encoding="utf-8"))
+    assert train_row["audio_path"] == "datasets/Для участников/train/speaker_a/00000.flac"
+    assert dev_row["split"] == "dev"
+
+
+def test_label_propagation_rerank_prefers_mutual_label_candidates() -> None:
+    indices = np.array(
+        [
+            [1, 2, 3, 4],
+            [0, 2, 3, 4],
+            [0, 1, 3, 4],
+            [4, 0, 1, 2],
+            [3, 0, 1, 2],
+        ],
+        dtype=np.int64,
+    )
+    scores = np.array(
+        [
+            [0.9, 0.8, 0.2, 0.1],
+            [0.9, 0.8, 0.2, 0.1],
+            [0.8, 0.8, 0.2, 0.1],
+            [0.9, 0.2, 0.2, 0.1],
+            [0.9, 0.2, 0.2, 0.1],
+        ],
+        dtype=np.float32,
+    )
+
+    top_indices, _, meta = label_propagation_rerank(
+        indices=indices,
+        scores=scores,
+        config=LabelPropagationConfig(
+            "test_labelprop",
+            edge_top=2,
+            reciprocal_top=2,
+            rank_top=4,
+            label_min_size=2,
+            label_max_size=4,
+            label_min_candidates=1,
+        ),
+        top_k=2,
+    )
+
+    assert set(top_indices[0]) == {1, 2}
+    assert meta["label_used_share"] > 0.0

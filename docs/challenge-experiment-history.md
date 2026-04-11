@@ -31,6 +31,7 @@ public_score = mean(precision@10_i)
 | 2026-04-11 | `B4_trim_3crop` | Conservative trim + deterministic 3-crop, exact top-10. | dense shifted `0.5042`, honest shifted v2 `0.2308` | `0.1150` | `+0.0126` vs baseline_fixed | Trim полезен именно под public-like shift; B4 становится чистым preprocessing control. |
 | 2026-04-11 | `B7_trim_3crop_reciprocal_top50` | B4 embeddings + reciprocal top-50 rerank with top-20 reciprocal bonus. | dense shifted `0.5122`, honest shifted v2 `0.2331` | `0.1206` | `+0.0182` vs baseline_fixed, `+0.0427` vs organizer baseline | Лучший submitted run; reciprocal rerank снижает public hubness и даёт лучший public score. |
 | 2026-04-11 | `B8_trim_3crop_reciprocal_local_scaling` | B7 + density penalty based on mean top-20 candidate density. | honest shifted v2 `0.2320`; public Gini@10 `0.3385`, max in-degree `56` | `0.1223` | `+0.0199` vs baseline_fixed, `+0.0444` vs organizer baseline | Новый лучший submitted run; local scaling подтверждён public, несмотря на небольшой локальный miss относительно B7. |
+| 2026-04-11 | `C4_b8_labelprop_mutual10` | B4 embeddings + B8 reciprocal/local-density ranking + deterministic weighted label propagation on mutual top-10 graph; top-10 prefers same propagated label when label size and candidate count are sane. | honest shifted v2 `0.2413`; validator passed; public Gini@10 `0.3504`, max in-degree `74` | `0.1249` | `+0.0225` vs baseline_fixed, `+0.0470` vs organizer baseline | Новый лучший submitted run. Graph/community postprocess даёт реальный public gain, но скачок пока маленький; следующий шаг - проверить C5 или идти в stronger backbone + graph branch. |
 
 ## What Changed In `baseline_fixed_participants`
 
@@ -82,9 +83,10 @@ domain buckets и сложности retrieval. Улучшения модели 
 
 ## Public Ablation Cycle
 
-- Best submitted run: `B8_trim_3crop_reciprocal_local_scaling`, public LB `0.1223`.
-- Public gain vs `baseline_fixed_v1`: `+0.0199` absolute, about `+19.4%` relative.
-- Public gain vs organizer baseline: `+0.0444` absolute, about `+57.0%` relative.
+- Best submitted inference-only ablation before graph postprocess:
+  `B8_trim_3crop_reciprocal_local_scaling`, public LB `0.1223`.
+- B8 public gain vs `baseline_fixed_v1`: `+0.0199` absolute, about `+19.4%` relative.
+- B8 public gain vs organizer baseline: `+0.0444` absolute, about `+57.0%` relative.
 - Submitted public ranking: B0 `0.1024` < B2 `0.1098` < B4 `0.1150` < B7 `0.1206` < B8 `0.1223`.
 - Spearman rank correlation on B0/B2/B4/B7, plus B8 for honest shifted v2:
   - smoke val: `1.0`
@@ -108,3 +110,145 @@ Artifacts:
 - `artifacts/eda/validation_cycle_package.zip`
 - `artifacts/eda/baseline_fixed_dense_shifted_v2_honest.zip`
 - `artifacts/eda/next_cycle_review_package.zip`
+
+## Graph / Community Postprocess Cycle
+
+Hypothesis: because public retrieval is transductive over the full test pool and each
+speaker has at least `K+1` utterances, graph/community structure should add signal beyond
+pairwise cosine ranking.
+
+Implementation:
+
+- Reusable code: `src/kryptonite/eda/community.py`
+- Public runner: `scripts/run_public_graph_community.py`
+- Input embeddings: `artifacts/eda/public_ablation_cycle/embeddings_B4_trim_3crop.npy`
+- Output directory: `artifacts/eda/public_graph_community/`
+
+Runs checked:
+
+| Date | Experiment | Local honest shifted v2 | Public LB | Validator | Decision |
+| --- | --- | ---: | ---: | --- | --- |
+| 2026-04-11 | `C4_b8_labelprop_mutual10` | `0.2413` | `0.1249` | passed | Keep as current best. |
+| 2026-04-11 | `C5_b8_labelprop_mutual10_shared2` | `0.2395` | not submitted | passed | Next public candidate if another submission is available. |
+| 2026-04-11 | `C6_b8_labelprop_mutual15` | `0.2387` | not submitted | passed | Submit only after C5 or if broader graph looks necessary. |
+| 2026-04-11 | `C1/C2/C3` connected-components variants | effectively B8 fallback | not submitted | passed | Rejected/diagnostic: mutual-kNN connected components collapse into giant components, so component guard falls back instead of giving useful communities. |
+
+Current best public submission artifact:
+
+- `artifacts/eda/public_graph_community/submission_C4_b8_labelprop_mutual10.csv`
+
+Graph-cycle lesson:
+
+- Label propagation over a mutual top-10 graph improves public from B8 `0.1223`
+  to C4 `0.1249`.
+- Connected-component community detection is too brittle on this graph because it forms
+  giant components; deterministic weighted label propagation is a better first graph
+  postprocess for this backbone.
+- The public gain is real but small, so graph postprocess is useful as a safe layer,
+  while the larger gap to leaderboard leaders still points to a stronger encoder/backbone
+  plus graph/community inference.
+
+## Backbone Transition Prep
+
+Date: 2026-04-11
+
+Hypothesis: the current baseline encoder is saturated; the next meaningful gain should
+come from a stronger backbone evaluated through the already-confirmed C4 postprocess
+tail, rather than from more tuning of the old encoder.
+
+Prepared code/config:
+
+- Participant training manifest builder:
+  `scripts/build_participant_training_manifests.py`
+- Reusable manifest conversion logic:
+  `src/kryptonite/data/participant_manifests.py`
+- First ERes2NetV2 candidate config:
+  `configs/training/eres2netv2-participants-candidate.toml`
+- Generic checkpoint-to-C4-tail runner for CAM++/ERes2NetV2 checkpoints:
+  `scripts/run_torch_checkpoint_c4_tail.py`
+
+Generated manifests:
+
+- `artifacts/manifests/participants_fixed/train_manifest.jsonl`: `659804` rows
+- `artifacts/manifests/participants_fixed/dev_manifest.jsonl`: `13473` rows
+- `artifacts/manifests/participants_fixed/manifest_inventory.json`
+
+Checks:
+
+- `scripts/validate_manifests.py --manifests-root artifacts/manifests/participants_fixed --strict`
+  passed: `673277` valid rows, `0` invalid rows.
+- `pytest tests/unit/test_eda.py -q` passed: `6 passed`.
+- `ruff check` passed for touched Python files.
+
+Important note:
+
+- A CPU full-data smoke command was accidentally started without `max_train_rows`; it was
+  stopped and produced no usable experiment result. This is recorded as a process lesson:
+  do not smoke-test full participant configs on CPU without explicit row limits.
+
+Next intended run:
+
+```bash
+uv run --group train python scripts/run_baseline.py \
+  --model eres2netv2 \
+  --config configs/training/eres2netv2-participants-candidate.toml \
+  --device cuda
+```
+
+After checkpoint training, evaluate through C4 tail:
+
+```bash
+uv run --group train python scripts/run_torch_checkpoint_c4_tail.py \
+  --model eres2netv2 \
+  --checkpoint-path artifacts/baselines/eres2netv2-participants/<run-id> \
+  --manifest-csv artifacts/eda/baseline_fixed_dense_shifted_v2_honest/dense_gallery_manifest.csv \
+  --output-dir artifacts/backbone_eval/eres2netv2-candidate/<run-id> \
+  --experiment-id E1_eres2netv2_c4_dense_shifted_v2 \
+  --shift-mode v2
+```
+
+Decision gate:
+
+- Public submission should wait until the new backbone beats current C4 by at least
+  `+0.008...+0.010` on honest dense shifted v2 after the full C4 tail, unless it is
+  explicitly being tested as a fusion candidate.
+
+## ERes2NetV2 Backbone Training Run
+
+Date: 2026-04-11
+
+Hypothesis: a from-scratch ERes2NetV2 trained on the participant speaker split should
+produce stronger embeddings than the saturated organizer-style baseline encoder, and
+must be evaluated through the existing C4 tail before any public submission.
+
+Failed launch:
+
+- Experiment id: `eres2netv2_participants_20260411_220149`
+- Command/config: `configs/training/eres2netv2-participants-candidate.toml`, default
+  `batch_size=64`, `eval_batch_size=64`, `device=cuda`.
+- Log: `artifacts/logs/eres2netv2_participants_20260411_220149.log`
+- Result: rejected/failed. CUDA OOM during the first training forward pass on RTX 4090;
+  the process was stopped and no checkpoint or metric was produced.
+
+Active launch:
+
+- Experiment id: `eres2netv2_participants_b32_20260411_220247`
+- Command:
+
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+uv run --group train python scripts/run_baseline.py \
+  --model eres2netv2 \
+  --config configs/training/eres2netv2-participants-candidate.toml \
+  --project-override training.batch_size=32 \
+  --project-override training.eval_batch_size=32 \
+  --device cuda
+```
+
+- PID file: `artifacts/logs/eres2netv2_participants_b32_20260411_220247.pid`
+- Log: `artifacts/logs/eres2netv2_participants_b32_20260411_220247.log`
+- Status at launch: running on CUDA, GPU utilization reached `100%`, memory around
+  `20.9 GiB`; no initial OOM observed.
+- Decision: keep this as the first real ERes2NetV2 training attempt. After the checkpoint
+  is written, evaluate it with `scripts/run_torch_checkpoint_c4_tail.py` on honest
+  dense shifted v2 before any public leaderboard submission.
