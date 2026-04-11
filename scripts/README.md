@@ -42,6 +42,10 @@
 
 ## Diagnostics
 
+- `run_eda_profile.py` — offline EDA profile for participant data into Parquet/CSV/JSON
+- `export_eda_csv_pack.py` — export a CSV-only analysis pack from EDA artifacts
+- `run_eda_retrieval_eval.py` — local retrieval P@K from precomputed embeddings
+- `validate_submission.py` — validate challenge `submission.csv` format and row order
 - `training_env_smoke.py` — проверка training environment
 - `production_dataloader_smoke.py` — проверка dataloader
 - `infer_smoke.py` — проверка inference runtime
