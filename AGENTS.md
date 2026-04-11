@@ -110,7 +110,15 @@ This repository should evolve as a monorepo with clear boundaries.
 - Large raw datasets do not belong in git
 - Commit manifests, schemas, metadata contracts, and small fixtures
 - Local datasets live in `datasets/` under the repository root and must stay git-ignored
+- The organizer-provided challenge dataset lives at `datasets/Для участников/` on the GPU machine and local working tree when materialized. Expected organizer files there include `train.csv`, `test_public.csv`, `baseline.onnx`, `train/`, and `test_public/`.
 - Generated outputs go to ignored artifact locations unless they are intentionally versioned deliverables
+
+### Experiment history policy
+
+- Important experiment changes and outcomes must be recorded in `docs/challenge-experiment-history.md`, especially anything used for a leaderboard submission, presentation, or strategic decision.
+- Each recorded experiment should include the date, short experiment name, key code/config changes, local validation design and metric, public leaderboard score when available, artifact paths, and the decision or lesson learned.
+- Public leaderboard scores are external observations because public labels are hidden; record them explicitly instead of implying they are locally reproducible.
+- If local validation and public leaderboard diverge, record that gap as an experimental finding, not as a footnote.
 
 ## 5. Execution Environments
 

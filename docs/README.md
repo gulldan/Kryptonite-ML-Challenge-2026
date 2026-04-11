@@ -16,6 +16,7 @@
 - [data.md](./data.md) -- данные, манифесты, surrogate dataset
 - [model-task-contract.md](./model-task-contract.md) -- задача, артефакты, trial types
 - [model-card.md](./model-card.md) -- рамка решения
+- [challenge-experiment-history.md](./challenge-experiment-history.md) -- история изменений, public LB и выводы для презентации
 
 ## Операции
 

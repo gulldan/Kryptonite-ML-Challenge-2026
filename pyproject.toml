@@ -47,6 +47,9 @@ tracking = [
   "mlflow>=3.10.1",
   "wandb>=0.25.1",
 ]
+eda = [
+    "matplotlib>=3.10.8",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kryptonite"]

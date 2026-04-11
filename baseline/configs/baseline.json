@@ -2,7 +2,9 @@
   "exp_dir": "./experiments/baseline",
   "data_base_dir": "./data",
   "train_csv": "./data/train.csv",
-  "split_ratio": 0.2,
+  "train_ratio": 0.8,
+  "min_val_utts": 11,
+  "seed": 2026,
   "sample_rate": 16000,
   "train_chunk_seconds": 3.0,
   "val_chunk_seconds": 6.0,
@@ -18,4 +20,3 @@
   "val_ks": [1, 10, 50],
   "device": "auto"
 }
-

@@ -79,7 +79,11 @@ python train.py --config configs/baseline.json
 
 Заметки по конфигурации `train.py`:
 - `configs/baseline.json` содержит основные параметры аудио и обучения (sample_rate, длительность чанков, Mel‑параметры, batch_size, epochs, device и т. д.).
+- `train_ratio` задаёт долю train-speakers; validation строится speaker-disjoint split-ом.
+- `min_val_utts` ограничивает validation speakers теми, у кого есть минимум `K + 1` записей для P@K.
+- `seed` фиксирует split, torch/numpy/python random и DataLoader workers.
 - `device: "auto"` — выбирает CUDA при наличии, иначе CPU.
+- Train использует random crop; validation/test используют детерминированный center crop.
 
 #### Тестирование
 Для оценки качества полученной модели используется скрипт `test_model.py`.
@@ -115,7 +119,10 @@ python test_model.py \
 Флаги `convert_to_onnx.py`:
 - `--config`: путь к JSON-конфигу обучения; используется для чтения аудио-параметров и `save_path`, если `--pt` не задан.
 - `--pt`: путь к `.pt` чекпоинту модели; если не указан, берётся `save_path` из конфига.
-- `--out`: путь для сохранения `.onnx` файла; по умолчанию используется `models/<имя_чекпоинта>.onnx`.
+- `--out`: путь для сохранения `.onnx` файла; по умолчанию используется путь чекпоинта с заменой `.pt` на `.onnx`.
+- `--chunk_seconds`: длина dummy-входа для ONNX export; по умолчанию берётся из конфига.
+- `--opset`: ONNX opset version; по умолчанию `20`.
+- `--include_logits`: дополнительно экспортировать classifier logits. По умолчанию экспортируется только embedding output.
 
 ```
 python convert_to_onnx.py \
@@ -136,6 +143,7 @@ python convert_to_onnx.py \
 - `--device`: `auto` выбирает `cuda`, если доступна, иначе `cpu`.
 - `--sample_rate`: частота дискретизации входного аудио.
 - `--chunk_seconds`: длина аудиофрагмента.
+- `--num_crops`: число детерминированных eval-crops на файл. `1` означает center crop, `5` — 5-crop mean.
 - `--topk`: размер выдачи для тестового поиска в FAISS (self‑match исключается).
 - `--filepath_col`: имя колонки с путями к аудиофайлам; по умолчанию - filepath.
 - `--speaker_id_col`: имя колонки с идентификатором диктора; по умолчанию - speaker_id.
@@ -149,7 +157,7 @@ python inference_onnx.py \
   --output_labels experiments/baseline/labels.npy \
   --output_indices experiments/baseline/submission.csv \
   --batch_size 32 --num_workers 4 \
-  --device auto --sample_rate 16000 --chunk_seconds 6.0 --topk 10
+  --device auto --sample_rate 16000 --chunk_seconds 6.0 --num_crops 1 --topk 10
 ```
 
 ### Структура labels.npy
@@ -201,10 +209,15 @@ df.to_csv("submission.csv", index=False)
 - `--indices`: путь к `submission.csv`.
 - `--labels`: путь к `labels.npy`.
 - `--k`: значение K (по умолчанию 10).
+- `--template_csv`: опциональный CSV-шаблон; если указан, `filepath` и порядок строк в submission должны совпасть точно.
 
 Пример запуска:
 ```bash
-python calc_metrics.py --indices experiments/baseline/submission.csv --labels experiments/baseline/labels.npy --k 10
+python calc_metrics.py \
+  --indices experiments/baseline/submission.csv \
+  --labels experiments/baseline/labels.npy \
+  --template_csv data/test_public.csv \
+  --k 10
 ```
 
 ## Ссылки
