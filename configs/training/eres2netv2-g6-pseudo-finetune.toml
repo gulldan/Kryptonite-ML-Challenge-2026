@@ -1,0 +1,67 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="eres2netv2-g6-pseudo-finetune"',
+  'tracking.run_name_prefix="eres2netv2-g6-pseudo"',
+  'runtime.num_workers=6',
+  'training.precision="bf16"',
+  'training.batch_size=128',
+  'training.eval_batch_size=128',
+  'training.max_epochs=3',
+  'chunking.train_min_crop_seconds=2.0',
+  'chunking.train_max_crop_seconds=6.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+]
+
+[data]
+train_manifest = "artifacts/manifests/pseudo_g6/g6_mixed_train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/eres2netv2-g6-pseudo-finetune"
+trials_manifest = ""
+checkpoint_name = "eres2netv2_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[model]
+embedding_size = 192
+m_channels = 64
+base_width = 26
+scale = 2
+expansion = 2
+num_blocks = [3, 4, 6, 3]
+pooling_func = "TSTP"
+two_embedding_layers = false
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 192
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "sgd"
+scheduler_name = "cosine"
+learning_rate = 0.01
+min_learning_rate = 0.00001
+momentum = 0.9
+weight_decay = 0.00005
+warmup_epochs = 0
+gradient_accumulation_steps = 1
+grad_clip_norm = 5.0
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+pretrained_resources = [
+  "local://artifacts/baselines/eres2netv2-participants/20260411T200748Z-15ced4a6d3ee/eres2netv2_encoder.pt",
+]
+notes = [
+  "Self-training from P1 ERes2NetV2 checkpoint.",
+  "Pseudo labels are derived from G6 cluster-first public graph; no hidden labels are used.",
+  "Mixed manifest contains original participant train labels plus high-confidence public pseudo clusters.",
+]

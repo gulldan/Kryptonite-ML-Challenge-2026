@@ -3,7 +3,9 @@ import json
 import os
 import random
 from collections.abc import Sequence
+from pathlib import Path
 from time import perf_counter
+from typing import Any, Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -28,6 +30,7 @@ def train_one_epoch(
     loader,
     optimizer: torch.optim.Optimizer,
     device: str,
+    grad_clip_norm: float | None = None,
     desc: str = "train",
 ) -> tuple[float, float]:
     model.train(True)
@@ -45,6 +48,8 @@ def train_one_epoch(
         logits = model(wave)
         loss = criterion(logits, label)
         loss.backward()
+        if grad_clip_norm is not None:
+            nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
         optimizer.step()
         acc = accuracy_from_logits(logits.detach(), label)
         total_loss += loss.item()
@@ -90,6 +95,38 @@ def format_metrics(metrics: dict[str, float]) -> str:
         key=lambda x: (x.split("@")[0], int(x.split("@")[1]) if "@" in x else 0),
     )
     return ", ".join([f"{k} {metrics[k]:.4f}" for k in keys])
+
+
+def current_learning_rate(optimizer: torch.optim.Optimizer) -> float:
+    return float(optimizer.param_groups[0]["lr"])
+
+
+def metric_improved(
+    candidate: float,
+    best: float | None,
+    *,
+    mode: str,
+    min_delta: float,
+) -> bool:
+    if best is None:
+        return True
+    if mode == "min":
+        return candidate < best - min_delta
+    if mode == "max":
+        return candidate > best + min_delta
+    raise ValueError("mode must be one of: min, max")
+
+
+def append_jsonl(path: str | os.PathLike[str], payload: dict[str, Any]) -> None:
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        f.write("\n")
+
+
+def write_json(path: str | os.PathLike[str], payload: dict[str, Any]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
 
 
 def set_seed(seed: int) -> None:
@@ -267,10 +304,57 @@ def main():
         model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"]
     )
 
-    best_metric = 0.0
-    metric_key = "precision@10"
+    metric_key = str(cfg.get("checkpoint_metric", "precision@10"))
+    early_stopping_enabled = bool(cfg.get("early_stopping_enabled", False))
+    early_metric_key = str(cfg.get("early_stopping_metric", metric_key))
+    early_mode = str(cfg.get("early_stopping_mode", "max")).lower()
+    early_min_delta = float(cfg.get("early_stopping_min_delta", 0.0))
+    early_patience = int(cfg.get("early_stopping_patience", 3))
+    early_min_epochs = int(cfg.get("early_stopping_min_epochs", 1))
+    early_restore_best = bool(cfg.get("early_stopping_restore_best", True))
+    stop_train_accuracy = cfg.get("early_stopping_stop_train_accuracy")
+    stop_train_accuracy = None if stop_train_accuracy is None else float(stop_train_accuracy)
+    if early_mode not in {"min", "max"}:
+        raise ValueError("early_stopping_mode must be one of: min, max")
+    scheduler_mode = cast(Literal["min", "max"], early_mode)
+    if early_patience < 0:
+        raise ValueError("early_stopping_patience must be non-negative")
+    if early_min_epochs <= 0:
+        raise ValueError("early_stopping_min_epochs must be positive")
+    if early_min_delta < 0.0:
+        raise ValueError("early_stopping_min_delta must be non-negative")
+    if stop_train_accuracy is not None and not 0.0 <= stop_train_accuracy <= 1.0:
+        raise ValueError("early_stopping_stop_train_accuracy must be within [0.0, 1.0]")
+
+    scheduler_name = str(cfg.get("scheduler", "none")).lower()
+    if scheduler_name == "reduce_on_plateau":
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode=scheduler_mode,
+            factor=float(cfg.get("scheduler_factor", 0.5)),
+            patience=int(cfg.get("scheduler_patience", 1)),
+            threshold=float(cfg.get("scheduler_threshold", early_min_delta)),
+            min_lr=float(cfg.get("scheduler_min_lr", 1e-6)),
+        )
+    elif scheduler_name in {"", "none"}:
+        scheduler = None
+    else:
+        raise ValueError("scheduler must be one of: none, reduce_on_plateau")
+
+    best_metric: float | None = None
+    best_epoch: int | None = None
+    best_early_metric: float | None = None
+    bad_epochs = 0
+    stopped_early = False
+    stop_reason: str | None = None
+    epoch_records: list[dict[str, Any]] = []
     model_save_path = cfg.get("save_path") or os.path.join(cfg.get("exp_dir"), "model.pt")
     os.makedirs(os.path.dirname(model_save_path) or ".", exist_ok=True)
+    metrics_path = cfg.get("metrics_path") or os.path.join(cfg.get("exp_dir"), "metrics.jsonl")
+    training_summary_path = cfg.get("training_summary_path") or os.path.join(
+        cfg.get("exp_dir"), "training_summary.json"
+    )
+    Path(metrics_path).write_text("", encoding="utf-8")
 
     ks = tuple(cfg.get("val_ks", [1, 10, 50]))
 
@@ -285,18 +369,126 @@ def main():
             train_loader,
             optimizer,
             device,
+            grad_clip_norm=cfg.get("grad_clip_norm"),
             desc=f"train {epoch:03d}/{epochs:03d}",
         )
         metrics = validate_retrieval(model, val_loader, device, ks=ks)
         dt = perf_counter() - t0
-        if metrics.get(metric_key, 0.0) > best_metric:
-            best_metric = metrics[metric_key]
+        if metric_key not in metrics:
+            raise ValueError(f"Checkpoint metric '{metric_key}' not found in validation metrics.")
+        if early_metric_key not in metrics:
+            raise ValueError(
+                f"Early-stopping metric '{early_metric_key}' not found in validation metrics."
+            )
+
+        checkpoint_metric = float(metrics[metric_key])
+        early_metric = float(metrics[early_metric_key])
+        is_best = metric_improved(
+            checkpoint_metric,
+            best_metric,
+            mode="max",
+            min_delta=0.0,
+        )
+        if is_best:
+            best_metric = checkpoint_metric
+            best_epoch = epoch
             torch.save(model.state_dict(), model_save_path)
+
+        early_improved = metric_improved(
+            early_metric,
+            best_early_metric,
+            mode=early_mode,
+            min_delta=early_min_delta,
+        )
+        if early_improved:
+            best_early_metric = early_metric
+            bad_epochs = 0
+        else:
+            bad_epochs += 1
+
+        if scheduler is not None:
+            scheduler.step(early_metric)
+
+        learning_rate = current_learning_rate(optimizer)
+        epoch_record: dict[str, Any] = {
+            "epoch": epoch,
+            "train_loss": round(float(train_loss), 6),
+            "train_accuracy": round(float(train_acc), 6),
+            "learning_rate": round(learning_rate, 10),
+            "validation": {key: round(float(value), 6) for key, value in sorted(metrics.items())},
+            "seconds": round(float(dt), 3),
+            "is_best_checkpoint": is_best,
+            "best_epoch": best_epoch,
+            "best_metric": None if best_metric is None else round(float(best_metric), 6),
+            "early_stopping_bad_epochs": bad_epochs,
+        }
+        epoch_records.append(epoch_record)
+        append_jsonl(metrics_path, epoch_record)
+
         print(
             f"train loss {train_loss:.4f} acc {train_acc:.4f} | "
             f"val {format_metrics(metrics)} | "
-            f"time {dt:.1f}s | best_{metric_key} {best_metric:.4f}"
+            f"lr {learning_rate:.6g} | time {dt:.1f}s | "
+            f"best_{metric_key} {0.0 if best_metric is None else best_metric:.4f}"
         )
+
+        if early_stopping_enabled and epoch >= early_min_epochs:
+            if stop_train_accuracy is not None and train_acc >= stop_train_accuracy:
+                stopped_early = True
+                stop_reason = "train_accuracy_threshold"
+            elif bad_epochs > 0 and bad_epochs >= early_patience:
+                stopped_early = True
+                stop_reason = "patience_exhausted"
+            if stopped_early:
+                print(
+                    "[INFO] Early stopping triggered: "
+                    f"epoch={epoch} reason={stop_reason} "
+                    f"best_epoch={best_epoch} best_{metric_key}={best_metric:.4f}"
+                )
+                break
+
+    if early_restore_best and os.path.isfile(model_save_path):
+        state_dict = torch.load(model_save_path, map_location=device)
+        model.load_state_dict(state_dict)
+
+    write_json(
+        training_summary_path,
+        {
+            "config_path": args.config,
+            "exp_dir": cfg.get("exp_dir"),
+            "model_save_path": model_save_path,
+            "train_split_path": train_split_path,
+            "val_split_path": val_split_path,
+            "device": device,
+            "seed": seed,
+            "epochs_requested": epochs,
+            "epochs_completed": len(epoch_records),
+            "checkpoint_metric": metric_key,
+            "best_metric": best_metric,
+            "best_epoch": best_epoch,
+            "metrics_path": metrics_path,
+            "early_stopping": {
+                "enabled": early_stopping_enabled,
+                "metric": early_metric_key,
+                "mode": early_mode,
+                "min_delta": early_min_delta,
+                "patience": early_patience,
+                "min_epochs": early_min_epochs,
+                "restore_best": early_restore_best,
+                "stop_train_accuracy": stop_train_accuracy,
+                "stopped_early": stopped_early,
+                "reason": stop_reason,
+                "best_early_metric": best_early_metric,
+            },
+            "scheduler": {
+                "name": scheduler_name,
+                "final_learning_rate": current_learning_rate(optimizer),
+            },
+            "epochs": epoch_records,
+        },
+    )
+    print(f"[INFO] Metrics written to {metrics_path}")
+    print(f"[INFO] Training summary written to {training_summary_path}")
 
 
 if __name__ == "__main__":

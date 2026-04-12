@@ -1,0 +1,67 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-participants-candidate"',
+  'tracking.run_name_prefix="campp-participants"',
+  'runtime.num_workers=6',
+  'training.precision="bf16"',
+  'training.batch_size=64',
+  'training.eval_batch_size=64',
+  'training.max_epochs=10',
+  'chunking.train_min_crop_seconds=2.0',
+  'chunking.train_max_crop_seconds=6.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+]
+
+[data]
+train_manifest = "artifacts/manifests/participants_fixed/train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/campp-participants"
+trials_manifest = ""
+checkpoint_name = "campp_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[model]
+embedding_size = 512
+growth_rate = 32
+bottleneck_scale = 4
+init_channels = 128
+head_channels = 32
+head_res_blocks = [2, 2]
+block_layers = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations = [1, 2, 2]
+memory_efficient = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.0015
+min_learning_rate = 0.00005
+momentum = 0.9
+weight_decay = 0.0001
+warmup_epochs = 1
+gradient_accumulation_steps = 1
+grad_clip_norm = 5.0
+
+[provenance]
+ruleset = "standard"
+initialization = "from_scratch"
+notes = [
+  "Participant train split from baseline_fixed speaker-disjoint split.",
+  "No VoxBlink2 data or checkpoint.",
+  "Parallel second-backbone hypothesis for H800 GPU1.",
+  "Evaluate public candidates only through the C4 tail: trim + 3crop + reciprocal/local scaling + labelprop mutual10.",
+]

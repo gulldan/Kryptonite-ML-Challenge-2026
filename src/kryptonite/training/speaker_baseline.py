@@ -34,6 +34,7 @@ from kryptonite.features import (
 )
 from kryptonite.models import cosine_score_pairs
 
+from .baseline_config import BaselineOptimizationConfig
 from .baseline_reporting import relative_to_project, render_markdown_report
 from .manifest_speaker_data import TrainingBatch
 from .optimization_runtime import (
@@ -65,6 +66,34 @@ class EpochSummary:
     mean_loss: float
     accuracy: float
     learning_rate: float
+    is_best_checkpoint: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class EarlyStoppingSummary:
+    enabled: bool
+    monitor: str
+    min_delta: float
+    patience_epochs: int
+    min_epochs: int
+    restore_best: bool
+    stop_train_accuracy: float | None
+    stopped: bool
+    reason: str | None
+    best_epoch: int | None
+    best_value: float | None
+    restored_best: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class TrainingLoopResult:
+    summaries: list[EpochSummary]
+    early_stopping: EarlyStoppingSummary | None
+    best_model_state_dict: dict[str, torch.Tensor] | None = None
+    best_classifier_state_dict: dict[str, torch.Tensor] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +108,7 @@ class TrainingSummary:
     dev_row_count: int
     checkpoint_path: str
     epochs: tuple[EpochSummary, ...]
+    early_stopping: EarlyStoppingSummary | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -92,6 +122,9 @@ class TrainingSummary:
             "dev_row_count": self.dev_row_count,
             "checkpoint_path": self.checkpoint_path,
             "epochs": [asdict(epoch) for epoch in self.epochs],
+            "early_stopping": (
+                None if self.early_stopping is None else self.early_stopping.to_dict()
+            ),
         }
 
 
@@ -232,9 +265,18 @@ def train_epochs(
     sampler: EpochAwareBatchSampler | None,
     device: torch.device,
     max_epochs: int,
+    optimization_config: BaselineOptimizationConfig,
     tracker_run: Any | None,
-) -> list[EpochSummary]:
+) -> TrainingLoopResult:
     summaries: list[EpochSummary] = []
+    early_stopping_enabled = optimization_config.early_stopping_enabled
+    monitor = optimization_config.early_stopping_monitor.strip().lower()
+    best_value: float | None = None
+    best_epoch: int | None = None
+    bad_epochs = 0
+    stop_reason: str | None = None
+    best_model_state_dict: dict[str, torch.Tensor] | None = None
+    best_classifier_state_dict: dict[str, torch.Tensor] | None = None
     for epoch in range(max_epochs):
         dataset.set_epoch(epoch)
         if sampler is not None:
@@ -246,17 +288,44 @@ def train_epochs(
             training_runtime=training_runtime,
             loader=loader,
             device=device,
+            progress_label=f"epoch={epoch + 1}/{max_epochs}",
         )
 
         if total_examples == 0:
             raise ValueError("Training loader produced zero examples.")
 
         learning_rate = round(training_runtime.current_learning_rate(), 8)
+        mean_loss = round(total_loss / total_examples, 6)
+        accuracy = round(total_correct / total_examples, 6)
+        metric_value = _early_stopping_metric(
+            mean_loss=mean_loss,
+            accuracy=accuracy,
+            monitor=monitor,
+        )
+        is_best_checkpoint = False
+        if early_stopping_enabled:
+            if best_value is None or _early_stopping_improved(
+                candidate=metric_value,
+                best=best_value,
+                monitor=monitor,
+                min_delta=optimization_config.early_stopping_min_delta,
+            ):
+                best_value = metric_value
+                best_epoch = epoch + 1
+                bad_epochs = 0
+                is_best_checkpoint = True
+                if optimization_config.early_stopping_restore_best:
+                    best_model_state_dict = _snapshot_module_state_dict(model)
+                    best_classifier_state_dict = _snapshot_module_state_dict(classifier)
+            else:
+                bad_epochs += 1
+
         summary = EpochSummary(
             epoch=epoch + 1,
-            mean_loss=round(total_loss / total_examples, 6),
-            accuracy=round(total_correct / total_examples, 6),
+            mean_loss=mean_loss,
+            accuracy=accuracy,
             learning_rate=learning_rate,
+            is_best_checkpoint=is_best_checkpoint,
         )
         summaries.append(summary)
         if tracker_run is not None:
@@ -269,7 +338,83 @@ def train_epochs(
                 step=summary.epoch,
             )
         training_runtime.step_scheduler(mean_loss=summary.mean_loss)
-    return summaries
+
+        if (
+            early_stopping_enabled
+            and summary.epoch >= optimization_config.early_stopping_min_epochs
+        ):
+            stop_reason = _resolve_early_stopping_reason(
+                summary=summary,
+                bad_epochs=bad_epochs,
+                patience_epochs=optimization_config.early_stopping_patience_epochs,
+                stop_train_accuracy=optimization_config.early_stopping_stop_train_accuracy,
+            )
+            if stop_reason is not None:
+                print(
+                    "[train] early stopping "
+                    f"epoch={summary.epoch} reason={stop_reason} "
+                    f"best_epoch={best_epoch} best_{monitor}={best_value}",
+                    flush=True,
+                )
+                break
+
+    early_stopping: EarlyStoppingSummary | None = None
+    if early_stopping_enabled:
+        early_stopping = EarlyStoppingSummary(
+            enabled=True,
+            monitor=monitor,
+            min_delta=optimization_config.early_stopping_min_delta,
+            patience_epochs=optimization_config.early_stopping_patience_epochs,
+            min_epochs=optimization_config.early_stopping_min_epochs,
+            restore_best=optimization_config.early_stopping_restore_best,
+            stop_train_accuracy=optimization_config.early_stopping_stop_train_accuracy,
+            stopped=stop_reason is not None,
+            reason=stop_reason,
+            best_epoch=best_epoch,
+            best_value=best_value,
+        )
+    return TrainingLoopResult(
+        summaries=summaries,
+        early_stopping=early_stopping,
+        best_model_state_dict=best_model_state_dict,
+        best_classifier_state_dict=best_classifier_state_dict,
+    )
+
+
+def _early_stopping_metric(*, mean_loss: float, accuracy: float, monitor: str) -> float:
+    if monitor == "train_accuracy":
+        return accuracy
+    return mean_loss
+
+
+def _early_stopping_improved(
+    *,
+    candidate: float,
+    best: float,
+    monitor: str,
+    min_delta: float,
+) -> bool:
+    if monitor == "train_accuracy":
+        return candidate > best + min_delta
+    return candidate < best - min_delta
+
+
+def _resolve_early_stopping_reason(
+    *,
+    summary: EpochSummary,
+    bad_epochs: int,
+    patience_epochs: int,
+    stop_train_accuracy: float | None,
+) -> str | None:
+    if stop_train_accuracy is not None and summary.accuracy >= stop_train_accuracy:
+        return "train_accuracy_threshold"
+    if bad_epochs > 0 and bad_epochs >= patience_epochs:
+        return "patience_exhausted"
+    return None
+
+
+def _snapshot_module_state_dict(module: nn.Module) -> dict[str, torch.Tensor]:
+    return {name: tensor.detach().cpu().clone() for name, tensor in module.state_dict().items()}
 
 
 def write_checkpoint(
@@ -612,11 +757,13 @@ __all__ = [
     "TRAINING_SUMMARY_FILE_NAME",
     "TRIALS_FILE_NAME",
     "EmbeddingExportSummary",
+    "EarlyStoppingSummary",
     "EpochAwareBatchSampler",
     "EpochAwareDataset",
     "EpochSummary",
     "ScoreSummary",
     "SpeakerBaselineRunArtifacts",
+    "TrainingLoopResult",
     "TrainingSummary",
     "build_default_cohort_bank",
     "build_fixed_train_chunking_request",

@@ -17,7 +17,19 @@ from kryptonite.eda import (
     simulate_speaker_disjoint_split,
     validate_submission,
 )
-from kryptonite.eda.community import LabelPropagationConfig, label_propagation_rerank
+from kryptonite.eda.classifier_first import (
+    ClassAdjustedScoreConfig,
+    ClassFirstConfig,
+    class_adjusted_topk,
+    class_first_rerank,
+)
+from kryptonite.eda.community import (
+    ClusterFirstConfig,
+    LabelPropagationConfig,
+    cluster_first_rerank,
+    label_propagation_rerank,
+)
+from kryptonite.eda.hf_xvector import extract_xvector_embeddings
 
 
 def test_audio_profile_summary_and_split_artifacts(tmp_path) -> None:
@@ -208,3 +220,217 @@ def test_label_propagation_rerank_prefers_mutual_label_candidates() -> None:
 
     assert set(top_indices[0]) == {1, 2}
     assert meta["label_used_share"] > 0.0
+
+
+def test_cluster_first_rerank_prefers_stable_cluster_candidates() -> None:
+    indices = np.array(
+        [
+            [1, 2, 3, 4, 5],
+            [0, 2, 3, 4, 5],
+            [0, 1, 3, 4, 5],
+            [4, 5, 0, 1, 2],
+            [3, 5, 0, 1, 2],
+            [3, 4, 0, 1, 2],
+        ],
+        dtype=np.int64,
+    )
+    scores = np.array(
+        [
+            [0.9, 0.8, 0.4, 0.3, 0.2],
+            [0.9, 0.8, 0.4, 0.3, 0.2],
+            [0.8, 0.8, 0.4, 0.3, 0.2],
+            [0.9, 0.8, 0.4, 0.3, 0.2],
+            [0.9, 0.8, 0.4, 0.3, 0.2],
+            [0.8, 0.8, 0.4, 0.3, 0.2],
+        ],
+        dtype=np.float32,
+    )
+
+    top_indices, _, labels, meta = cluster_first_rerank(
+        indices=indices,
+        scores=scores,
+        config=ClusterFirstConfig(
+            "test_cluster_first",
+            edge_top=2,
+            reciprocal_top=2,
+            rank_top=5,
+            iterations=4,
+            cluster_min_size=3,
+            cluster_max_size=3,
+            cluster_min_candidates=2,
+            shared_top=3,
+            shared_min_count=0,
+            split_oversized=False,
+        ),
+        top_k=2,
+    )
+
+    assert set(top_indices[0]) == {1, 2}
+    assert labels[0] == labels[1] == labels[2]
+    assert meta["cluster_used_share"] > 0.0
+
+
+def test_class_first_rerank_prefers_classifier_bucket() -> None:
+    embeddings = np.array(
+        [
+            [1.0, 0.0],
+            [0.95, 0.05],
+            [0.90, 0.10],
+            [0.99, 0.01],
+            [0.05, 0.95],
+            [0.10, 0.90],
+        ],
+        dtype=np.float32,
+    )
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+    top_class_indices = np.array(
+        [
+            [0, 1],
+            [0, 1],
+            [0, 1],
+            [1, 0],
+            [1, 0],
+            [1, 0],
+        ],
+        dtype=np.int64,
+    )
+    top_class_probs = np.array(
+        [
+            [0.9, 0.1],
+            [0.8, 0.2],
+            [0.7, 0.3],
+            [0.9, 0.1],
+            [0.8, 0.2],
+            [0.7, 0.3],
+        ],
+        dtype=np.float32,
+    )
+    fallback_indices = np.array(
+        [
+            [3, 1, 2],
+            [0, 2, 3],
+            [1, 0, 3],
+            [0, 4, 5],
+            [5, 3, 0],
+            [4, 3, 0],
+        ],
+        dtype=np.int64,
+    )
+    fallback_scores = np.array(
+        [
+            [0.99, 0.95, 0.90],
+            [0.95, 0.94, 0.93],
+            [0.94, 0.90, 0.89],
+            [0.99, 0.95, 0.90],
+            [0.95, 0.94, 0.10],
+            [0.95, 0.94, 0.10],
+        ],
+        dtype=np.float32,
+    )
+
+    top_indices, _, meta = class_first_rerank(
+        embeddings=embeddings,
+        top_class_indices=top_class_indices,
+        top_class_probs=top_class_probs,
+        fallback_indices=fallback_indices,
+        fallback_scores=fallback_scores,
+        config=ClassFirstConfig(
+            top_k=2,
+            min_class_candidates=2,
+            class_fallback_k=1,
+            max_class_candidates=10,
+        ),
+    )
+
+    assert set(top_indices[0]) == {1, 2}
+    assert meta["class_used_share"] == 1.0
+
+
+def test_class_first_rerank_can_disable_bucket_backfill() -> None:
+    embeddings = np.array(
+        [
+            [1.0, 0.0],
+            [0.95, 0.05],
+            [0.90, 0.10],
+            [0.05, 0.95],
+        ],
+        dtype=np.float32,
+    )
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+    top_class_indices = np.array(
+        [
+            [0],
+            [0],
+            [0],
+            [1],
+        ],
+        dtype=np.int64,
+    )
+    top_class_probs = np.array([[0.9], [0.8], [0.7], [0.9]], dtype=np.float32)
+    fallback_indices = np.array(
+        [
+            [3, 1, 2],
+            [0, 2, 3],
+            [1, 0, 3],
+            [0, 1, 2],
+        ],
+        dtype=np.int64,
+    )
+    fallback_scores = np.array(
+        [
+            [0.99, 0.95, 0.90],
+            [0.95, 0.94, 0.93],
+            [0.94, 0.90, 0.89],
+            [0.99, 0.95, 0.90],
+        ],
+        dtype=np.float32,
+    )
+
+    top_indices, _, meta = class_first_rerank(
+        embeddings=embeddings,
+        top_class_indices=top_class_indices,
+        top_class_probs=top_class_probs,
+        fallback_indices=fallback_indices,
+        fallback_scores=fallback_scores,
+        config=ClassFirstConfig(
+            top_k=2,
+            min_class_candidates=3,
+            class_fallback_k=1,
+            max_class_candidates=10,
+            bucket_backfill=False,
+        ),
+    )
+
+    assert top_indices[0].tolist() == [3, 1]
+    assert meta["class_used_share"] == 0.0
+
+
+def test_class_adjusted_topk_reorders_soft_classifier_edges() -> None:
+    indices = np.array([[1, 2], [0, 2], [0, 1]], dtype=np.int64)
+    scores = np.array([[0.9, 0.89], [0.9, 0.2], [0.89, 0.2]], dtype=np.float32)
+    top_class_indices = np.array([[0, 1], [1, 0], [0, 1]], dtype=np.int64)
+    top_class_probs = np.array([[0.9, 0.1], [0.9, 0.1], [0.8, 0.2]], dtype=np.float32)
+
+    adjusted_indices, adjusted_scores, meta = class_adjusted_topk(
+        indices=indices,
+        scores=scores,
+        top_class_indices=top_class_indices,
+        top_class_probs=top_class_probs,
+        config=ClassAdjustedScoreConfig(
+            class_overlap_top_k=2,
+            class_overlap_weight=0.2,
+            same_top1_bonus=0.05,
+            same_query_topk_bonus=0.0,
+        ),
+    )
+
+    assert adjusted_indices[0].tolist() == [2, 1]
+    assert adjusted_scores[0, 0] > adjusted_scores[0, 1]
+    assert meta["adjusted_top1_changed_share"] > 0.0
+
+
+def test_hf_xvector_output_extractor_accepts_attribute_output() -> None:
+    class Output:
+        embeddings = np.array([[1.0, 2.0]], dtype=np.float32)
+
+    assert extract_xvector_embeddings(Output()).shape == (1, 2)

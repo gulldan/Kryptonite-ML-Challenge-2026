@@ -92,6 +92,13 @@ class BaselineOptimizationConfig:
     plateau_factor: float = 0.5
     plateau_patience_epochs: int = 1
     plateau_threshold: float = 1e-4
+    early_stopping_enabled: bool = False
+    early_stopping_monitor: str = "train_loss"
+    early_stopping_min_delta: float = 0.0
+    early_stopping_patience_epochs: int = 3
+    early_stopping_min_epochs: int = 1
+    early_stopping_restore_best: bool = True
+    early_stopping_stop_train_accuracy: float | None = None
 
     def __post_init__(self) -> None:
         normalized_optimizer = self.optimizer_name.strip().lower()
@@ -128,6 +135,19 @@ class BaselineOptimizationConfig:
             raise ValueError("plateau_patience_epochs must be non-negative")
         if self.plateau_threshold < 0.0:
             raise ValueError("plateau_threshold must be non-negative")
+        normalized_monitor = self.early_stopping_monitor.strip().lower()
+        if normalized_monitor not in {"train_loss", "train_accuracy"}:
+            raise ValueError("early_stopping_monitor must be one of: train_loss, train_accuracy")
+        if self.early_stopping_min_delta < 0.0:
+            raise ValueError("early_stopping_min_delta must be non-negative")
+        if self.early_stopping_patience_epochs < 0:
+            raise ValueError("early_stopping_patience_epochs must be non-negative")
+        if self.early_stopping_min_epochs <= 0:
+            raise ValueError("early_stopping_min_epochs must be positive")
+        if self.early_stopping_stop_train_accuracy is not None and not (
+            0.0 <= self.early_stopping_stop_train_accuracy <= 1.0
+        ):
+            raise ValueError("early_stopping_stop_train_accuracy must be within [0.0, 1.0]")
 
 
 @dataclass(frozen=True, slots=True)

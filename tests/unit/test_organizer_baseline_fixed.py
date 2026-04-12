@@ -148,6 +148,19 @@ def test_split_data_is_speaker_disjoint_and_keeps_small_speakers_in_train(
     assert val_df.groupby("speaker_id").size().min() >= 11
 
 
+def test_train_metric_improved_respects_mode_and_min_delta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_train_stubs(monkeypatch)
+    train_module = _load_module(BASELINE_ROOT / "train.py", "organizer_train_metric_test")
+
+    assert train_module.metric_improved(0.5, None, mode="max", min_delta=0.01) is True
+    assert train_module.metric_improved(0.52, 0.5, mode="max", min_delta=0.01) is True
+    assert train_module.metric_improved(0.505, 0.5, mode="max", min_delta=0.01) is False
+    assert train_module.metric_improved(0.48, 0.5, mode="min", min_delta=0.01) is True
+    assert train_module.metric_improved(0.495, 0.5, mode="min", min_delta=0.01) is False
+
+
 def test_calc_metrics_validates_template_order_and_index_bounds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

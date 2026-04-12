@@ -1,0 +1,73 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="eres2netv2-participants-20epoch-local-guarded"',
+  'tracking.run_name_prefix="eres2netv2-e20-guarded-local"',
+  'runtime.num_workers=6',
+  'training.precision="bf16"',
+  'training.batch_size=32',
+  'training.eval_batch_size=64',
+  'training.max_epochs=20',
+  'chunking.train_min_crop_seconds=2.0',
+  'chunking.train_max_crop_seconds=6.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+]
+
+[data]
+train_manifest = "artifacts/manifests/participants_fixed/train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/eres2netv2-participants-20epoch-local-guarded"
+trials_manifest = ""
+checkpoint_name = "eres2netv2_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[model]
+embedding_size = 192
+m_channels = 64
+base_width = 26
+scale = 2
+expansion = 2
+num_blocks = [3, 4, 6, 3]
+pooling_func = "TSTP"
+two_embedding_layers = false
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 192
+scale = 32.0
+margin = 0.3
+easy_margin = false
+
+[optimization]
+optimizer_name = "sgd"
+scheduler_name = "cosine"
+learning_rate = 0.12
+min_learning_rate = 0.00005
+momentum = 0.9
+weight_decay = 0.0001
+warmup_epochs = 2
+gradient_accumulation_steps = 2
+grad_clip_norm = 5.0
+early_stopping_enabled = true
+early_stopping_monitor = "train_loss"
+early_stopping_min_delta = 0.0005
+early_stopping_patience_epochs = 3
+early_stopping_min_epochs = 8
+early_stopping_restore_best = true
+early_stopping_stop_train_accuracy = 0.995
+
+[provenance]
+ruleset = "standard"
+initialization = "from_scratch"
+notes = [
+  "Local RTX 4090 guarded 20-epoch ERes2NetV2 baseline check.",
+  "Uses batch_size=32 with gradient_accumulation_steps=2 after batch_size=64 OOM on RTX 4090.",
+  "Same participant fixed train/dev manifests as P1 candidate.",
+  "Early stopping uses train_loss patience plus train_accuracy threshold because full dev retrieval per epoch is too expensive for this local baseline launch.",
+  "No VoxBlink2 data or checkpoint.",
+]

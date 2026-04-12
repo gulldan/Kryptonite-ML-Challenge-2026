@@ -105,7 +105,50 @@ def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
     assert cohort_summary["overlapping_validation_speakers"] == []
 
 
-def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manifest: Path) -> Path:
+def test_eres2netv2_baseline_early_stopping_records_and_restores_best(
+    tmp_path: Path,
+) -> None:
+    train_manifest, dev_manifest = _write_manifest_fixtures(tmp_path)
+    config_path = _write_eres2netv2_config(
+        tmp_path,
+        train_manifest=train_manifest,
+        dev_manifest=dev_manifest,
+        max_epochs=3,
+        optimization_lines=[
+            "early_stopping_enabled = true",
+            'early_stopping_monitor = "train_loss"',
+            "early_stopping_min_delta = 0.0",
+            "early_stopping_patience_epochs = 2",
+            "early_stopping_min_epochs = 1",
+            "early_stopping_restore_best = true",
+            "early_stopping_stop_train_accuracy = 0.0",
+        ],
+    )
+
+    config = load_eres2netv2_baseline_config(config_path=config_path, env_file=tmp_path / ".env")
+    artifacts = run_eres2netv2_baseline(config, config_path=config_path, device_override="cpu")
+
+    assert len(artifacts.training_summary.epochs) == 1
+    early_stopping = artifacts.training_summary.early_stopping
+    assert early_stopping is not None
+    assert early_stopping.stopped is True
+    assert early_stopping.reason == "train_accuracy_threshold"
+    assert early_stopping.best_epoch == 1
+    assert early_stopping.restored_best is True
+
+    summary_payload = json.loads(Path(artifacts.training_summary_path).read_text())
+    assert summary_payload["early_stopping"]["stopped"] is True
+    assert summary_payload["epochs"][0]["is_best_checkpoint"] is True
+
+
+def _write_eres2netv2_config(
+    tmp_path: Path,
+    *,
+    train_manifest: Path,
+    dev_manifest: Path,
+    max_epochs: int = 1,
+    optimization_lines: list[str] | None = None,
+) -> Path:
     config_root = tmp_path / "configs" / "training"
     config_root.mkdir(parents=True, exist_ok=True)
     config_path = config_root / "eres2netv2-test.toml"
@@ -119,7 +162,7 @@ def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manife
                 "  'runtime.num_workers=0',",
                 "  'training.batch_size=2',",
                 "  'training.eval_batch_size=2',",
-                "  'training.max_epochs=1',",
+                f"  'training.max_epochs={max_epochs}',",
                 "  'chunking.train_min_crop_seconds=0.5',",
                 "  'chunking.train_max_crop_seconds=0.5',",
                 "  'chunking.train_num_crops=1',",
@@ -154,6 +197,7 @@ def _write_eres2netv2_config(tmp_path: Path, *, train_manifest: Path, dev_manife
                 "weight_decay = 0.0",
                 "warmup_epochs = 0",
                 "grad_clip_norm = 5.0",
+                *(optimization_lines or []),
                 "",
             ]
         )

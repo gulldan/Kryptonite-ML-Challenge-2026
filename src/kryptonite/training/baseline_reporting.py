@@ -84,6 +84,23 @@ def render_markdown_report(
             f"- Final accuracy: `{final_epoch.accuracy}`",
             f"- Final learning rate: `{final_epoch.learning_rate}`",
             f"- Checkpoint: `{relative_checkpoint}`",
+        ]
+    )
+    if training_summary.early_stopping is not None:
+        early = training_summary.early_stopping
+        lines.extend(
+            [
+                f"- Early stopping monitor: `{early.monitor}`",
+                f"- Early stopping stopped: `{early.stopped}`",
+                f"- Early stopping reason: `{early.reason}`",
+                f"- Best epoch: `{early.best_epoch}`",
+                f"- Best value: `{early.best_value}`",
+                f"- Restored best checkpoint: `{early.restored_best}`",
+            ]
+        )
+
+    lines.extend(
+        [
             "",
             "## Embeddings",
             "",

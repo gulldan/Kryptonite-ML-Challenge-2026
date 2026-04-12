@@ -6,7 +6,7 @@ import csv
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import polars as pl
@@ -47,6 +47,30 @@ class LabelPropagationConfig:
     shared_min_count: int = 0
     reciprocal_bonus: float = 0.03
     density_penalty: float = 0.02
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterFirstConfig:
+    experiment_id: str
+    edge_top: int = 50
+    reciprocal_top: int = 100
+    rank_top: int = 300
+    iterations: int = 8
+    cluster_min_size: int = 11
+    cluster_max_size: int = 220
+    cluster_min_candidates: int = 6
+    shared_top: int = 50
+    shared_min_count: int = 2
+    reciprocal_bonus: float = 0.03
+    density_penalty: float = 0.02
+    edge_score_quantile: float | None = None
+    edge_min_score: float | None = None
+    shared_weight: float = 0.04
+    rank_weight: float = 0.02
+    self_weight: float = 0.0
+    label_size_penalty: float = 0.0
+    split_oversized: bool = True
+    split_edge_top: int = 12
 
 
 def exact_topk(
@@ -161,6 +185,222 @@ def community_rerank(
     return out_i, out_s, meta
 
 
+def cluster_first_rerank(
+    *,
+    indices: np.ndarray,
+    scores: np.ndarray,
+    config: ClusterFirstConfig,
+    top_k: int = 10,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
+    """Cluster the full test graph first, then prefer within-cluster retrieval."""
+
+    if indices.shape != scores.shape:
+        raise ValueError("indices and scores must have the same shape")
+    if indices.shape[1] < max(config.edge_top, config.reciprocal_top, config.rank_top, top_k):
+        raise ValueError("top-k cache is smaller than the requested cluster-first config")
+
+    rank_indices, rank_scores, rank_meta = adjusted_ranking(
+        indices=indices,
+        scores=scores,
+        rank_top=config.rank_top,
+        reciprocal_top=config.reciprocal_top,
+        reciprocal_bonus=config.reciprocal_bonus,
+        density_penalty=config.density_penalty,
+    )
+    edge_mask, edge_weights, edge_meta = cluster_edge_weights(
+        indices=indices,
+        scores=scores,
+        config=config,
+    )
+    labels, propagation_meta = weighted_label_propagation(
+        indices=indices[:, : config.edge_top],
+        scores=edge_weights,
+        edge_mask=edge_mask,
+        iterations=config.iterations,
+        self_weight=config.self_weight,
+        label_size_penalty=config.label_size_penalty,
+    )
+    split_meta: dict[str, Any] = {}
+    if config.split_oversized:
+        labels, split_meta = split_oversized_clusters(
+            labels=labels,
+            indices=indices,
+            edge_mask=edge_mask,
+            cluster_max_size=config.cluster_max_size,
+            split_edge_top=config.split_edge_top,
+        )
+    cluster_sizes = np.bincount(labels, minlength=int(labels.max()) + 1)
+    out_i = np.empty((indices.shape[0], top_k), dtype=np.int64)
+    out_s = np.empty((indices.shape[0], top_k), dtype=np.float32)
+    cluster_used = np.zeros(indices.shape[0], dtype=bool)
+    same_cluster_counts = np.zeros(indices.shape[0], dtype=np.int16)
+    for row in range(indices.shape[0]):
+        own_label = labels[row]
+        own_cluster_size = int(cluster_sizes[own_label])
+        fallback = rank_indices[row]
+        fallback_scores = rank_scores[row]
+        selected: list[int] = []
+        selected_scores: list[float] = []
+        if config.cluster_min_size <= own_cluster_size <= config.cluster_max_size:
+            same_cluster = labels[fallback] == own_label
+            cluster_positions = np.flatnonzero(same_cluster)
+            same_cluster_counts[row] = len(cluster_positions)
+            if len(cluster_positions) >= config.cluster_min_candidates:
+                for position in cluster_positions:
+                    candidate = int(fallback[position])
+                    if candidate == row:
+                        continue
+                    selected.append(candidate)
+                    selected_scores.append(float(fallback_scores[position]))
+                    if len(selected) == top_k:
+                        break
+                cluster_used[row] = len(selected) > 0
+        seen = set(selected)
+        if len(selected) < top_k:
+            for candidate, score in zip(fallback, fallback_scores, strict=True):
+                candidate_int = int(candidate)
+                if candidate_int == row or candidate_int in seen:
+                    continue
+                selected.append(candidate_int)
+                selected_scores.append(float(score))
+                seen.add(candidate_int)
+                if len(selected) == top_k:
+                    break
+        out_i[row] = np.asarray(selected, dtype=np.int64)
+        out_s[row] = np.asarray(selected_scores, dtype=np.float32)
+    meta = {
+        **rank_meta,
+        **edge_meta,
+        **propagation_meta,
+        **split_meta,
+        "iterations": config.iterations,
+        "cluster_min_size": config.cluster_min_size,
+        "cluster_max_size": config.cluster_max_size,
+        "cluster_min_candidates": config.cluster_min_candidates,
+        "cluster_used_share": float(cluster_used.mean()),
+        "same_cluster_candidates_p50": float(np.quantile(same_cluster_counts, 0.50)),
+        "same_cluster_candidates_p95": float(np.quantile(same_cluster_counts, 0.95)),
+        "cluster_count": int(len(cluster_sizes)),
+        "cluster_size_p50": float(np.quantile(cluster_sizes, 0.50)),
+        "cluster_size_p95": float(np.quantile(cluster_sizes, 0.95)),
+        "cluster_size_p99": float(np.quantile(cluster_sizes, 0.99)),
+        "cluster_size_max": int(cluster_sizes.max()),
+    }
+    return out_i, out_s, labels, meta
+
+
+def cluster_edge_weights(
+    *,
+    indices: np.ndarray,
+    scores: np.ndarray,
+    config: ClusterFirstConfig,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Build weighted mutual-kNN edges for cluster-first inference."""
+
+    edge_scores = scores[:, : config.edge_top]
+    edge_mask = mutual_mask(
+        indices,
+        edge_top=config.edge_top,
+        reciprocal_top=config.reciprocal_top,
+    )
+    threshold = config.edge_min_score
+    if config.edge_score_quantile is not None:
+        threshold = float(np.quantile(edge_scores, config.edge_score_quantile))
+    if threshold is not None:
+        edge_mask &= edge_scores >= threshold
+    shared_counts = shared_neighbor_counts(
+        indices=indices,
+        edge_top=config.edge_top,
+        shared_top=config.shared_top,
+        base_mask=edge_mask,
+    )
+    if config.shared_min_count > 0:
+        edge_mask &= shared_counts >= config.shared_min_count
+    density_z = density_zscore(scores, top_n=min(20, scores.shape[1]))
+    rank_bonus = config.rank_weight / (1.0 + np.arange(config.edge_top, dtype=np.float32))
+    edge_weights = (
+        edge_scores
+        + rank_bonus[None, :]
+        + config.shared_weight * (shared_counts.astype(np.float32) / max(config.shared_top, 1))
+        - config.density_penalty * density_z[indices[:, : config.edge_top]]
+    )
+    edge_weights = np.where(edge_mask, edge_weights, 0.0).astype(np.float32, copy=False)
+    nonzero_counts = edge_mask.sum(axis=1)
+    active_shared = shared_counts[edge_mask]
+    shared_mean = float(active_shared.mean()) if active_shared.size else 0.0
+    return (
+        edge_mask,
+        edge_weights,
+        {
+            "edge_top": config.edge_top,
+            "edge_score_threshold": threshold,
+            "cluster_edge_count": int(edge_mask.sum()),
+            "cluster_edge_share": float(edge_mask.mean()),
+            "cluster_edge_degree_p50": float(np.quantile(nonzero_counts, 0.50)),
+            "cluster_edge_degree_p95": float(np.quantile(nonzero_counts, 0.95)),
+            "shared_top": config.shared_top,
+            "shared_min_count": config.shared_min_count,
+            "shared_count_mean": shared_mean,
+            "shared_weight": config.shared_weight,
+            "cluster_rank_weight": config.rank_weight,
+        },
+    )
+
+
+def split_oversized_clusters(
+    *,
+    labels: np.ndarray,
+    indices: np.ndarray,
+    edge_mask: np.ndarray,
+    cluster_max_size: int,
+    split_edge_top: int,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Split oversized labels using stricter induced mutual edges."""
+
+    label_sizes = np.bincount(labels, minlength=int(labels.max()) + 1)
+    oversized = np.flatnonzero(label_sizes > cluster_max_size)
+    if len(oversized) == 0:
+        return labels, {
+            "split_oversized_cluster_count": 0,
+            "split_oversized_rows": 0,
+            "split_edge_top": split_edge_top,
+        }
+
+    next_label = int(labels.max()) + 1
+    out = labels.copy()
+    edge_top = min(split_edge_top, edge_mask.shape[1])
+    split_rows = 0
+    for label in oversized.tolist():
+        members = np.flatnonzero(labels == label)
+        split_rows += int(len(members))
+        local_index = {int(member): position for position, member in enumerate(members.tolist())}
+        dsu = _DisjointSet(len(members))
+        for member in members.tolist():
+            member_position = local_index[int(member)]
+            for candidate in indices[int(member), :edge_top][edge_mask[int(member), :edge_top]]:
+                candidate_position = local_index.get(int(candidate))
+                if candidate_position is not None:
+                    dsu.union(member_position, candidate_position)
+        local_labels = dsu.labels()
+        local_sizes = np.bincount(local_labels, minlength=int(local_labels.max()) + 1)
+        if len(local_sizes) == 1:
+            continue
+        first = True
+        for local_label in range(len(local_sizes)):
+            local_members = members[local_labels == local_label]
+            if first:
+                out[local_members] = label
+                first = False
+            else:
+                out[local_members] = next_label
+                next_label += 1
+    return _compact_labels(out), {
+        "split_oversized_cluster_count": int(len(oversized)),
+        "split_oversized_rows": split_rows,
+        "split_edge_top": split_edge_top,
+    }
+
+
 def label_propagation_rerank(
     *,
     indices: np.ndarray,
@@ -265,6 +505,8 @@ def weighted_label_propagation(
     scores: np.ndarray,
     edge_mask: np.ndarray,
     iterations: int,
+    self_weight: float = 0.0,
+    label_size_penalty: float = 0.0,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Deterministic weighted label propagation over a sparse neighbor graph."""
 
@@ -272,16 +514,29 @@ def weighted_label_propagation(
     edge_counts = edge_mask.sum(axis=1)
     for iteration in range(iterations):
         changed = 0
+        label_counts = np.bincount(labels, minlength=indices.shape[0])
         for row in range(indices.shape[0]):
             if edge_counts[row] == 0:
                 continue
             label_scores: dict[int, float] = {}
+            if self_weight > 0.0:
+                current_label = int(labels[row])
+                label_scores[current_label] = float(self_weight)
             for candidate, weight in zip(
                 indices[row, edge_mask[row]], scores[row, edge_mask[row]], strict=True
             ):
                 label = int(labels[int(candidate)])
                 label_scores[label] = label_scores.get(label, 0.0) + float(weight)
-            best_label = max(label_scores.items(), key=lambda item: (item[1], -item[0]))[0]
+            if label_size_penalty > 0.0:
+                best_label = max(
+                    label_scores.items(),
+                    key=lambda item: (
+                        item[1] / float(label_counts[item[0]]) ** label_size_penalty,
+                        -item[0],
+                    ),
+                )[0]
+            else:
+                best_label = max(label_scores.items(), key=lambda item: (item[1], -item[0]))[0]
             if labels[row] != best_label:
                 labels[row] = best_label
                 changed += 1
@@ -290,11 +545,15 @@ def weighted_label_propagation(
                 "label_propagation_iterations_run": iteration + 1,
                 "label_propagation_last_changed": changed,
                 "label_propagation_edge_share": float(edge_mask.mean()),
+                "label_propagation_self_weight": self_weight,
+                "label_propagation_label_size_penalty": label_size_penalty,
             }
     return _compact_labels(labels), {
         "label_propagation_iterations_run": iterations,
         "label_propagation_last_changed": changed,
         "label_propagation_edge_share": float(edge_mask.mean()),
+        "label_propagation_self_weight": self_weight,
+        "label_propagation_label_size_penalty": label_size_penalty,
     }
 
 
@@ -399,15 +658,34 @@ def shared_neighbor_mask(
 ) -> np.ndarray:
     """Return mask for candidate pairs with enough shared top-neighborhood."""
 
+    return base_mask & (
+        shared_neighbor_counts(
+            indices=indices,
+            edge_top=edge_top,
+            shared_top=shared_top,
+            base_mask=base_mask,
+        )
+        >= shared_min_count
+    )
+
+
+def shared_neighbor_counts(
+    *,
+    indices: np.ndarray,
+    edge_top: int,
+    shared_top: int,
+    base_mask: np.ndarray,
+) -> np.ndarray:
+    """Count shared top-neighbors for candidate pairs selected by base_mask."""
+
     shared_top = min(shared_top, indices.shape[1])
     neighbor_sets = [set(row) for row in indices[:, :shared_top].tolist()]
-    out = np.zeros((indices.shape[0], edge_top), dtype=bool)
+    out = np.zeros((indices.shape[0], edge_top), dtype=np.int16)
     for row in range(indices.shape[0]):
         row_set = neighbor_sets[row]
         for position in np.flatnonzero(base_mask[row]):
             candidate = int(indices[row, position])
-            if len(row_set.intersection(neighbor_sets[candidate])) >= shared_min_count:
-                out[row, position] = True
+            out[row, position] = len(row_set.intersection(neighbor_sets[candidate]))
     return out
 
 
@@ -465,11 +743,15 @@ def evaluate_labelled_topk(
         "experiment_id": experiment_id,
         "query_count": frame.height,
         "gallery_count": manifest.height,
-        "p10": float(frame["p10"].mean()),
-        "top1_accuracy": float(frame["top1_correct"].mean()),
-        "mean_top10_score": float(frame["top10_mean_score"].mean()),
+        "p10": _mean_float(frame["p10"]),
+        "top1_accuracy": _mean_float(frame["top1_correct"]),
+        "mean_top10_score": _mean_float(frame["top10_mean_score"]),
     }
     return frame, summary
+
+
+def _mean_float(series: pl.Series) -> float:
+    return float(cast(float | int, series.mean()))
 
 
 def write_submission(
@@ -487,13 +769,31 @@ def write_submission(
             writer.writerow([filepath, ",".join(str(int(index)) for index in neighbours)])
 
 
+def write_cluster_assignments(
+    *,
+    manifest: pl.DataFrame,
+    labels: np.ndarray,
+    output_csv: Path,
+) -> None:
+    """Persist transductive cluster labels for audit and pseudo-label selection."""
+
+    cluster_sizes = np.bincount(labels, minlength=int(labels.max()) + 1)
+    frame = manifest.select("filepath").with_columns(
+        pl.Series("row_index", np.arange(manifest.height, dtype=np.int64)),
+        pl.Series("cluster_id", labels.astype(np.int64, copy=False)),
+        pl.Series("cluster_size", cluster_sizes[labels].astype(np.int64, copy=False)),
+    )
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    frame.write_csv(output_csv)
+
+
 def run_public_community_package(
     *,
     embeddings_path: Path,
     manifest_csv: Path,
     template_csv: Path,
     output_dir: Path,
-    configs: list[CommunityConfig | LabelPropagationConfig],
+    configs: list[CommunityConfig | LabelPropagationConfig | ClusterFirstConfig],
     top_cache_k: int = 100,
     search_batch_size: int = 2048,
 ) -> None:
@@ -511,6 +811,15 @@ def run_public_community_package(
         if isinstance(config, LabelPropagationConfig):
             top_indices, top_scores, meta = label_propagation_rerank(
                 indices=indices, scores=scores, config=config, top_k=10
+            )
+        elif isinstance(config, ClusterFirstConfig):
+            top_indices, top_scores, labels, meta = cluster_first_rerank(
+                indices=indices, scores=scores, config=config, top_k=10
+            )
+            write_cluster_assignments(
+                manifest=manifest,
+                labels=labels,
+                output_csv=output_dir / f"clusters_{config.experiment_id}.csv",
             )
         else:
             top_indices, top_scores, meta = community_rerank(

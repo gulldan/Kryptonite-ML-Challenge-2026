@@ -6,6 +6,7 @@ Model-specific thin wrappers construct the encoder and delegate here.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +157,7 @@ def run_speaker_baseline(
         max_epochs=config.project.training.max_epochs,
     )
 
-    epoch_summaries = train_epochs(
+    training_loop_result = train_epochs(
         model=model,
         classifier=classifier,
         criterion=criterion,
@@ -166,8 +167,20 @@ def run_speaker_baseline(
         sampler=train_sampler,
         device=device,
         max_epochs=config.project.training.max_epochs,
+        optimization_config=config.optimization,
         tracker_run=tracker_run,
     )
+    early_stopping = training_loop_result.early_stopping
+    if (
+        early_stopping is not None
+        and early_stopping.restore_best
+        and training_loop_result.best_model_state_dict is not None
+        and training_loop_result.best_classifier_state_dict is not None
+    ):
+        model.load_state_dict(training_loop_result.best_model_state_dict)
+        classifier.load_state_dict(training_loop_result.best_classifier_state_dict)
+        early_stopping = replace(early_stopping, restored_best=True)
+    epoch_summaries = training_loop_result.summaries
     checkpoint_path = output_root / config.data.checkpoint_name
     write_checkpoint(
         checkpoint_path=checkpoint_path,
@@ -189,6 +202,7 @@ def run_speaker_baseline(
         dev_row_count=len(dev_rows),
         checkpoint_path=str(checkpoint_path),
         epochs=tuple(epoch_summaries),
+        early_stopping=early_stopping,
     )
     training_summary_path = output_root / TRAINING_SUMMARY_FILE_NAME
     training_summary_path.write_text(
@@ -348,7 +362,7 @@ def _finalize_tracker_run(
             metrics["fnir_at_fpir_0_01"] = identification_report.summary.fnir_at_fpir_0_01
         if identification_report.summary.fnir_at_fpir_0_1 is not None:
             metrics["fnir_at_fpir_0_1"] = identification_report.summary.fnir_at_fpir_0_1
-    tracker_run.log_metrics(metrics, step=max_epochs)
+    tracker_run.log_metrics(metrics, step=final_epoch.epoch)
     artifact_paths = [
         checkpoint_path,
         training_summary_path,

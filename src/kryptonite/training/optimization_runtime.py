@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any
@@ -208,6 +209,8 @@ def run_classification_batches(
     training_runtime: TrainingOptimizationRuntime,
     loader: Any,
     device: torch.device,
+    progress_label: str | None = None,
+    log_every_batches: int | None = None,
 ) -> tuple[float, int, int]:
     model.train()
     classifier.train()
@@ -216,6 +219,20 @@ def run_classification_batches(
     total_examples = 0
     accumulation_steps = training_runtime.gradient_accumulation_steps
     pending_step = False
+    total_batches = _try_len(loader)
+    resolved_log_every = _resolve_log_every_batches(
+        log_every_batches=log_every_batches,
+        total_batches=total_batches,
+    )
+    started_at = time.monotonic()
+
+    if progress_label is not None:
+        total_batches_label = str(total_batches) if total_batches is not None else "unknown"
+        print(
+            f"[train] {progress_label} start batches={total_batches_label} "
+            f"accumulation_steps={accumulation_steps}",
+            flush=True,
+        )
 
     training_runtime.zero_grad()
     for batch_index, batch in enumerate(loader, start=1):
@@ -241,12 +258,103 @@ def run_classification_batches(
         total_loss += float(loss.detach().item()) * batch_size
         total_correct += int((logits.argmax(dim=1) == labels).sum().item())
         total_examples += batch_size
+        if _should_log_progress(
+            batch_index=batch_index,
+            log_every_batches=resolved_log_every,
+            total_batches=total_batches,
+        ):
+            _print_training_progress(
+                progress_label=progress_label,
+                batch_index=batch_index,
+                total_batches=total_batches,
+                total_examples=total_examples,
+                total_loss=total_loss,
+                total_correct=total_correct,
+                started_at=started_at,
+            )
 
     if pending_step:
         training_runtime.step_optimizer()
         training_runtime.zero_grad()
 
+    if progress_label is not None:
+        _print_training_progress(
+            progress_label=progress_label,
+            batch_index=total_batches,
+            total_batches=total_batches,
+            total_examples=total_examples,
+            total_loss=total_loss,
+            total_correct=total_correct,
+            started_at=started_at,
+            done=True,
+        )
+
     return total_loss, total_correct, total_examples
+
+
+def _try_len(value: Any) -> int | None:
+    try:
+        return int(len(value))
+    except TypeError:
+        return None
+
+
+def _resolve_log_every_batches(
+    *,
+    log_every_batches: int | None,
+    total_batches: int | None,
+) -> int:
+    if log_every_batches is not None:
+        return max(0, int(log_every_batches))
+    if total_batches is None or total_batches <= 0:
+        return 100
+    return max(1, total_batches // 20)
+
+
+def _should_log_progress(
+    *,
+    batch_index: int,
+    log_every_batches: int,
+    total_batches: int | None,
+) -> bool:
+    if log_every_batches <= 0:
+        return False
+    if batch_index == 1 or batch_index % log_every_batches == 0:
+        return True
+    return total_batches is not None and batch_index == total_batches
+
+
+def _print_training_progress(
+    *,
+    progress_label: str | None,
+    batch_index: int | None,
+    total_batches: int | None,
+    total_examples: int,
+    total_loss: float,
+    total_correct: int,
+    started_at: float,
+    done: bool = False,
+) -> None:
+    if progress_label is None or total_examples <= 0:
+        return
+    elapsed_s = max(time.monotonic() - started_at, 1e-9)
+    mean_loss = total_loss / total_examples
+    accuracy = total_correct / total_examples
+    examples_per_s = total_examples / elapsed_s
+    prefix = "[train] done" if done else "[train]"
+    if batch_index is None:
+        progress = "batch=?"
+    elif total_batches is None:
+        progress = f"batch={batch_index}"
+    else:
+        percent = 100.0 * batch_index / max(total_batches, 1)
+        progress = f"batch={batch_index}/{total_batches} pct={percent:.1f}"
+    print(
+        f"{prefix} {progress_label} {progress} examples={total_examples} "
+        f"loss={mean_loss:.6f} acc={accuracy:.6f} ex_per_s={examples_per_s:.1f} "
+        f"elapsed_s={elapsed_s:.1f}",
+        flush=True,
+    )
 
 
 def _build_optimizer(

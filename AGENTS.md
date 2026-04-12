@@ -128,6 +128,26 @@ This repository should evolve as a monorepo with clear boundaries.
 - Each recorded experiment should include the date, short experiment name, key code/config changes, local validation design and metric, public leaderboard score when available, artifact paths, and the decision or lesson learned.
 - Public leaderboard scores are external observations because public labels are hidden; record them explicitly instead of implying they are locally reproducible.
 - If local validation and public leaderboard diverge, record that gap as an experimental finding, not as a footnote.
+- For this hackathon, updating `docs/challenge-experiment-history.md` is mandatory, not
+  optional bookkeeping. Any public leaderboard submission must update both the relevant
+  experiment section and the top-level `Leaderboard History` table with the exact score,
+  submission artifact path, validator status, and decision.
+- When a hypothesis is run on `arm11`, record the remote run id, log path, checkpoint path,
+  submission path if any, and whether the result was accepted, rejected, or kept for
+  fusion.
+- Training runs must be reproducible from the written record. For every training run,
+  record the full config path, every CLI override, model family, initialization/provenance,
+  train/dev manifest paths, dataset/split version, seed, batch size, precision, optimizer,
+  scheduler, learning rate, epochs, crop/preprocessing policy, augmentation policy, loss,
+  sampler, GPU/device assignment, container/environment, commit SHA or uncommitted diff
+  summary, checkpoint path, log path, final train metrics, validation metrics, and the exact
+  follow-up evaluation/submission commands.
+- Training metrics must be persisted, not only printed. At minimum, keep per-epoch
+  `train_loss`, `train_accuracy`, and `learning_rate` in `training_summary.json` and
+  `artifacts/tracking/<run_id>/metrics.jsonl`. When a hypothesis depends on whether a
+  model is undertrained or overtrained, also save enough intermediate validation evidence
+  to judge that hypothesis: per-epoch or selected-epoch dev metrics, checkpoint paths, or
+  an explicit note that only final-epoch validation was run.
 
 ## 5. Execution Environments
 
@@ -139,6 +159,75 @@ This repository should evolve as a monorepo with clear boundaries.
 - Keep local datasets on the GPU machine in `/mnt/storage/Kryptonite-ML-Challenge-2026/datasets`
 - Preferred workflow is: commit locally, push, then fetch/pull on `gpu-server` before running GPU jobs
 - Do not try to version datasets from `datasets/` or make git depend on them being present
+
+### `arm11` H800 workflow
+
+`arm11` is the current high-memory GPU execution target for this challenge. Use it for
+large backbone training, public inference, dense validation, graph/community inference,
+and expensive hypothesis checks.
+
+Remote paths:
+
+- SSH host: `arm11`
+- Host repository path: `/data/rnd/jupyter/kleshchenok/audio/embbedings`
+- Container repository path: `/jupyter/kleshchenok/audio/embbedings`
+- Docker container: `MK_RND`
+- Organizer dataset path inside the container:
+  `/jupyter/kleshchenok/audio/embbedings/datasets/Для участников`
+
+Repository synchronization:
+
+- Keep the local repository and the `arm11` repository synchronized before running remote
+  jobs. The normal code-sync command is:
+
+```bash
+rsync -a --exclude='.venv/' --exclude='.cache/' --exclude='datasets/' --exclude='artifacts/' --exclude='.pytest_cache/' --exclude='.ruff_cache/' ./ arm11:/data/rnd/jupyter/kleshchenok/audio/embbedings/
+```
+
+- Never overwrite or delete the remote `datasets/` directory. It is mounted into the
+  container and contains the organizer-provided data.
+- Do not rely on `artifacts/` being included in the general repo sync. Copy only the
+  specific manifests, checkpoints, submissions, summaries, or reports needed for the
+  current experiment.
+- After editing `AGENTS.md`, `docs/challenge-experiment-history.md`, configs, scripts,
+  or `src/` code needed by a remote job, sync those files to `arm11` before launching.
+
+Container execution:
+
+- Run remote commands inside the container from the container repository path:
+
+```bash
+ssh arm11 'docker exec MK_RND bash -lc "cd /jupyter/kleshchenok/audio/embbedings && uv sync --dev --group train"'
+```
+
+- Launch long-running jobs detached with `PYTHONUNBUFFERED=1`, a stable run id, a log file
+  under `artifacts/logs/`, and a `latest_*` pointer file. Logs must include enough progress
+  to identify the current phase, epoch, batch, extraction percentage, or validation stage.
+- Use `CUDA_VISIBLE_DEVICES=0` and `CUDA_VISIBLE_DEVICES=1` for independent hypotheses on
+  the two H800 GPUs. The current training/inference pipeline is not assumed to be DDP-safe
+  unless explicitly implemented and tested.
+- Keep both GPUs useful when possible: run independent backbone, inference, validation, or
+  reranking hypotheses in parallel, but avoid parallelism that only creates CPU/IO
+  contention without reducing wall-clock time.
+- Monitor long jobs with:
+
+```bash
+ssh arm11 'docker exec MK_RND bash -lc "cd /jupyter/kleshchenok/audio/embbedings && tail -n 80 artifacts/logs/<run>.log && nvidia-smi"'
+```
+
+Experiment documentation on `arm11`:
+
+- Every remote launch must be reflected in `docs/challenge-experiment-history.md` in the
+  same session: hypothesis, command/config, GPU assignment, remote log path, artifact paths,
+  local metrics, public LB score when available, and decision.
+- Public LB results from files generated on `arm11` must be added to the top-level
+  `Leaderboard History` table immediately after the score is known.
+- Sync `docs/challenge-experiment-history.md` back to `arm11` after updating it locally, so
+  the remote workspace remains self-describing.
+- For training jobs on `arm11`, the history entry must include enough parameters to rerun
+  the job without guessing: config file, overrides, manifests, seed, model config, objective,
+  optimizer/scheduler, precision, batch sizes, crop policy, VAD/trim policy, GPU id, run id,
+  checkpoint path, and the exact C4-tail/public inference command used afterward.
 
 ### Branch integration workflow
 
