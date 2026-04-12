@@ -47,13 +47,9 @@ DATASETS: dict[str, DatasetSpec] = {
     "musan": DatasetSpec(
         name="MUSAN",
         description="Noise corpus (speech/music/noise) for augmentation. OpenSLR 17.",
-        url="https://www.openslr.org/resources/17/musan.tar.gz",
-        mirrors=(
-            "https://openslr.trmal.net/resources/17/musan.tar.gz",
-            "https://openslr.elda.org/resources/17/musan.tar.gz",
-            "https://openslr.magicdatatech.com/resources/17/musan.tar.gz",
-        ),
-        archive_name="musan.tar.gz",
+        url="https://huggingface.co/datasets/thusinh1969/musan/resolve/main/musan/musan.zip?download=true",
+        mirrors=(),
+        archive_name="musan.zip",
         extract_dir="musan",
         size_human="~11 GB",
         md5=None,
@@ -77,13 +73,14 @@ DATASETS: dict[str, DatasetSpec] = {
     "rirs-noises": DatasetSpec(
         name="RIRs and Noises",
         description="Room impulse responses and isotropic noises. OpenSLR 28.",
-        url="https://www.openslr.org/resources/28/rirs_noises.zip",
+        url="https://huggingface.co/datasets/EaseZh/rirs_noises/resolve/main/rirs_noises.zip?download=true",
         mirrors=(
+            "https://www.openslr.org/resources/28/rirs_noises.zip",
             "https://openslr.trmal.net/resources/28/rirs_noises.zip",
             "https://openslr.elda.org/resources/28/rirs_noises.zip",
         ),
         archive_name="rirs_noises.zip",
-        extract_dir="rirs_noises",
+        extract_dir="RIRS_NOISES",
         size_human="~3.6 GB",
         md5=None,
         license="Apache 2.0",
@@ -114,7 +111,7 @@ def _download_file(spec: DatasetSpec) -> Path:
                 "-c",
                 url,
                 "-O",
-                str(archive_path),
+                archive_path.name,
             ],
             cwd=str(DATASETS_ROOT),
         )

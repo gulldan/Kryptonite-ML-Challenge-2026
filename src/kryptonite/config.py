@@ -173,11 +173,14 @@ class AugmentationFamilyWeightsConfig:
     distance: float = 0.9
     codec: float = 0.8
     silence: float = 0.6
+    speed: float = 0.0
 
     def __post_init__(self) -> None:
         for name in ("noise", "reverb", "distance", "codec", "silence"):
             if getattr(self, name) <= 0.0:
                 raise ValueError(f"{name} family weight must be positive")
+        if self.speed < 0.0:
+            raise ValueError("speed family weight must be non-negative")
 
 
 @dataclass(slots=True)

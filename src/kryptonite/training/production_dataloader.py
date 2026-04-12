@@ -6,6 +6,7 @@ import hashlib
 import math
 import random
 from collections import defaultdict
+from collections.abc import Iterator
 from typing import Any, cast
 
 from torch.utils.data import DataLoader, Sampler
@@ -15,6 +16,7 @@ from kryptonite.data import AudioLoadRequest, ManifestRow
 from kryptonite.deployment import resolve_project_path
 from kryptonite.features import FbankExtractionRequest, UtteranceChunkingRequest
 
+from .augmentation_runtime import TrainingAugmentationRuntime
 from .manifest_speaker_data import (
     ManifestSpeakerDataset,
     TrainingBatch,
@@ -31,6 +33,7 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         batch_size: int,
         seed: int,
         chunking_request: UtteranceChunkingRequest,
+        augmentation_runtime: TrainingAugmentationRuntime | None = None,
         batches_per_epoch: int | None = None,
     ) -> None:
         if batch_size <= 0:
@@ -42,6 +45,7 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         self._batch_size = batch_size
         self._seed = seed
         self._chunking_request = chunking_request
+        self._augmentation_runtime = augmentation_runtime
         self._speaker_to_row_indices = _group_rows_by_speaker(rows)
         self._speaker_ids = sorted(self._speaker_to_row_indices)
         self._batches_per_epoch = batches_per_epoch or max(1, math.ceil(len(rows) / batch_size))
@@ -68,13 +72,14 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         self._next_batch_index = int(state["next_batch_index"])
 
     def __iter__(self):
-        batches = self._build_epoch_batches(self._epoch)
         start_index = self._next_batch_index
-        for batch_index in range(start_index, len(batches)):
+        for batch_index, batch in enumerate(self._iter_epoch_batches(self._epoch)):
+            if batch_index < start_index:
+                continue
             self._next_batch_index = batch_index + 1
-            yield batches[batch_index]
+            yield batch
 
-    def _build_epoch_batches(self, epoch: int) -> list[list[TrainingSampleRequest]]:
+    def _iter_epoch_batches(self, epoch: int) -> Iterator[list[TrainingSampleRequest]]:
         epoch_number = epoch + 1
         epoch_rng = random.Random(_stable_seed(self._seed, "epoch", str(epoch_number)))
         speaker_order = list(self._speaker_ids)
@@ -90,7 +95,6 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
         row_cursors = {speaker_id: 0 for speaker_id in speaker_order}
         row_refills = {speaker_id: 0 for speaker_id in speaker_order}
 
-        batches: list[list[TrainingSampleRequest]] = []
         for batch_index in range(self._batches_per_epoch):
             crop_seconds = _sample_crop_seconds(epoch_rng, self._chunking_request)
             batch_speakers: list[str] = []
@@ -124,22 +128,34 @@ class BalancedSpeakerBatchSampler(Sampler[list[TrainingSampleRequest]]):
                     batch_seed=self._seed,
                     epoch_number=epoch_number,
                 )
+                request_seed = _stable_seed(
+                    self._seed,
+                    "request",
+                    str(epoch_number),
+                    str(batch_index),
+                    str(position_in_batch),
+                    str(row_index),
+                )
+                recipe = (
+                    self._augmentation_runtime.sample_recipe(
+                        epoch=epoch_number,
+                        rng=random.Random(request_seed),
+                    )
+                    if self._augmentation_runtime is not None
+                    else None
+                )
                 batch_requests.append(
                     TrainingSampleRequest(
                         row_index=row_index,
-                        request_seed=_stable_seed(
-                            self._seed,
-                            "request",
-                            str(epoch_number),
-                            str(batch_index),
-                            str(position_in_batch),
-                            str(row_index),
-                        ),
+                        request_seed=request_seed,
                         crop_seconds=crop_seconds,
+                        clean_sample=True if recipe is None else recipe.clean_sample,
+                        recipe_stage="steady" if recipe is None else recipe.stage,
+                        recipe_intensity="clean" if recipe is None else recipe.intensity,
+                        augmentations=() if recipe is None else recipe.augmentations,
                     )
                 )
-            batches.append(batch_requests)
-        return batches
+            yield batch_requests
 
 
 def build_production_train_dataloader(
@@ -161,6 +177,18 @@ def build_production_train_dataloader(
     if chunking_request.train_num_crops != 1:
         raise ValueError("Production dataloader currently supports train_num_crops=1 only.")
 
+    augmentation_runtime = TrainingAugmentationRuntime.from_project_config(
+        project_root=project_root,
+        scheduler_config=project.augmentation_scheduler,
+        silence_config=project.silence_augmentation,
+        total_epochs=total_epochs,
+    )
+    if (
+        not project.augmentation_scheduler.enabled
+        or not augmentation_runtime.has_effective_augmentation
+    ):
+        augmentation_runtime = None
+
     dataset = ManifestSpeakerDataset(
         rows=rows,
         speaker_to_index=speaker_to_index,
@@ -169,12 +197,14 @@ def build_production_train_dataloader(
         feature_request=feature_request,
         chunking_request=chunking_request,
         seed=project.runtime.seed,
+        augmentation_runtime=augmentation_runtime,
     )
     sampler = BalancedSpeakerBatchSampler(
         rows=rows,
         batch_size=project.training.batch_size,
         seed=project.runtime.seed,
         chunking_request=chunking_request,
+        augmentation_runtime=augmentation_runtime,
         batches_per_epoch=batches_per_epoch,
     )
     num_workers = project.runtime.num_workers

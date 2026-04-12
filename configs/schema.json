@@ -74,7 +74,7 @@
             "properties": {
                 "inference": {
                     "type": "string",
-                    "enum": ["auto", "onnx", "onnxruntime", "tensorrt", "torch"]
+                    "enum": ["auto", "onnx", "onnxruntime", "tensorrt", "torch"],
                 },
                 "export": {"type": "string", "enum": ["onnx", "torch"]},
                 "allow_torch": {"type": "boolean"},
@@ -85,7 +85,14 @@
         },
         "export": {
             "type": "object",
-            "required": ["opset", "dynamic_axes", "profile", "boundary", "input_name", "output_name"],
+            "required": [
+                "opset",
+                "dynamic_axes",
+                "profile",
+                "boundary",
+                "input_name",
+                "output_name",
+            ],
             "properties": {
                 "opset": {"type": "integer", "minimum": 1},
                 "dynamic_axes": {"type": "boolean"},
@@ -123,9 +130,9 @@
                 "enabled": {"type": "boolean"},
                 "structured_logs": {"type": "boolean"},
                 "metrics_enabled": {"type": "boolean"},
-                "metrics_path": {"type": "string", "pattern": "^/.+"}
+                "metrics_path": {"type": "string", "pattern": "^/.+"},
             },
-            "additionalProperties": false
+            "additionalProperties": false,
         },
         "normalization": {
             "type": "object",
@@ -193,7 +200,7 @@
                 "min_detected_pause_seconds",
                 "max_perturbed_pause_seconds",
                 "analysis_frame_ms",
-                "silence_threshold_dbfs"
+                "silence_threshold_dbfs",
             ],
             "properties": {
                 "enabled": {"type": "boolean"},
@@ -207,9 +214,9 @@
                 "min_detected_pause_seconds": {"type": "number", "minimum": 0.0},
                 "max_perturbed_pause_seconds": {"type": "number", "minimum": 0.0},
                 "analysis_frame_ms": {"type": "number", "exclusiveMinimum": 0.0},
-                "silence_threshold_dbfs": {"type": "number"}
+                "silence_threshold_dbfs": {"type": "number"},
             },
-            "additionalProperties": false
+            "additionalProperties": false,
         },
         "augmentation_scheduler": {
             "type": "object",
@@ -226,7 +233,7 @@
                 "medium_probability_end",
                 "heavy_probability_start",
                 "heavy_probability_end",
-                "family_weights"
+                "family_weights",
             ],
             "properties": {
                 "enabled": {"type": "boolean"},
@@ -249,12 +256,13 @@
                         "reverb": {"type": "number", "exclusiveMinimum": 0.0},
                         "distance": {"type": "number", "exclusiveMinimum": 0.0},
                         "codec": {"type": "number", "exclusiveMinimum": 0.0},
-                        "silence": {"type": "number", "exclusiveMinimum": 0.0}
+                        "silence": {"type": "number", "exclusiveMinimum": 0.0},
+                        "speed": {"type": "number", "minimum": 0.0},
                     },
-                    "additionalProperties": false
-                }
+                    "additionalProperties": false,
+                },
             },
-            "additionalProperties": false
+            "additionalProperties": false,
         },
         "features": {
             "type": "object",
@@ -370,7 +378,7 @@
                 "model_bundle_root",
                 "demo_subset_root",
                 "enrollment_cache_root",
-                "require_artifacts"
+                "require_artifacts",
             ],
             "properties": {
                 "model_bundle_root": {"type": "string"},

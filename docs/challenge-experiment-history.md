@@ -38,12 +38,16 @@ public_score = mean(precision@10_i)
 | 2026-04-12 | `G6_p1_clusterfirst_mutual20_shared4_penalty020_top300` | P1 ERes2NetV2 embeddings + top-300 mutual graph, shared-neighbor filter, size-penalized cluster-first retrieval. | validator passed; `cluster_used_share=0.7552`, p99 cluster size `84.66`, max cluster `521`, Gini@10 `0.3460` | `0.2369` | `-0.0041` vs P1, `+0.1120` vs C4 | Rejected as production candidate. Cluster-first graph changed many neighbors but did not beat C4 on public; next step is a more orthogonal pretrained encoder. |
 | 2026-04-12 | `organizer_baseline_e20_earlystop_epoch10_center` | Original organizer ECAPA baseline trained up to epoch `10` with validation early stopping/scheduler guard, then center-crop public inference with exact FAISS top-10. | speaker-disjoint val `precision@10 = 0.928308`; validator passed | `0.1046` | `+0.0267` vs organizer baseline, `+0.0022` vs baseline_fixed, `-0.0203` vs C4 | Rejected/dead-end. Longer guarded training improves local validation but barely moves public and remains far below graph/backbone branches; do not spend more cycles on this baseline family except as a diagnostic control. |
 | 2026-04-12 | `P3_eres2netv2_g6_pseudo_ft_public_c4` | P1 ERes2NetV2 initialized pseudo-label self-training on original train + filtered G6 public clusters, then same public C4 tail. | validator passed; `top10_mean_score_mean=0.6116`; `label_used_share=0.8297`; Gini@10 `0.2810`, max in-degree `44`; mean overlap vs P1 `4.99/10` | `0.2861` | `+0.0451` vs P1, `+0.2082` vs organizer baseline | New public best. Pseudo-label self-training is confirmed useful; use P3 as the new safe branch while E1 WavLM-domain continues. |
+| 2026-04-12 | `E1_wavlm_domain_ft_public_c4` | `microsoft/wavlm-base-plus-sv` fine-tuned on train with mixed crops, bandlimit/silence/gain/noise/peak augmentations, ArcMargin head, then same public C4 tail. | validator passed; `top10_mean_score_mean=0.8124`; `label_used_share=0.7778`; Gini@10 `0.2649`, max in-degree `47`; train epoch 3 loss `5.4627`, acc `0.6662` | `0.2833` | `-0.0028` vs P3, `+0.0423` vs P1, `+0.2054` vs organizer baseline | Direct WavLM is slightly below P3, so it does not replace the safe branch. Keep as strong orthogonal candidate for later P3+WavLM fusion because public score is close while representation family is different. |
 
 Current public best:
 
 - `P3_eres2netv2_g6_pseudo_ft_public_c4`: public LB `0.2861`
 - Artifact:
   `artifacts/backbone_public/eres2netv2_g6_pseudo_ft/20260412T100738Z-6b686847f5d8/submission_P3_eres2netv2_g6_pseudo_ft_public_c4.csv`
+- Latest orthogonal candidate: `E1_wavlm_domain_ft_public_c4`, public LB `0.2833`
+  with artifact
+  `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/submission_E1_wavlm_domain_ft_public_c4.csv`.
 
 ## What Changed In `baseline_fixed_participants`
 
@@ -1197,9 +1201,79 @@ uv run --group train python scripts/run_hf_xvector_finetune.py \
   `training_summary.json`.
 - Follow-up monitor shortly after epoch 2 start: step `200/8000`, loss `7.2987`, train
   acc `0.5120`, throughput ~`165` examples/s, GPU1 ~`19.2 GiB`, util ~`91%`.
-- Status: running epoch `2/3`. After completion, run public C4 tail from the saved
-  `hf_model/`, then compare hubness/cosine-collapse diagnostics against H1/H2/H4 before
-  any public upload.
+- Epoch 2 completed: `768000` examples, `8000` steps, train loss `6.4776`, train acc
+  `0.5751`, epoch seconds `4484.56`, LR `9.1941e-7`. Metrics persisted in
+  `artifacts/tracking/wavlm_e1_domain_ft_20260412T130254Z/metrics.jsonl` and
+  `training_summary.json`.
+- Follow-up monitor shortly after epoch 3 start: step `500/8000`, loss `5.6425`, train
+  acc `0.6495`, throughput ~`169` examples/s, GPU1 ~`19.4 GiB`, util `100%`.
+- Epoch 3 completed: `768000` examples, `8000` steps, train loss `5.4627`, train acc
+  `0.6662`, epoch seconds `4479.97`, LR `1.5e-7`. Metrics persisted in
+  `artifacts/tracking/wavlm_e1_domain_ft_20260412T130254Z/metrics.jsonl` and
+  `training_summary.json`.
+- Saved model:
+  `artifacts/baselines/wavlm-base-plus-sv-e1-domain-finetune/wavlm_e1_domain_ft_20260412T130254Z/hf_model/`
+- Saved checkpoint:
+  `artifacts/baselines/wavlm-base-plus-sv-e1-domain-finetune/wavlm_e1_domain_ft_20260412T130254Z/hf_xvector_finetune.pt`
+- Decision: training completed cleanly and GPU1 was freed. Per operator instruction,
+  launch exactly one public C4 tail on GPU1, then stop further GPU work until the public
+  LB result is known.
+
+E1 domain WavLM public C4 tail:
+
+- Hypothesis: after domain fine-tuning, the WavLM speaker geometry may become useful
+  enough for a direct public C4 submission and later P3+WavLM fusion if public/local
+  diagnostics are promising.
+- Run id: `wavlm_e1_domain_ft_public_c4_20260412T165411Z`
+- GPU: `CUDA_VISIBLE_DEVICES=1`
+- Log:
+  `artifacts/logs/wavlm_e1_domain_ft_public_c4_20260412T165411Z.log`
+- PID file:
+  `artifacts/logs/wavlm_e1_domain_ft_public_c4_20260412T165411Z.pid`
+- Model dir:
+  `artifacts/baselines/wavlm-base-plus-sv-e1-domain-finetune/wavlm_e1_domain_ft_20260412T130254Z/hf_model/`
+- Output dir:
+  `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/`
+- Exact launch command:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=1 \
+uv run --group train python scripts/run_hf_xvector_tail.py \
+  --model-id artifacts/baselines/wavlm-base-plus-sv-e1-domain-finetune/wavlm_e1_domain_ft_20260412T130254Z/hf_model \
+  --manifest-csv artifacts/eda/backbone_public/test_public_manifest.remote.csv \
+  --template-csv "datasets/Для участников/test_public.csv" \
+  --output-dir artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z \
+  --experiment-id E1_wavlm_domain_ft_public_c4 \
+  --batch-size 128 \
+  --crop-seconds 6.0 \
+  --n-crops 3 \
+  --top-cache-k 300 \
+  --search-batch-size 4096 \
+  --search-device cuda
+```
+
+- Initial monitor: model loaded, extraction started on `134697` public rows; GPU1
+  ~`15.9 GiB`, util `97%`. GPU0 remains occupied by an external process and is not used.
+- Completed. Extraction took `1232.73s`; exact top-k search took `0.74s`; C4-style label
+  propagation/rerank took `9.77s`. Validator passed with `134697/134697` rows, `K=10`,
+  and `0` errors.
+- Submission:
+  `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/submission_E1_wavlm_domain_ft_public_c4.csv`
+- Summary:
+  `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/E1_wavlm_domain_ft_public_c4_summary.json`
+- Validation:
+  `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/submission_E1_wavlm_domain_ft_public_c4_validation.json`
+- Diagnostics: `top1_score_mean=0.8552`, `top10_mean_score_mean=0.8124`,
+  `label_used_share=0.7778`, Gini@10 `0.2649`, max in-degree `47`, same-label
+  candidates p50 `6`, p95 `29`, reciprocal share `0.1660`.
+- Lightweight CSV/JSON artifacts were synced back locally for public LB upload.
+- Public LB score: `0.2833`.
+- Decision: direct E1 is slightly below the current safe P3 score `0.2861` by `0.0028`,
+  so it does not replace P3. The score is close enough, and the backbone is orthogonal
+  enough, to keep E1 for a later P3+WavLM fusion branch. Per operator instruction,
+  stop here: do not start fusion, another tail, or another training job now. GPU1 was
+  free after the run; GPU0 was not used.
 
 P3 public tail from P1 pseudo-fine-tuned checkpoint:
 
@@ -1727,3 +1801,219 @@ Decision:
   failure.
 - Do not continue this baseline family as a production path. Keep only as a diagnostic
   control for sanity checks against `baseline_fixed_participants`.
+
+## 2026-04-12 - Track 2 Pseudo-Label Augmentation Fine-Tune
+
+Experiment id: `P4_eres2netv2_g6_pseudo_track2_aug_e70`
+
+Hypothesis:
+
+- The current public best is `P3_eres2netv2_g6_pseudo_ft_public_c4` with public LB
+  `0.2861`, so pseudo-label self-training is confirmed useful. The next orthogonal
+  hypothesis is to keep the P3 pseudo-label branch and reduce the measured public-domain
+  gap with a production training augmentation package.
+- A1 must-have augmentation: real noise/music/babble-style noise bank, RIR convolution,
+  and speed perturbation.
+- A2 test-matching augmentation: channel/codec-like band limiting and quantization,
+  random EQ, far-field attenuation, trailing silence, inserted pauses, and random
+  VAD-drop. This targets the EDA finding that public test has less high-frequency energy
+  and more pauses.
+
+Code/config changes:
+
+- Added production scheduler/runtime wiring in `ManifestSpeakerDataset` and
+  `build_production_train_dataloader`, so scheduled waveform augmentations are applied
+  before random crop and fbank extraction.
+- Added direct raw MUSAN and RIRS_NOISES fallbacks to the augmentation runtime. Training
+  only registers noise/RIR candidates whose audio files exist, so arm11 downloads are now
+  used directly instead of relying on prebuilt artifact banks.
+- Fixed `scripts/download_datasets.py` so downloads executed with `cwd=datasets` write
+  archives as `musan.tar.gz` / `rirs_noises.zip`, not `datasets/<archive>` from inside the
+  `datasets` directory.
+- Switched MUSAN primary download to the full Hugging Face LFS zip mirror
+  `thusinh1969/musan` after OpenSLR/trmal stalled at only tens of kilobytes. Switched
+  RIRS_NOISES primary download to the Hugging Face zip mirror `EaseZh/rirs_noises`, with
+  OpenSLR zip URLs retained as fallback.
+- Updated RIRS_NOISES discovery to accept both `datasets/rirs_noises/RIRS_NOISES` and
+  the actual extracted `datasets/RIRS_NOISES` layout; `scripts/download_datasets.py` now
+  treats `datasets/RIRS_NOISES` as the downloaded directory.
+- Optimized the production dataloader/scheduler for the large raw RIR catalog: sampler
+  batches are yielded lazily instead of materializing a full epoch before batch 1, and
+  augmentation candidate pools/cumulative weights are cached by family and severity.
+- Added `configs/training/eres2netv2-g6-pseudo-track2-augment.toml`.
+- The config explicitly opts into speed perturbation with
+  `augmentation_scheduler.family_weights.speed=0.75`; older configs without this field
+  keep speed disabled.
+
+Training configuration:
+
+- Config path: `configs/training/eres2netv2-g6-pseudo-track2-augment.toml`.
+- Model family: ERes2NetV2, same architecture as P3, embedding size `192`.
+- Initialization/provenance:
+  `artifacts/baselines/eres2netv2-g6-pseudo-finetune/20260412T100738Z-6b686847f5d8/eres2netv2_encoder.pt`.
+- Train manifest:
+  `artifacts/manifests/pseudo_g6/g6_mixed_train_manifest.jsonl`.
+- Dev manifest:
+  `artifacts/manifests/participants_fixed/dev_manifest.jsonl`.
+- Dataset/split version: original participant train plus filtered G6 public pseudo
+  clusters; dev is `participants_fixed`.
+- Seed: `42`.
+- Batch size: `128`; eval batch size: `128`.
+- Precision: `bf16`.
+- Optimizer/scheduler: SGD momentum `0.9`, weight decay `0.00005`, cosine LR,
+  initial LR `0.003`, min LR `0.000003`, warmup epochs `3`.
+- Objective/loss: ArcMargin classifier, scale `32.0`, margin `0.2`, easy margin `false`.
+- Crop/preprocessing: random train crop `2.0..6.0s`, one crop, eval chunks `6.0s`
+  with `1.5s` overlap, VAD disabled.
+- Augmentation policy: warmup `2` epochs, ramp `8` epochs, max `3` augmentations per
+  sample, clean/light/medium/heavy ramps from `0.55/0.35/0.10/0.00` to
+  `0.20/0.30/0.30/0.20`; family weights noise `1.20`, reverb `1.00`, distance `0.95`,
+  codec `1.10`, silence `0.85`, speed `0.75`.
+- Early stopping: `max_epochs=70` as an upper cap, `early_stopping_enabled=true`,
+  monitor `train_loss`, `min_delta=0.0005`, patience `8`, min epochs `12`,
+  restore best state `true`, train-accuracy hard stop `0.9975`.
+- GPU/device assignment: `arm11`, container `MK_RND`, `CUDA_VISIBLE_DEVICES=0`.
+- Container/environment: `/jupyter/kleshchenok/audio/embbedings`, `uv sync --dev --group train`.
+- Local validation design: final pipeline dev scoring after training. Per-epoch dev is
+  not currently part of this production loop; early stopping uses persisted per-epoch
+  training metrics, and the final checkpoint is scored on `participants_fixed` dev.
+
+Pre-launch scheduler smoke:
+
+- Local command:
+
+```bash
+uv run python - <<'PY'
+from pathlib import Path
+from kryptonite.training.eres2netv2 import load_eres2netv2_baseline_config
+from kryptonite.training.augmentation_scheduler import build_augmentation_scheduler_report
+cfg = load_eres2netv2_baseline_config(
+    config_path=Path("configs/training/eres2netv2-g6-pseudo-track2-augment.toml")
+)
+report = build_augmentation_scheduler_report(
+    project_root=Path("."),
+    scheduler_config=cfg.project.augmentation_scheduler,
+    silence_config=cfg.project.silence_augmentation,
+    total_epochs=cfg.project.training.max_epochs,
+    samples_per_epoch=256,
+    seed=cfg.project.runtime.seed,
+)
+print(report.catalog.candidate_counts_by_family)
+print(report.summary.missing_families)
+PY
+```
+
+- Candidate counts after direct raw MUSAN/RIRS fallback: noise `2859`, reverb `60437`,
+  distance `3`, codec `7`, silence `3`,
+  speed `4`.
+- Missing families: none.
+
+Remote launch records:
+
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T144522Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T144522Z.log`.
+- Result: failed before training. The download wrapper attempted to save to
+  `datasets/musan.tar.gz` while running with `cwd=datasets`, so `wget` exited with
+  `datasets/musan.tar.gz: No such file or directory`. No GPU training started.
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T145307Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T145307Z.log`.
+- Result: failed before training for the same downloader path issue because the remote
+  script had not yet received the fixed `scripts/download_datasets.py`. No GPU training
+  started.
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T145511Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T145511Z.log`.
+- Result: stopped before training. It used the fixed path handling, but the OpenSLR/trmal
+  MUSAN transfer stalled at roughly `70K`; no GPU training started.
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T150004Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T150004Z.log`.
+- Result: downloaded and extracted MUSAN and RIRS_NOISES successfully, then failed at the
+  augmentation smoke before training because RIRS extracted to `datasets/RIRS_NOISES`
+  while the first runtime lookup only checked `datasets/rirs_noises/RIRS_NOISES`.
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T151236Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T151236Z.log`.
+- Result: stopped before batch 1 after the RIRS path fix. The train process entered epoch
+  1 but spent the startup window materializing all `5814` batches and repeatedly filtering
+  the large RIR catalog. This exposed a scheduler/dataloader performance bug; no useful
+  training metrics were produced.
+- Remote run id: `eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z`.
+- Remote log path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z.log`.
+- Remote pid path:
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z.pid`.
+- Latest pointer:
+  `artifacts/logs/latest_eres2netv2_g6_pseudo_track2_aug_e70`.
+- Output root:
+  `artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/<tracking-run-id>/`.
+
+Launch command:
+
+```bash
+ssh arm11 'docker exec -i MK_RND bash' <<'REMOTE'
+set -euo pipefail
+cd /jupyter/kleshchenok/audio/embbedings
+RUN_ID=eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z
+mkdir -p artifacts/logs datasets
+printf '%s\n' "$RUN_ID" > artifacts/logs/latest_eres2netv2_g6_pseudo_track2_aug_e70
+cat > "/tmp/${RUN_ID}.sh" <<'JOB'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /jupyter/kleshchenok/audio/embbedings
+RUN_ID=eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z
+uv sync --dev --group train
+uv run python scripts/download_datasets.py --dataset musan
+uv run python scripts/download_datasets.py --dataset rirs-noises
+uv run python - <<'PY'
+from pathlib import Path
+from kryptonite.training.eres2netv2 import load_eres2netv2_baseline_config
+from kryptonite.training.augmentation_runtime import TrainingAugmentationRuntime
+cfg = load_eres2netv2_baseline_config(
+    config_path=Path("configs/training/eres2netv2-g6-pseudo-track2-augment.toml")
+)
+runtime = TrainingAugmentationRuntime.from_project_config(
+    project_root=Path("."),
+    scheduler_config=cfg.project.augmentation_scheduler,
+    silence_config=cfg.project.silence_augmentation,
+    total_epochs=cfg.project.training.max_epochs,
+)
+counts = runtime.catalog.candidate_counts_by_family
+print(counts, flush=True)
+required = {"noise", "reverb", "codec", "silence", "speed"}
+missing = sorted(required.difference(counts))
+if missing:
+    raise SystemExit(f"missing augmentation families: {missing}")
+PY
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 \
+uv run --group train python scripts/run_eres2netv2_finetune.py \
+  --config configs/training/eres2netv2-g6-pseudo-track2-augment.toml \
+  --init-checkpoint artifacts/baselines/eres2netv2-g6-pseudo-finetune/20260412T100738Z-6b686847f5d8/eres2netv2_encoder.pt \
+  --device cuda \
+  --output json
+JOB
+chmod +x "/tmp/${RUN_ID}.sh"
+nohup "/tmp/${RUN_ID}.sh" > "artifacts/logs/${RUN_ID}.log" 2>&1 &
+echo $! > "artifacts/logs/${RUN_ID}.pid"
+REMOTE
+```
+
+Status:
+
+- `eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z` launched detached on arm11
+  GPU0. Downloads are complete and reused: `datasets/musan` and `datasets/RIRS_NOISES`.
+  Remote smoke counts: noise `2016`, reverb `60417`, distance `3`, codec `7`,
+  silence `3`, speed `4`; missing families none. As of `2026-04-12T15:18:04Z`, training
+  reached `epoch=1/70 batch=1/5814`, batch-1 loss `17.890003`, accuracy `0.000000`,
+  throughput `33.8` examples/s, and GPU0 was active at roughly `74905/81559 MiB` and
+  `100%` utilization.
+- Hourly monitor started with pid path
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z.hourly_monitor.pid`
+  and monitor log
+  `artifacts/logs/eres2netv2_g6_pseudo_track2_aug_e70_20260412T151705Z.hourly_monitor.log`.
+  First monitor snapshot at `2026-04-12T17:10:08Z`: training was running, epoch 1
+  completed with train loss `10.206978` and accuracy `0.416613`; epoch 2 had reached
+  `batch=4640/5814` (`79.8%`), train loss `3.319962`, accuracy `0.878155`, throughput
+  about `201.7` examples/s, GPU0 `76789/81559 MiB`, `100%` utilization.

@@ -6,6 +6,7 @@ import json
 import random
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import torch
 from torch.utils.data import Dataset
@@ -19,6 +20,11 @@ from kryptonite.features import (
     chunk_utterance,
 )
 
+from .augmentation_scheduler import ScheduledAugmentation
+
+if TYPE_CHECKING:
+    from .augmentation_runtime import TrainingAugmentationRuntime
+
 
 @dataclass(frozen=True, slots=True)
 class TrainingSampleRequest:
@@ -28,6 +34,7 @@ class TrainingSampleRequest:
     clean_sample: bool = True
     recipe_stage: str = "steady"
     recipe_intensity: str = "clean"
+    augmentations: tuple[ScheduledAugmentation, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +111,7 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         feature_request: FbankExtractionRequest,
         chunking_request: UtteranceChunkingRequest,
         seed: int,
+        augmentation_runtime: TrainingAugmentationRuntime | None = None,
     ) -> None:
         self._rows = list(rows)
         self._speaker_to_index = dict(speaker_to_index)
@@ -112,6 +120,7 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         self._feature_request = feature_request
         self._chunking_request = chunking_request
         self._seed = seed
+        self._augmentation_runtime = augmentation_runtime
         self._epoch = 0
         self._extractor: FbankExtractor | None = None
 
@@ -142,6 +151,18 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
         )
         waveform = loaded.audio.waveform
         sample_rate_hz = loaded.audio.sample_rate_hz
+        augmentation_trace: tuple[dict[str, object], ...] = ()
+        if request is not None and request.augmentations:
+            if self._augmentation_runtime is None:
+                raise ValueError(
+                    "Received scheduled augmentations without an augmentation runtime."
+                )
+            waveform, augmentation_trace = self._augmentation_runtime.apply_augmentations(
+                waveform,
+                sample_rate_hz=sample_rate_hz,
+                augmentations=request.augmentations,
+                rng=rng,
+            )
         chunking_request = self._chunking_request
         if request is not None and request.crop_seconds is not None:
             chunking_request = replace(
@@ -175,7 +196,7 @@ class ManifestSpeakerDataset(Dataset[TrainingExample]):
             crop_seconds=chunk.duration_seconds,
             recipe_stage=None if request is None else request.recipe_stage,
             recipe_intensity=None if request is None else request.recipe_intensity,
-            augmentation_trace=(),
+            augmentation_trace=augmentation_trace,
         )
 
     def _get_extractor(self) -> FbankExtractor:
