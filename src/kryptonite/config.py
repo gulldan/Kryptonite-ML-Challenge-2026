@@ -242,6 +242,7 @@ class FeaturesConfig:
     cmvn_mode: str = "none"
     cmvn_window_frames: int = 300
     output_dtype: str = "float32"
+    frontend: str = "local"
 
 
 @dataclass(slots=True)
@@ -428,6 +429,7 @@ def load_project_config(
                 data,
                 "features",
                 {
+                    "frontend": "local",
                     "sample_rate_hz": 16000,
                     "num_mel_bins": 80,
                     "frame_length_ms": 25.0,

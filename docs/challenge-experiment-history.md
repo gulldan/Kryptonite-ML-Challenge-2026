@@ -58,6 +58,199 @@ public_score = mean(precision@10_i)
 | 2026-04-13 | `MS12_exact_reference_guard_20260413T2301` | Materialized the fixed public reference CSV after full TensorRT recompute failed strict identity; verified validator, SHA-256, and ordered overlap against MS1. | validator passed; reference and output SHA-256 both `3412a0c10827f19f6089e52943960f3117202342eb57ccfec4b1435c73361cee`; byte-identical `true`; overlap exactly `10/10`, ordered-cell equal `100%`, top1 equal `100%`. | not submitted | identical to MS1 by construction | Use this artifact when the requirement is full identity with `artifacts/backbone_public/campp/default_model_submission.csv`. Recompute paths are not exact enough for that contract. |
 | 2026-04-13 | `MS13-MS18_campp_full_frontend_pack` | Materialized the full exact official frontend cache, packed it into contiguous segment storage, and built/ran B128 TensorRT public recompute. | cache materialization wall `777.730s`; pack wall `92.468s`; best full packed B128 run `MS18`: embedding `68.993s`, search `0.765s`, validator passed, byte-identical `false`, overlap vs MS1 mean `9.832/10`, top1 equal `97.80%`. | not submitted | not applicable | Accepted as the fastest recompute mode so far when frontend features are already packed; still not a strict replacement for MS1 because ordering/SHA differs. |
 | 2026-04-13 | `MS19-MS29_campp_pack_batch_sweep` | Built B256 TensorRT control, tested B128/B256 packed public recompute on GPU0/GPU1, and rejected an experimental contiguous pack-fast path. | B128/GPU1 `MS28`: embedding `69.194s`, search `0.669s`, validator passed, byte-identical `false`; B256/GPU1 `MS29`: embedding `76.837s`, search `0.739s`; pack-fast opt-in path was slower and aborted (`~1.84k` rows/s vs B128 loop `~2.02k`). | not submitted | not applicable | Keep B128 packed-cache TensorRT as the practical recompute optimum. Do not use B256 or pack-fast by default; GPU choice/thermal state affects wall time. |
+| 2026-04-13 | `MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z` | Stage-wise adaptation probe from MS1 ModelScope CAM++ pretrained checkpoint: official CAM++ frontend inside training (`kaldi.fbank(dither=0.0)` + utterance mean normalization), fixed 6s train crops, low-LR AdamW fine-tune on participant train with light public-shift augmentation, then official segment_mean 3x6s public C4 tail. | running on arm11 GPU0; train config `configs/training/campp-ms1-official-participants-lowlr.toml`; log `artifacts/logs/MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z.log`. | pending | pending | Active hypothesis check. Decision depends on dev train metrics, public C4 validator/graph stats, and LB if submitted. If it preserves MS1 geometry and improves public graph quality, follow with filtered official-CAM++ public pseudo-label self-training. |
+| 2026-04-13 | `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z` | Parallel supervised adaptation control from the same MS1 official CAM++ checkpoint, but with a VoxBlink2-like on-the-fly augmentation mix: stronger speed perturbation plus noise/reverb/codec/distance/silence. | running on arm11 GPU1, PID `463779`; smoke candidate counts noise `2016`, reverb `60417`, distance `3`, codec `7`, silence `3`, speed `4`, missing families none; latest checked progress `epoch=1/8 batch=256/2578`, `ex_per_s=390.2`, GPU1 util `100%`; train config `configs/training/campp-ms1-official-participants-voxblink2-augment.toml`; log `artifacts/logs/MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z.log`. | pending | pending | Riskier augmentation-mixing hypothesis. Compare directly against MS30; accept only if dev/public graph quality improves without destroying the MS1 official-frontend neighborhood. |
+
+## 2026-04-13 — MS30 Official CAM++ Pretrained Low-LR Adaptation Launch
+
+Hypothesis:
+
+- The strong `MS1_modelscope_campplus_voxceleb_default` branch should be treated as the
+  reference geometry, not the local-fbank converted-weight path.
+- A conservative stage-wise adaptation from that pretrained CAM++ checkpoint may improve
+  challenge/public alignment if the official frontend is used during both training and
+  public inference.
+- This first run tests only the supervised participant-train stage with light public-shift
+  augmentation. Filtered public pseudo-label self-training is deliberately left for the
+  next stage after confirming this checkpoint does not destroy the MS1 neighborhood
+  structure.
+
+Remote launch:
+
+- Run id: `MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z`.
+- Host/container: `arm11`, Docker container `MK_RND`.
+- GPU assignment: `CUDA_VISIBLE_DEVICES=0`.
+- Local code changes synced to arm11 before launch: `configs/schema.json`,
+  `configs/training/campp-ms1-official-participants-lowlr.toml`,
+  `scripts/run_campp_finetune.py`, `scripts/README.md`,
+  `src/kryptonite/config.py`, `src/kryptonite/features/fbank.py`,
+  `src/kryptonite/features/cache.py`, `tests/unit/test_fbank.py`, and this history file.
+- Training config: `configs/training/campp-ms1-official-participants-lowlr.toml`.
+- Init checkpoint:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt`.
+- Train manifest: `artifacts/manifests/participants_fixed/train_manifest.jsonl`.
+- Dev manifest: `artifacts/manifests/participants_fixed/dev_manifest.jsonl`.
+- Model: CAM++ `512d`, ModelScope VoxCeleb pretrained initialization.
+- Frontend: `features.frontend="official_campp"`, implemented as
+  `torchaudio.compliance.kaldi.fbank(..., dither=0.0)` followed by utterance mean
+  normalization.
+- Crop/preprocess policy: no VAD, fixed 6s training crops with repeat padding for short
+  utterances; dev export uses 6s chunks and mean pooling.
+- Augmentation policy: light public-shift scheduler with silence/pause, codec/channel,
+  distance, noise/reverb if banks are present, and mild speed perturbation.
+- Optimizer/scheduler: AdamW, LR `1e-4`, min LR `1e-5`, weight decay `5e-5`, cosine
+  schedule, warmup `1` epoch, grad clip `5.0`.
+- Precision/batch: bf16, batch `256`, eval batch `256`, max epochs `8`, early stopping on
+  train loss after min epoch `4`, stop train accuracy threshold `0.9975`.
+- Output root: `artifacts/baselines/campp-ms1-official-participants-lowlr/`.
+- Tracking root: `artifacts/tracking/`.
+- Public output root:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z/`.
+- Remote log:
+  `artifacts/logs/MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z.log`.
+- Latest pointer:
+  `artifacts/logs/latest_MS30_campp_ms1_official_lowlr_train_aug_public_c4.txt`.
+
+Launch command:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+RUN_ID=MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train \
+  python scripts/run_campp_finetune.py \
+  --config configs/training/campp-ms1-official-participants-lowlr.toml \
+  --init-checkpoint artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt \
+  --device cuda \
+  --output json
+
+CHECKPOINT=$(python - <<'PY'
+from pathlib import Path
+root = Path("artifacts/baselines/campp-ms1-official-participants-lowlr")
+runs = sorted((path for path in root.iterdir() if (path / "campp_encoder.pt").is_file()), key=lambda path: path.stat().st_mtime)
+print(runs[-1] / "campp_encoder.pt")
+PY
+)
+
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train \
+  python scripts/run_official_campp_tail.py \
+  --checkpoint-path "$CHECKPOINT" \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --data-root 'datasets/Для участников' \
+  --output-dir artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z \
+  --experiment-id "$RUN_ID" \
+  --encoder-backend torch \
+  --device cuda \
+  --search-device cuda \
+  --batch-size 512 \
+  --search-batch-size 2048 \
+  --top-cache-k 200 \
+  --mode segment_mean \
+  --eval-chunk-seconds 6.0 \
+  --segment-count 3 \
+  --long-file-threshold-seconds 6.0
+```
+
+Status at launch: running, PID `463160`. First training progress reached
+`epoch=1/8 batch=1/2578` with GPU0 memory around `23.2 GiB`. Public score pending.
+
+## 2026-04-13 — MS31 Official CAM++ VoxBlink2-Like Augmentation Launch
+
+Hypothesis:
+
+- VoxBlink2 reports on-the-fly data augmentation and speed perturbation during pretraining,
+  followed by lower-LR large-margin fine-tuning without augmentation. This run intentionally
+  tests the risky part for this challenge: mixing a VoxBlink2-like augmentation profile into
+  the low-LR participant-train adaptation of the exact MS1 official CAM++ branch.
+- Compared with MS30, this run keeps the official 3D-Speaker/ModelScope frontend,
+  `kaldi.fbank(dither=0.0)`, utterance mean normalization, fixed 6s train crops, and public
+  `segment_mean` 3x6s inference. The only strategic change is a stronger on-the-fly
+  augmentation distribution.
+- If this damages MS1 ranking geometry, reject this path and keep augmentation for a
+  separate pretraining/pseudo-label stage. If it improves graph quality, use it as evidence
+  for augmentation-aware public pseudo-label self-training.
+
+Remote launch:
+
+- Run id: `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z`.
+- Host/container: `arm11`, Docker container `MK_RND`.
+- GPU assignment: `CUDA_VISIBLE_DEVICES=1`.
+- Training config:
+  `configs/training/campp-ms1-official-participants-voxblink2-augment.toml`.
+- Init checkpoint:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt`.
+- Train manifest: `artifacts/manifests/participants_fixed/train_manifest.jsonl`.
+- Dev manifest: `artifacts/manifests/participants_fixed/dev_manifest.jsonl`.
+- Model: CAM++ `512d`, ModelScope VoxCeleb pretrained initialization.
+- Frontend: `features.frontend="official_campp"`, implemented as
+  `torchaudio.compliance.kaldi.fbank(..., dither=0.0)` followed by utterance mean
+  normalization.
+- Crop/preprocess policy: no VAD, fixed 6s training crops with repeat padding for short
+  utterances; dev export uses 6s chunks and mean pooling.
+- Augmentation policy: warmup `1`, ramp `3`, max `3` augmentations/sample; clean ratio
+  ramps `0.50 -> 0.08`; medium/heavy ratios ramp to `0.42/0.20`; family weights noise
+  `1.15`, reverb `1.05`, distance `0.80`, codec `1.20`, silence `0.65`, speed `1.30`.
+- Available augmentation banks on arm11 before launch: MUSAN direct noise `2016`,
+  RIRS direct reverb `60417`, distance `3`, codec `7`, silence `3`, speed `4`;
+  missing families none. Smoke report log:
+  `artifacts/logs/MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z_augmentation_smoke.log`.
+- Optimizer/scheduler: AdamW, LR `1e-4`, min LR `1e-5`, weight decay `5e-5`, cosine
+  schedule, warmup `1` epoch, grad clip `5.0`.
+- Precision/batch: bf16, batch `256`, eval batch `256`, max epochs `8`, early stopping on
+  train loss after min epoch `4`, stop train accuracy threshold `0.9975`.
+- Output root: `artifacts/baselines/campp-ms1-official-participants-voxblink2-augment/`.
+- Tracking root: `artifacts/tracking/`.
+- Public output root:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z/`.
+- Remote log:
+  `artifacts/logs/MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z.log`.
+- Latest pointer:
+  `artifacts/logs/latest_MS31_campp_ms1_official_voxblink2_aug_public_c4.txt`.
+
+Planned launch command:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+RUN_ID=MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=1 uv run --group train \
+  python scripts/run_campp_finetune.py \
+  --config configs/training/campp-ms1-official-participants-voxblink2-augment.toml \
+  --init-checkpoint artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt \
+  --device cuda \
+  --output json
+
+CHECKPOINT=$(python - <<'PY'
+from pathlib import Path
+root = Path("artifacts/baselines/campp-ms1-official-participants-voxblink2-augment")
+runs = sorted((path for path in root.iterdir() if (path / "campp_encoder.pt").is_file()), key=lambda path: path.stat().st_mtime)
+print(runs[-1] / "campp_encoder.pt")
+PY
+)
+
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=1 uv run --group train \
+  python scripts/run_official_campp_tail.py \
+  --checkpoint-path "$CHECKPOINT" \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --data-root 'datasets/Для участников' \
+  --output-dir artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z \
+  --experiment-id "$RUN_ID" \
+  --encoder-backend torch \
+  --device cuda \
+  --search-device cuda \
+  --batch-size 512 \
+  --search-batch-size 2048 \
+  --top-cache-k 200 \
+  --mode segment_mean \
+  --eval-chunk-seconds 6.0 \
+  --segment-count 3 \
+  --long-file-threshold-seconds 6.0
+```
+
+Status at launch/check: running, PID `463779`. First training progress reached
+`epoch=1/8 batch=1/2578`; later check reached `epoch=1/8 batch=256/2578`,
+`ex_per_s=390.2`, GPU1 memory around `23.2 GiB`, GPU1 utilization `100%`.
+Public score pending.
 
 Current public best:
 

@@ -452,6 +452,7 @@ def _loader_payload(loaded_audio: LoadedAudio) -> dict[str, object]:
 
 def _feature_request_payload(request: FbankExtractionRequest) -> dict[str, object]:
     return {
+        "frontend": request.frontend,
         "sample_rate_hz": request.sample_rate_hz,
         "num_mel_bins": request.num_mel_bins,
         "frame_length_ms": request.frame_length_ms,

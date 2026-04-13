@@ -13,6 +13,7 @@ import torchaudio.functional as torchaudio_functional
 from kryptonite.config import FeaturesConfig
 
 SUPPORTED_FBANK_CMVN_MODES = frozenset({"none", "sliding"})
+SUPPORTED_FBANK_FRONTENDS = frozenset({"local", "official_campp"})
 SUPPORTED_FBANK_OUTPUT_DTYPES = frozenset({"float16", "float32", "bfloat16"})
 SUPPORTED_FBANK_WINDOW_TYPES = frozenset({"hann", "hamming"})
 _CMVN_EPSILON = 1e-5
@@ -34,10 +35,13 @@ class FbankExtractionRequest:
     cmvn_mode: str = "none"
     cmvn_window_frames: int = 300
     output_dtype: str = "float32"
+    frontend: str = "local"
 
     def __post_init__(self) -> None:
         if self.sample_rate_hz <= 0:
             raise ValueError("sample_rate_hz must be positive")
+        if self.normalized_frontend not in SUPPORTED_FBANK_FRONTENDS:
+            raise ValueError(f"frontend must be one of {sorted(SUPPORTED_FBANK_FRONTENDS)}")
         if self.num_mel_bins <= 0:
             raise ValueError("num_mel_bins must be positive")
         if self.frame_length_ms <= 0.0:
@@ -86,6 +90,10 @@ class FbankExtractionRequest:
         return self.window_type.lower()
 
     @property
+    def normalized_frontend(self) -> str:
+        return self.frontend.lower()
+
+    @property
     def normalized_cmvn_mode(self) -> str:
         return self.cmvn_mode.lower()
 
@@ -100,6 +108,7 @@ class FbankExtractionRequest:
     @classmethod
     def from_config(cls, config: FeaturesConfig) -> FbankExtractionRequest:
         return cls(
+            frontend=config.frontend,
             sample_rate_hz=config.sample_rate_hz,
             num_mel_bins=config.num_mel_bins,
             frame_length_ms=config.frame_length_ms,
@@ -163,11 +172,21 @@ class FbankExtractor:
     def extract(self, waveform: Any, *, sample_rate_hz: int) -> torch.Tensor:
         self._validate_sample_rate(sample_rate_hz)
         mono_waveform = _coerce_mono_waveform(waveform)
+        if self.request.normalized_frontend == "official_campp":
+            from kryptonite.features.campp_official import official_campp_fbank
+
+            return official_campp_fbank(
+                mono_waveform,
+                sample_rate_hz=sample_rate_hz,
+                num_mel_bins=self.request.num_mel_bins,
+            ).to(dtype=self.request.torch_output_dtype)
         frames, _ = self._frame_waveform(mono_waveform, final=True)
         raw_features = self._compute_raw_features(frames)
         return self._finalize_features(raw_features)
 
     def create_online_extractor(self) -> OnlineFbankExtractor:
+        if self.request.normalized_frontend != "local":
+            raise ValueError("Online fbank extraction only supports frontend='local'.")
         return OnlineFbankExtractor(self)
 
     def _validate_sample_rate(self, sample_rate_hz: int) -> None:

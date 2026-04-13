@@ -15,6 +15,7 @@ from kryptonite.features import (
     build_fbank_parity_report,
     extract_fbank,
 )
+from kryptonite.features.campp_official import official_campp_fbank
 
 
 def test_extract_fbank_returns_expected_shape_and_dtype() -> None:
@@ -31,6 +32,18 @@ def test_extract_fbank_returns_expected_shape_and_dtype() -> None:
 
     assert features.shape == (99, 80)
     assert features.dtype == torch.float16
+
+
+def test_extract_fbank_official_campp_frontend_matches_official_helper() -> None:
+    waveform = torch.sin(torch.linspace(0.0, 12.0, steps=16_000))
+    request = FbankExtractionRequest(frontend="official_campp", num_mel_bins=80)
+
+    features = FbankExtractor(request=request).extract(waveform, sample_rate_hz=16_000)
+    expected = official_campp_fbank(waveform, sample_rate_hz=16_000, num_mel_bins=80)
+
+    assert features.dtype == torch.float32
+    assert torch.allclose(features, expected)
+    assert torch.allclose(features.mean(dim=0), torch.zeros(80), atol=1e-5)
 
 
 @pytest.mark.parametrize("cmvn_mode", ["none", "sliding"])

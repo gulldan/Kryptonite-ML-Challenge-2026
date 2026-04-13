@@ -282,6 +282,7 @@
                 "output_dtype",
             ],
             "properties": {
+                "frontend": {"type": "string", "enum": ["local", "official_campp"]},
                 "sample_rate_hz": {"type": "integer", "minimum": 1},
                 "num_mel_bins": {"type": "integer", "minimum": 1},
                 "frame_length_ms": {"type": "number", "exclusiveMinimum": 0.0},

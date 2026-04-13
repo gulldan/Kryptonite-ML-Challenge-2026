@@ -5,6 +5,7 @@
 ## Training
 
 - `run_baseline.py` — обучить любую модель: `--model {campp,eres2netv2} --config ...`
+- `run_campp_finetune.py` — дообучить CAM++ из official/local checkpoint
 - `run_eres2netv2_finetune.py` — дообучить ERes2NetV2 из существующего checkpoint
 - `run_hf_xvector_finetune.py` — дообучить Hugging Face AudioXVector speaker model
 - `run_campp_baseline.py` — CAM++ baseline
