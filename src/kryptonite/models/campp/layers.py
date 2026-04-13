@@ -122,6 +122,7 @@ class ContextAwareMaskingLayer(nn.Module):
             kernel_size=segment_length,
             stride=segment_length,
             ceil_mode=True,
+            count_include_pad=False,
         )
         # Gather each frame from its segment-average index instead of reshaping an
         # expanded tensor. This stays symbolically shape-safe for torch.export.

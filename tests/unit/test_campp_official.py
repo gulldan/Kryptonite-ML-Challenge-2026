@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import numpy as np
 import torch
 
-from kryptonite.features.campp_official import even_waveform_segments, official_campp_fbank
+from kryptonite.features.campp_official import (
+    build_official_campp_frontend_cache_key,
+    even_waveform_segments,
+    load_official_campp_frontend_cache,
+    official_campp_fbank,
+    stack_official_campp_feature_batch,
+    write_official_campp_frontend_cache,
+)
 from kryptonite.models.campp.checkpoint import (
     load_campp_state_and_config,
     remap_official_campp_state_dict,
@@ -62,3 +72,57 @@ def test_official_campp_fbank_applies_utterance_mean_normalization() -> None:
 
     assert features.shape[1] == 80
     assert torch.allclose(features.mean(dim=0), torch.zeros(80), atol=1e-5)
+
+
+def test_official_campp_frontend_cache_key_includes_frontend_config(tmp_path: Path) -> None:
+    audio_path = tmp_path / "sample.wav"
+    audio_path.write_bytes(b"not a real wav but enough for keying")
+
+    base = build_official_campp_frontend_cache_key(
+        audio_path.as_posix(),
+        data_root=tmp_path,
+        sample_rate_hz=16_000,
+        num_mel_bins=80,
+        mode="segment_mean",
+        eval_chunk_seconds=6.0,
+        segment_count=3,
+        long_file_threshold_seconds=6.0,
+    )
+    changed = build_official_campp_frontend_cache_key(
+        audio_path.as_posix(),
+        data_root=tmp_path,
+        sample_rate_hz=16_000,
+        num_mel_bins=80,
+        mode="single_crop",
+        eval_chunk_seconds=6.0,
+        segment_count=3,
+        long_file_threshold_seconds=6.0,
+    )
+
+    assert base.cache_id != changed.cache_id
+    assert base.relative_path.endswith(".npy")
+
+
+def test_official_campp_frontend_cache_round_trips_float32_arrays(tmp_path: Path) -> None:
+    first = np.arange(12, dtype=np.float32).reshape(3, 4)
+    second = np.arange(12, 24, dtype=np.float32).reshape(3, 4)
+    cache_path = tmp_path / "cache.npy"
+
+    write_official_campp_frontend_cache(cache_path, [first, second])
+    loaded = load_official_campp_frontend_cache(cache_path)
+
+    assert len(loaded) == 2
+    np.testing.assert_array_equal(loaded[0], first)
+    np.testing.assert_array_equal(loaded[1], second)
+
+
+def test_stack_official_campp_feature_batch_preserves_values_and_zero_pads() -> None:
+    first = np.ones((2, 3), dtype=np.float32)
+    second = np.full((4, 3), 2.0, dtype=np.float32)
+
+    batch = stack_official_campp_feature_batch([first, second])
+
+    assert tuple(batch.shape) == (2, 4, 3)
+    assert torch.equal(batch[0, :2], torch.ones(2, 3))
+    assert torch.equal(batch[0, 2:], torch.zeros(2, 3))
+    assert torch.equal(batch[1], torch.full((4, 3), 2.0))

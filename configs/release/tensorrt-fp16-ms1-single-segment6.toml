@@ -1,0 +1,62 @@
+title = "Kryptonite MS1 CAM++ TensorRT FP16 single wide profile"
+report_id = "kryptonite-2026-ms1-campp-tensorrt-fp16-single-segment6"
+summary = """
+Build a TensorRT FP16 engine from the exported ModelScope CAM++ VoxCeleb encoder
+bundle with one wide profile covering the public 6-second segment path. This is a
+control against the multi-profile engine to check whether simpler profile selection
+improves or hurts latency on the target GPU.
+"""
+project_root = "."
+output_root = "artifacts/release/ms1-campp/fp16-single-segment6"
+
+validation_commands = [
+  "uv run python scripts/export_campp_onnx.py --config configs/base.toml --checkpoint artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt --output-root artifacts/model-bundle-campp-ms1-onnx --model-version campp-ms1-modelscope-voxceleb-onnx --sample-frame-count 600",
+  "uv run python scripts/build_tensorrt_fp16_engine.py --config configs/release/tensorrt-fp16-ms1-single-segment6.toml",
+]
+
+notes = [
+  "This single-profile engine is a latency/throughput control for the MS1 ModelScope CAM++ VoxCeleb encoder.",
+  "The engine boundary starts at official 80-bin Fbank features; raw audio decode, fbank, segmenting, and retrieval remain outside TensorRT.",
+  "The wide profile covers all benchmarked frame counts but may be less specialized than the multi-profile release config.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle-campp-ms1-onnx/metadata.json"
+engine_output_path = "artifacts/model-bundle-campp-ms1-onnx/model_single_segment6.plan"
+
+[build]
+workspace_size_mib = 4096
+promote_validated_backend = false
+require_onnxruntime_parity = false
+
+[[build.profiles]]
+profile_id = "segment6_wide"
+min_batch_size = 1
+opt_batch_size = 64
+max_batch_size = 64
+min_frame_count = 80
+opt_frame_count = 600
+max_frame_count = 800
+
+[evaluation]
+seed = 20260413
+warmup_iterations = 10
+benchmark_iterations = 50
+max_mean_abs_diff = 0.03
+max_cosine_distance = 0.001
+min_speedup_ratio = 1.05
+
+[[evaluation.samples]]
+sample_id = "short"
+batch_size = 1
+frame_count = 100
+
+[[evaluation.samples]]
+sample_id = "mid"
+batch_size = 1
+frame_count = 240
+
+[[evaluation.samples]]
+sample_id = "segment6"
+batch_size = 1
+frame_count = 600

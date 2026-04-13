@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import onnx
 import torch
 
 from kryptonite.config import load_project_config
@@ -34,6 +35,7 @@ def test_campp_segment_pooling_matches_legacy_expansion() -> None:
             kernel_size=100,
             stride=100,
             ceil_mode=True,
+            count_include_pad=False,
         )
         shape = pooled.shape
         legacy = (
@@ -110,6 +112,16 @@ def test_export_campp_checkpoint_to_onnx_writes_export_bundle(tmp_path: Path) ->
     assert exported.validation.onnxruntime_smoke_passed is True
     assert exported.validation.sample_input_shape == (1, 120, 16)
     assert exported.validation.sample_output_shape == (1, 32)
+
+    onnx_model = onnx.load(model_path)
+    average_pool_nodes = [node for node in onnx_model.graph.node if node.op_type == "AveragePool"]
+    assert average_pool_nodes
+    for node in average_pool_nodes:
+        attributes = {
+            attribute.name: onnx.helper.get_attribute_value(attribute)
+            for attribute in node.attribute
+        }
+        assert attributes["count_include_pad"] == 0
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     contract = load_export_boundary_from_model_metadata(metadata)
