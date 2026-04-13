@@ -18,6 +18,15 @@ KNOWN_CAMPP_CHECKPOINT_NAMES = (
     "campp_encoder.pt",
 )
 
+OFFICIAL_CAMPP_KEY_REPLACEMENTS = (
+    (".cam_layer.linear_local.", ".cam.local."),
+    (".cam_layer.linear1.", ".cam.context_down."),
+    (".cam_layer.linear2.", ".cam.context_up."),
+    (".nonlinear1.", ".nonlinear_in."),
+    (".linear1.", ".project."),
+    (".nonlinear2.", ".nonlinear_bottleneck."),
+)
+
 
 def resolve_campp_checkpoint_path(
     *,
@@ -79,6 +88,42 @@ def require_campp_state_dict(
     return state
 
 
+def remap_official_campp_state_dict(state: dict[str, Any]) -> dict[str, Any]:
+    """Map official 3D-Speaker CAM++ parameter names to this package's names."""
+
+    remapped: dict[str, Any] = {}
+    for key, value in state.items():
+        new_key = key
+        for old, new in OFFICIAL_CAMPP_KEY_REPLACEMENTS:
+            new_key = new_key.replace(old, new)
+        remapped[new_key] = value
+    return remapped
+
+
+def load_campp_state_and_config(payload: dict[str, Any]) -> tuple[CAMPPlusConfig, dict[str, Any]]:
+    """Resolve local, official, and raw ModelScope CAM++ checkpoint payloads."""
+
+    config_payload = payload.get("model_config")
+    model_config = (
+        load_campp_model_config(config_payload)
+        if isinstance(config_payload, dict)
+        else CAMPPlusConfig()
+    )
+    if "model_state_dict" in payload:
+        state = require_campp_state_dict(payload["model_state_dict"], field_name="model_state_dict")
+        return model_config, state
+    if "embedding_model" in payload:
+        state = require_campp_state_dict(payload["embedding_model"], field_name="embedding_model")
+        return model_config, remap_official_campp_state_dict(state)
+    if all(
+        isinstance(key, str) and type(value).__name__ == "Tensor" for key, value in payload.items()
+    ):
+        return model_config, remap_official_campp_state_dict(dict(payload))
+    raise ValueError(
+        "Checkpoint must contain `model_state_dict`, `embedding_model`, or a raw CAM++ state dict."
+    )
+
+
 def load_campp_encoder_from_checkpoint(
     *,
     torch: Any,
@@ -93,11 +138,7 @@ def load_campp_encoder_from_checkpoint(
         torch=torch,
         checkpoint_path=resolved_checkpoint_path,
     )
-    model_config = load_campp_model_config(checkpoint_payload.get("model_config"))
-    model_state = require_campp_state_dict(
-        checkpoint_payload.get("model_state_dict"),
-        field_name="model_state_dict",
-    )
+    model_config, model_state = load_campp_state_and_config(checkpoint_payload)
     model = CAMPPlusEncoder(model_config).to(device="cpu", dtype=torch.float32)
     model.eval()
     model.load_state_dict(model_state)
@@ -109,6 +150,8 @@ __all__ = [
     "load_campp_checkpoint_payload",
     "load_campp_encoder_from_checkpoint",
     "load_campp_model_config",
+    "load_campp_state_and_config",
+    "remap_official_campp_state_dict",
     "require_campp_state_dict",
     "resolve_campp_checkpoint_path",
 ]

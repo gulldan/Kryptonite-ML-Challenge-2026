@@ -39,10 +39,35 @@ public_score = mean(precision@10_i)
 | 2026-04-12 | `organizer_baseline_e20_earlystop_epoch10_center` | Original organizer ECAPA baseline trained up to epoch `10` with validation early stopping/scheduler guard, then center-crop public inference with exact FAISS top-10. | speaker-disjoint val `precision@10 = 0.928308`; validator passed | `0.1046` | `+0.0267` vs organizer baseline, `+0.0022` vs baseline_fixed, `-0.0203` vs C4 | Rejected/dead-end. Longer guarded training improves local validation but barely moves public and remains far below graph/backbone branches; do not spend more cycles on this baseline family except as a diagnostic control. |
 | 2026-04-12 | `P3_eres2netv2_g6_pseudo_ft_public_c4` | P1 ERes2NetV2 initialized pseudo-label self-training on original train + filtered G6 public clusters, then same public C4 tail. | validator passed; `top10_mean_score_mean=0.6116`; `label_used_share=0.8297`; Gini@10 `0.2810`, max in-degree `44`; mean overlap vs P1 `4.99/10` | `0.2861` | `+0.0451` vs P1, `+0.2082` vs organizer baseline | New public best. Pseudo-label self-training is confirmed useful; use P3 as the new safe branch while E1 WavLM-domain continues. |
 | 2026-04-12 | `E1_wavlm_domain_ft_public_c4` | `microsoft/wavlm-base-plus-sv` fine-tuned on train with mixed crops, bandlimit/silence/gain/noise/peak augmentations, ArcMargin head, then same public C4 tail. | validator passed; `top10_mean_score_mean=0.8124`; `label_used_share=0.7778`; Gini@10 `0.2649`, max in-degree `47`; train epoch 3 loss `5.4627`, acc `0.6662` | `0.2833` | `-0.0028` vs P3, `+0.0423` vs P1, `+0.2054` vs organizer baseline | Direct WavLM is slightly below P3, so it does not replace the safe branch. Keep as strong orthogonal candidate for later P3+WavLM fusion because public score is close while representation family is different. |
+| 2026-04-12 | `H1_wavlm_base_plus_sv_pretrained_public_c4` | Direct pretrained `microsoft/wavlm-base-plus-sv` embeddings with the same C4 graph tail, no participant/domain fine-tuning. | validator passed; `top10_mean_score_mean=0.9582`; `label_used_share=0.7476`; Gini@10 `0.2324`, max in-degree `34`; overlap vs P1 mean `0.309/10` | `0.1228` | `+0.0449` vs organizer baseline, `-0.0021` vs C4, `-0.1633` vs P3 | Rejected as a direct branch. Raw pretrained WavLM has clean geometry but does not align to hidden public speakers enough; domain fine-tuning is essential. |
+| 2026-04-13 | `H6_wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4` | Fresh official-HF raw pretrained `microsoft/wavlm-base-plus-sv` probe: `AutoFeatureExtractor` + `AutoModelForAudioXVector`, no silence trim, 3 evenly spaced 6s crops, then C4 graph tail. | validator passed; `top10_mean_score_mean=0.9590`; `label_used_share=0.7489`; Gini@10 `0.2321`, max in-degree `34`; overlap vs H1 mean `2.970/10`, top1 equal `21.93%`. | pending | pending | Public probe candidate requested to rule out trim/frontend mismatch in raw WavLM. Expectation remains low because H1 scored only `0.1228`, but H6 is a materially different no-trim official-HF ranking. |
+| 2026-04-12 | `MS1_modelscope_campplus_voxceleb_default` | User-provided default ModelScope `iic/speech_campplus_sv_en_voxceleb_16k` submission without challenge fine-tuning. | Local validator passed for `artifacts/backbone_public/campp/default_model_submission.csv`; Gini@10 `0.4917`, max in-degree `214`. | `0.5695` | `+0.4916` vs organizer baseline, `+0.2834` vs P3 | New best observed branch. Treat the exact ModelScope frontend/inference policy as the safe branch; local reimplementation does not yet reproduce the neighbor ranking. |
+| 2026-04-12 | `MS2_modelscope_campplus_voxceleb_default_public_exact/c4` | Converted ModelScope CAM++ VoxCeleb checkpoint into local `CAMPPlusEncoder` by key remap only, then ran local 3x6s trim public inference and exact/C4 tails. | exact validator passed; C4 validator passed; exact overlap vs MS1 `2.459/10`, top1 match `15.86%`; C4 overlap vs MS1 `2.510/10`, top1 match `15.41%`. | not submitted | pending | Diagnostic/rejected as a reproduction of MS1. Same checkpoint weights are not enough; frontend/crop/trim/official ModelScope inference differs materially from our local path. |
+| 2026-04-12 | `MS3_modelscope_campplus_voxceleb_default_notrim_1crop` | Same converted ModelScope checkpoint, but public inference uses `--no-trim`, one 6s center crop, exact and C4 tails. | exact validator passed; C4 validator passed; exact overlap vs MS1 `2.075/10`, top1 match `11.92%`; C4 overlap vs MS1 `2.190/10`, top1 match `11.90%`. | not submitted | pending | Rejected frontend ablation. Removing trim and using a single crop does not reproduce MS1; the remaining gap points to official ModelScope fbank/full-utterance/frontend behavior. |
+| 2026-04-12 | `MS4_official_repo_reproduction_pretrained_segment_mean` | Ran `RustamOper05/kryptonite_tembr_research` `code/campp/build_submission.py` through `gh` clone with official 3D-Speaker CAM++ and `torchaudio.compliance.kaldi.fbank` segment-mean frontend. | validator passed; overlap vs MS1 `9.961/10`, top1 match `99.53%`, same neighbor set share `96.13%`; official embeddings row-wise cosine vs MS2 local fbank only `0.6114` mean. | not submitted | inherits MS1 | Confirms the gap is embeddings/frontend, not submission formatting. Use official repo frontend as the parity source. |
+| 2026-04-12 | `MS5_official_campp_runner_cached_embeddings` | Added repo-local official CAM++ runner and loaded cached MS4 official embeddings, then generated exact and C4 submissions through this repository's shared submission/rerank code. | exact validator passed, `top10_mean_score_mean=0.6765`, Gini@10 `0.4917`, max in-degree `214`; C4 validator passed, `top10_mean_score_mean=0.6662`, Gini@10 `0.3587`, max in-degree `83`. | not submitted | pending | Runner parity/control. The repository can now reproduce the official-frontend branch without relying on the temporary GitHub clone. |
+| 2026-04-12 | `MS6_official_campp_c1_component_candidate` | Official MS4 embeddings + B8 reciprocal/local-density ranking + mutual-20 component postprocess. | validator passed; overlap vs MS1 exact `7.968/10`, top1 equal `76.3%`, same neighbor set share `13.57%`; `top10_mean_score_mean=0.6720`, Gini@10 `0.3371`, max in-degree `81`. | pending | pending | Fast public probe candidate to test whether hubness reduction improves the strong ModelScope branch. First file to submit if trying to beat `0.5695`; exact MS1 remains the safe known score. |
+| 2026-04-12 | `MS7_campp_from_scratch_official_frontend_recalc` | Recomputed the arm11 CAM++ participant checkpoint with the new official CAM++ frontend runner. Source checkpoint was copied from arm11 run `20260411T200858Z-757aa9406317`; training summary says `provenance_initialization=from_scratch`. | exact validator passed, `top10_mean_score_mean=0.8367`, Gini@10 `0.5443`, max in-degree `268`; C4 validator passed, `top10_mean_score_mean=0.8287`, Gini@10 `0.3266`, max in-degree `59`; C4 overlap vs MS1 default only `1.521/10`, so this is a materially new ranking. | `0.2597` | `+0.1818` vs organizer baseline, `-0.3098` vs MS1 default | Rejected as a replacement for ModelScope default. Corrected frontend improves the experiment validity, but this arm11 checkpoint is still far below MS1 `0.5695`; do not spend more public submissions on this from-scratch checkpoint except maybe fusion diagnostics. |
+| 2026-04-13 | `H7c_eres2net_large_3dspeaker_pretrained_public_c4_b128_bf16` | Clean pretrained official 3D-Speaker ERes2Net-large probe using `iic/speech_eres2net_large_sv_zh-cn_3dspeaker_16k` weights, official 3D-Speaker ERes2Net architecture/FBank/chunking, and soundfile FLAC decode workaround for broken arm11 torchaudio decoder. | running on arm11 GPU1; smoke extraction passed on 3 files; batch `32` and batch `80` fp32 attempts were stopped as too slow; active run uses batch `128` with bf16 autocast, log `artifacts/logs/H7c_eres2net_large_3dspeaker_pretrained_public_c4_b128_bf16_20260413T0418Z.log`. | pending | pending | Active public candidate. This tests whether clean pretrained 3D-Speaker ERes2Net-large has transfer behavior closer to ModelScope CAM++ default than our from-scratch ERes2NetV2 branch. |
 
 Current public best:
 
-- `P3_eres2netv2_g6_pseudo_ft_public_c4`: public LB `0.2861`
+- User-reported external best:
+  `MS1_modelscope_campplus_voxceleb_default`, public LB `0.5695`
+  using ModelScope `iic/speech_campplus_sv_en_voxceleb_16k`.
+- Artifact:
+  `artifacts/backbone_public/campp/default_model_submission.csv`
+
+- Fast public probe candidate:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/official_graph_20260412T_candidate/submission_C1_b8_mutual20_component.csv`
+  (`MS6_official_campp_c1_component_candidate`, validator passed, public score pending).
+
+- Fast corrected arm11 CAM++ candidate:
+  `artifacts/backbone_public/campp/submission_MS7_new_code_campp_from_scratch_official_frontend_c4.csv`
+  (`MS7_campp_from_scratch_official_frontend_recalc`, validator passed, public LB `0.2597`; rejected as a replacement for MS1).
+
+- Best repo-local scored artifact:
+  `P3_eres2netv2_g6_pseudo_ft_public_c4`, public LB `0.2861`
 - Artifact:
   `artifacts/backbone_public/eres2netv2_g6_pseudo_ft/20260412T100738Z-6b686847f5d8/submission_P3_eres2netv2_g6_pseudo_ft_public_c4.csv`
 - Latest orthogonal candidate: `E1_wavlm_domain_ft_public_c4`, public LB `0.2833`
@@ -955,7 +980,7 @@ CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/ru
   --template-csv 'datasets/Для участников/test_public.csv' \
   --output-dir artifacts/backbone_public/hf_xvector/wavlm_base_plus_sv_ft_public_c4_20260412T101651Z \
   --experiment-id H2_wavlm_base_plus_sv_ft_public_c4 \
-  --batch-size 32 \
+  --batch-size 80 \
   --crop-seconds 6.0 \
   --n-crops 3 \
   --top-cache-k 200 \
@@ -998,7 +1023,7 @@ CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/ru
   --template-csv 'datasets/Для участников/test_public.csv' \
   --output-dir artifacts/backbone_public/hf_xvector/wavlm_base_plus_sv_pretrained_public_c4_20260412T104526Z \
   --experiment-id H1_wavlm_base_plus_sv_pretrained_public_c4 \
-  --batch-size 32 \
+  --batch-size 80 \
   --crop-seconds 6.0 \
   --n-crops 3 \
   --top-cache-k 200 \
@@ -1021,13 +1046,17 @@ CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/ru
 - Random 2000-row pairwise cosine sample: mean `0.6314`, p50 `0.6453`, p99
   `0.9257`. Unlike H2, H1 is not collapsed.
 - Submission overlap with safe P1: mean `0.309/10`, p50 `0`, zero-overlap share
-  `0.8183`. This is real orthogonality, but direct public quality is unknown.
+  `0.8183`. This is real orthogonality, but direct public quality is low.
+- Public LB score: `0.1228`.
 
 H1 decision:
 
-- Keep H1 as a fusion candidate and possible public probe, but do not replace safe P1.
-- Next run should test a different Transformers speaker checkpoint before spending a
-  submission slot on H1 alone.
+- Rejected as a direct branch. H1 is only slightly above B8 `0.1223` and below C4
+  `0.1249`, despite a very high `top10_mean_score_mean=0.9582`.
+- Interpretation: generic pretrained WavLM geometry is not enough by itself; the useful
+  WavLM result is the domain-adapted E1 branch (`0.2833`), not raw pretrained inference.
+- Keep H1 only as a diagnostic/fusion ingredient, and gate any H1 fusion against P3/E1
+  rather than spending further direct public slots on raw pretrained WavLM variants.
 
 NeMo/TitaNet note:
 
@@ -1047,7 +1076,7 @@ CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/ru
   --template-csv 'datasets/Для участников/test_public.csv' \
   --output-dir artifacts/backbone_public/hf_xvector/wav2vec2_superb_sv_pretrained_public_c4_20260412T111914Z \
   --experiment-id H3_wav2vec2_base_superb_sv_pretrained_public_c4 \
-  --batch-size 32 \
+  --batch-size 80 \
   --crop-seconds 6.0 \
   --n-crops 3 \
   --top-cache-k 200 \
@@ -2017,3 +2046,460 @@ Status:
   completed with train loss `10.206978` and accuracy `0.416613`; epoch 2 had reached
   `batch=4640/5814` (`79.8%`), train loss `3.319962`, accuracy `0.878155`, throughput
   about `201.7` examples/s, GPU0 `76789/81559 MiB`, `100%` utilization.
+- Final training outcome checked on `2026-04-13T03:53:47Z`: early stopping fired at
+  epoch `12` with reason `patience_exhausted`; best epoch was `4`, best train loss
+  `2.519065`, and `restore_best=true` restored the best checkpoint before writing.
+  Final epoch 12 train loss was `2.965722` and train accuracy `0.873003`.
+- Training artifacts:
+  checkpoint
+  `artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/20260412T151747Z-b522b570a1b7/eres2netv2_encoder.pt`;
+  training summary
+  `artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/20260412T151747Z-b522b570a1b7/training_summary.json`;
+  dev embeddings
+  `artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/20260412T151747Z-b522b570a1b7/dev_embeddings.npz`.
+- The training wrapper was manually stopped after checkpoint/summary/dev embeddings were
+  written because the generic baseline pipeline moved into all-pairs dev trial generation:
+  this config had `trials_manifest=""`, and `participants_fixed` dev has `13473` rows.
+  That scorer path would materialize an impractically large in-memory trial list and is
+  not the intended public-submission evaluation path for this branch. No `score_summary`
+  or verification report was produced by this run.
+- GPU0 was freed after stopping the post-train scorer tail; `nvidia-smi` showed
+  `0 MiB` and `0%` utilization on both GPUs.
+
+P4 public C4 tail launch:
+
+- Purpose: create a leaderboard submission from the Track 2 augmentation checkpoint using
+  the same public C4 tail as the current P3 best (`top-cache-k=200`, `3` crops,
+  `6.0s`, no synthetic shift), so the LB comparison is direct.
+- Run id: `p4_eres2netv2_track2_aug_public_c4_20260413T035400Z`.
+- GPU: `CUDA_VISIBLE_DEVICES=0`.
+- Log:
+  `artifacts/logs/p4_eres2netv2_track2_aug_public_c4_20260413T035400Z.log`.
+- PID file:
+  `artifacts/logs/p4_eres2netv2_track2_aug_public_c4_20260413T035400Z.pid`.
+- Checkpoint:
+  `artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/20260412T151747Z-b522b570a1b7/eres2netv2_encoder.pt`.
+- Output dir:
+  `artifacts/backbone_public/eres2netv2_track2_aug/20260412T151747Z-b522b570a1b7/`.
+- Exact launch command:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 \
+uv run --group train python scripts/run_torch_checkpoint_c4_tail.py \
+  --model eres2netv2 \
+  --checkpoint-path artifacts/baselines/eres2netv2-g6-pseudo-track2-augment/20260412T151747Z-b522b570a1b7/eres2netv2_encoder.pt \
+  --manifest-csv artifacts/eda/backbone_public/test_public_manifest.remote.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --output-dir artifacts/backbone_public/eres2netv2_track2_aug/20260412T151747Z-b522b570a1b7 \
+  --experiment-id P4_eres2netv2_g6_pseudo_track2_aug_public_c4 \
+  --shift-mode none \
+  --device cuda \
+  --search-device cuda \
+  --precision bf16 \
+  --batch-size 256 \
+  --search-batch-size 4096 \
+  --top-cache-k 200 \
+  --crop-seconds 6.0 \
+  --n-crops 3
+```
+
+- Initial monitor: embedding extraction started on `134697` public rows; GPU0 used
+  about `21945/81559 MiB` with `100%` utilization.
+
+## 2026-04-12 — Public Gap Diagnostic: Order Leak And Validation Mismatch
+
+Context:
+
+- User reported that the public leaderboard has reached about `0.71`, while current best
+  local branch `P3_eres2netv2_g6_pseudo_ft_public_c4` is only `0.2861`.
+- Goal: check whether the gap is caused by a submission/id bug, a public CSV ordering
+  leak, or a deeper representation/validation problem.
+
+Checks:
+
+- Submission format/id path:
+  - All scored public submissions checked locally have validator pass status:
+    `134697/134697` rows, `K=10`, no duplicate/self/out-of-range neighbor indices.
+  - `test_public.csv` is exactly `test_public/000000.flac` through
+    `test_public/134696.flac` in row order, so neighbor integers are row indices.
+- Train-order leak:
+  - `train.csv` is fully grouped by speaker in row order: `11053` consecutive speaker
+    runs for `11053` speaker ids.
+  - On train order alone, simple neighbor heuristics would score very high:
+    forward `i+1..i+10` gives `P@10 ~= 0.912`; symmetric `i±1..i±5` gives
+    `P@10 ~= 0.951`.
+- Public-order leak probe:
+  - Generated diagnostic public submissions under `artifacts/diagnostics/order_leak/`:
+    `submission_order_forward10.csv`, `submission_order_backward10.csv`, and
+    `submission_order_symmetric5.csv`.
+  - All three pass `scripts/validate_submission.py`.
+  - Public audio statistics do not show row adjacency structure: lag-1 correlations for
+    duration/RMS/peak/silence/rolloff/centroid are approximately `0`.
+  - P1 public embeddings also do not show row adjacency structure: lag-1/2/5/10 cosine
+    distributions are effectively the same as random pairs. Example P1 lag-1 mean
+    `0.1949`, random mean `0.1967`; lag-1 p50 `0.1459`, random p50 `0.1474`.
+  - Existing P1/P3/E1 submissions almost never select nearby row indices:
+    P3 has only `0.000154` of neighbor slots within `±10` and `0.000756` within `±50`.
+
+Interpretation:
+
+- There is no evidence of a simple public row-order leak, despite train being grouped.
+  The order-only submissions are kept as optional cheap LB probes only because they pass
+  validation and directly test the hypothesis.
+- No local evidence points to a submission row/id bug.
+- Follow-up public probe: direct pretrained H1 WavLM scored only `0.1228`, so raw
+  off-the-shelf WavLM embeddings also do not explain the `0.71` leaderboard gap.
+- Follow-up user report: default ModelScope CAM++ VoxCeleb model
+  `iic/speech_campplus_sv_en_voxceleb_16k` scored `0.5695` without challenge
+  fine-tuning. This sharply points to backbone/provenance rather than submission format
+  as the main gap.
+- The main gap is more likely that the current representation is too weak for hidden
+  public clustering and current local validation is not a faithful public proxy. The
+  strongest immediate direction is domain-adapted/pretrained speaker-recognition
+  backbones or stronger pseudo-label/fusion over public embeddings, not raw pretrained
+  inference and not more trust in train-derived speaker-disjoint validation.
+
+## 2026-04-12 — Local Submission Audit After ModelScope CAM++ Result
+
+Context:
+
+- User reported `0.5695` for default ModelScope CAM++ VoxCeleb and asked to run local
+  submission checks because the issue might be how `submission.csv` is built.
+
+Local checks:
+
+- Searched local workspace for ModelScope/CAM++ submission artifacts. No
+  ModelScope-named submission artifact is present locally yet.
+- Audited all local public submission CSVs under `artifacts/`:
+  `34` true submission files found, `34/34` passed `validate_submission()` against
+  `datasets/Для участников/test_public.csv`.
+- Audit report:
+  `artifacts/diagnostics/submission_audit/all_public_submission_validation.json`.
+- Writer/validator smoke:
+  - `write_submission()` writes `neighbours` as one CSV field, e.g.
+    `test_public/000000.flac,"1,2,3,4,5,6,7,8,9,10"`.
+  - Validator rejects duplicate and self-match rows.
+  - Smoke report:
+    `artifacts/diagnostics/submission_audit/writer_validator_smoke.json`.
+- Local metric semantics:
+  - On grouped `train.csv`, manual order-neighbor `P@10` equals baseline
+    `precision_at_k_from_indices()` result:
+    manual `0.9512352271056341`, metric `0.951235227105634`.
+  - Parser roundtrip shape for a local submission subset: `[1000, 10]`.
+  - Smoke report:
+    `artifacts/diagnostics/submission_audit/local_metric_semantics_smoke.json`.
+- Key command checks:
+  - `uv run pytest tests/unit/test_eda.py::test_submission_validator_checks_paths_and_neighbours tests/unit/test_organizer_baseline_fixed.py::test_calc_metrics_validates_template_order_and_index_bounds tests/unit/test_embedding_scoring.py -q`
+    passed: `6 passed`.
+  - A broader pytest command including `tests/unit/test_submission_bundle.py` failed
+    during collection because `kryptonite.serve` does not currently export
+    `build_submission_bundle`; this is unrelated to public submission CSV creation.
+
+Conclusion:
+
+- Local evidence does not support a generic submission-format or off-by-one bug in our
+  public CSV writer/validator/metric path.
+- The ModelScope CAM++ result should be treated as a backbone quality/provenance signal.
+  Next action is to bring the ModelScope submission/embeddings into the repo, validate
+  the exact CSV locally, then use those embeddings for C4/cluster/fusion/pseudo-label
+  runs.
+
+## 2026-04-12 — ModelScope CAM++ Local Reproduction And CSV Comparison
+
+Context:
+
+- User provided the scored default ModelScope CAM++ submission:
+  `artifacts/backbone_public/campp/default_model_submission.csv`, public LB `0.5695`.
+- Goal: run the same ModelScope CAM++ VoxCeleb checkpoint locally through the current repo
+  inference path and compare the produced ranking against the scored CSV.
+
+Checkpoint preparation:
+
+- Source ModelScope checkpoint:
+  `artifacts/modelscope_cache/iic/speech_campplus_sv_en_voxceleb_16k/campplus_voxceleb.bin`.
+- Local converted checkpoint:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt`.
+- Conversion was a key remap only; tensor values were unchanged. The ModelScope
+  `state_dict` and local `CAMPPlusEncoder` both contain `937` keys with matching tensor
+  shapes after remap.
+- Conversion report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/conversion_summary.json`.
+
+Local run:
+
+```bash
+uv run python scripts/run_torch_checkpoint_c4_tail.py \
+  --model campp \
+  --checkpoint-path artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --output-dir artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms2_c4 \
+  --experiment-id MS2_modelscope_campplus_voxceleb_default_public_c4 \
+  --device cuda \
+  --search-device cuda \
+  --precision bf16 \
+  --batch-size 512 \
+  --search-batch-size 2048 \
+  --top-cache-k 100 \
+  --crop-seconds 6.0 \
+  --n-crops 3 \
+  --trim \
+  --shift-mode none
+```
+
+Outputs:
+
+- C4 submission:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms2_c4/submission_MS2_modelscope_campplus_voxceleb_default_public_c4.csv`
+- Exact-only submission from the same local embeddings:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms2_c4/submission_MS2_modelscope_campplus_voxceleb_default_public_exact.csv`
+- Comparison report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms2_c4/default_vs_local_comparison.json`
+
+Validation and runtime:
+
+- MS1 scored CSV validation: passed, `0` errors.
+- MS2 local exact validation: passed.
+- MS2 local C4 validation: passed.
+- Local extraction runtime on RTX 4090: `625.99` seconds for `134697` rows.
+- Search runtime: `0.97` seconds. C4 rerank runtime: `7.01` seconds.
+
+Comparison against the scored MS1 CSV:
+
+| Compared files | First-row neighbors | Top-1 match | Mean overlap@10 | Median overlap@10 | Same ordered row share |
+| --- | --- | ---: | ---: | ---: | ---: |
+| MS1 scored vs MS2 local exact | MS1 `1437,24932,75809,37108,39021,124530,117542,76244,8574,90474`; local exact `37815,29484,39021,99711,21757,134289,12635,74352,76244,59815` | `15.86%` | `2.459/10` | `2` | `0.0%` |
+| MS1 scored vs MS2 local C4 | MS1 same as above; local C4 `39021,134289,74352,59815,46821,37815,99711,29484,21757,76244` | `15.41%` | `2.510/10` | `2` | `0.0%` |
+| MS2 local exact vs MS2 local C4 | local exact vs local C4 | `69.10%` | `6.610/10` | `7` | `0.21%` |
+
+Additional frontend ablation:
+
+- Run id: `MS3_modelscope_campplus_voxceleb_default_public_notrim_1crop_c4`.
+- Command delta vs MS2: `--no-trim --n-crops 1 --crop-seconds 6.0`.
+- Output directory:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms3_notrim_1crop`.
+- Comparison report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms3_notrim_1crop/default_vs_ms3_notrim_1crop_comparison.json`.
+
+| Compared files | First-row neighbors | Top-1 match | Mean overlap@10 | Median overlap@10 | Same ordered row share |
+| --- | --- | ---: | ---: | ---: | ---: |
+| MS1 scored vs MS3 no-trim exact | MS1 same as above; MS3 exact `21757,59815,37815,76599,126291,125785,27220,803,18136,1436` | `11.92%` | `2.075/10` | `1` | `0.0%` |
+| MS1 scored vs MS3 no-trim C4 | MS1 same as above; MS3 C4 `21757,30197,18136,36063,13519,113047,76599,37815,27220,99711` | `11.90%` | `2.190/10` | `1` | `0.0%` |
+
+Hubness:
+
+- MS1 scored CSV: Gini@10 `0.4917`, max in-degree `214`.
+- MS2 local exact: Gini@10 `0.4928`, max in-degree `159`.
+- MS2 local C4: Gini@10 `0.3397`, max in-degree `64`.
+
+Embedding diagnostics:
+
+- Local MS2 embeddings path:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms2_c4/embeddings_MS2_modelscope_campplus_voxceleb_default_public_c4.npy`.
+- Local MS3 embeddings path:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/20260412T_local_ms3_notrim_1crop/embeddings_MS3_modelscope_campplus_voxceleb_default_public_notrim_1crop_c4.npy`.
+- Both local embedding arrays are `float32`, shape `[134697, 512]`, contain `0` NaNs,
+  and are L2-normalized with norm p50 `1.0`.
+- Row-wise cosine between MS2 and MS3 embeddings: mean `0.9469`, p50 `0.9690`, p05
+  `0.8440`, p95 `1.0`. This means the local trim/crop ablation changes embeddings
+  moderately but does not explain the much larger ranking mismatch against MS1.
+- Embedding diagnostic report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/local_embedding_diagnostics.json`.
+
+Conclusion:
+
+- The scored MS1 CSV and the local MS2 run are format-compatible and share the same
+  checkpoint weights, but their neighbor rankings differ materially.
+- This rules out a generic submission writer problem for this comparison. MS3 also shows
+  that simply disabling trim and switching to one center crop does not recover the scored
+  ranking.
+- The gap is in the inference/frontend policy: official/default ModelScope preprocessing,
+  fbank details, segment/full-utterance behavior, or normalization differs from the repo's
+  current local fbank path.
+- The scored MS1 CSV should remain the safe public artifact until the exact ModelScope
+  inference path is reproduced locally. MS2 is useful only as a diagnostic and should not
+  be submitted as a replacement without further frontend parity work.
+
+## 2026-04-12 — Official GitHub CAM++ Reproduction
+
+Context:
+
+- User shared the exact code repo used for the `0.5695` submission:
+  `https://github.com/RustamOper05/kryptonite_tembr_research`.
+- Access was verified through `gh`; repo is private and default branch is `master`.
+- Clone path for inspection:
+  `/tmp/kryptonite_tembr_research`.
+
+Relevant code path:
+
+- Submission builder:
+  `/tmp/kryptonite_tembr_research/code/campp/build_submission.py`.
+- Retrieval/frontend:
+  `/tmp/kryptonite_tembr_research/code/campp/retrieval.py`.
+- Model construction:
+  `/tmp/kryptonite_tembr_research/code/campp/common.py`.
+- Config:
+  `/tmp/kryptonite_tembr_research/code/campp/configs/campp_en_ft.base.yaml`.
+
+Important differences from this repository's local MS2/MS3 path:
+
+- The GitHub repo uses official 3D-Speaker code at commit
+  `065629c313eaf1a01c65c640c46d77e61e9607b4`:
+  `speakerlab.models.campplus.DTDNN.CAMPPlus`.
+- It extracts features with `torchaudio.compliance.kaldi.fbank(..., dither=0.0)` and
+  applies utterance cepstral mean normalization:
+  `features - features.mean(dim=0, keepdim=True)`.
+- Its `segment_mean` policy uses 6s segments, repeats short clips, and for files longer
+  than 6s averages 3 evenly spaced segment embeddings. It does not use this repository's
+  conservative silence trim.
+- This repository's failed reproduction used local `FbankExtractor` plus local
+  `CAMPPlusEncoder`, so the same checkpoint weights saw materially different features.
+
+Reproduction command:
+
+```bash
+PYTHONPATH=/tmp/kryptonite_tembr_research/code/campp \
+uv run --with requests --with pandas --with pyarrow --with PyYAML --with soundfile --with scipy --with tqdm \
+  python /tmp/kryptonite_tembr_research/code/campp/build_submission.py \
+  --config /tmp/kryptonite_tembr_research/code/campp/configs/campp_en_ft.base.yaml \
+  --mode segment_mean \
+  --csv '/tmp/kryptonite_tembr_research/data/Для участников/test_public.csv' \
+  --topk 10 \
+  --run-name reproduction_pretrained_segment_mean_test_public \
+  --save-embeddings
+```
+
+Copied artifacts:
+
+- Reproduced submission:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/official_repo_reproduction_20260412T2250/submission.csv`.
+- Official-repo embeddings:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/official_repo_reproduction_20260412T2250/embeddings.npy`.
+- Comparison report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/official_repo_reproduction_20260412T2250/default_vs_official_repo_reproduction.json`.
+
+Results:
+
+- Reproduction validator: passed, `0` errors.
+- Runtime: embedding `666.13s`, search `0.89s`, total `667.02s` on local RTX 4090.
+- Reproduced first row exactly matches MS1:
+  `1437,24932,75809,37108,39021,124530,117542,76244,8574,90474`.
+- MS1 scored CSV vs official-repo reproduction:
+  - top1 match `99.53%`;
+  - ordered cell equality `96.19%`;
+  - exact same ordered row share `81.22%`;
+  - same neighbor set share `96.13%`;
+  - mean overlap@10 `9.961/10`;
+  - median overlap@10 `10`;
+  - rows with full overlap@10: `129489/134697`.
+- The small non-identical tail is consistent with dependency/runtime top-k tie or minor
+  numeric differences; it is not a semantic mismatch.
+
+Embedding comparison:
+
+- Official-repo embeddings are `float32`, shape `[134697, 512]`, contain `0` NaNs, and
+  are not stored L2-normalized: norm p50 `19.092`, min `10.697`, max `41.330`.
+- Retrieval normalizes them inside `topk_indices_from_embeddings()`.
+- Row-wise cosine between official-repo embeddings and local MS2 embeddings:
+  mean `0.6114`, p50 `0.6315`, p05 `0.3067`, p95 `0.8499`.
+- Row-wise cosine between official-repo embeddings and local MS3 embeddings:
+  mean `0.6129`, p50 `0.6318`, p05 `0.3197`, p95 `0.8420`.
+
+Conclusion:
+
+- The `0.5695` result is reproducible from the GitHub code path.
+- The issue is not submission formation. The issue is that this repository's local CAM++
+  inference path produces different embeddings from the official 3D-Speaker/ModelScope
+  frontend.
+- For the ModelScope CAM++ branch, future work should import or faithfully reproduce the
+  official frontend/model path before applying C4, fusion, pseudo-labeling, or fine-tuning.
+
+## 2026-04-13 — Official Pretrained WavLM and ERes2Net-Large Probes
+
+H6 WavLM official-HF no-trim public C4:
+
+- Hypothesis: the earlier raw WavLM public score `0.1228` may have been hurt by this
+  repository's silence trim policy rather than the pretrained model itself.
+- Model: Hugging Face `microsoft/wavlm-base-plus-sv`; official Transformers class
+  `AutoModelForAudioXVector`; feature frontend `AutoFeatureExtractor`.
+- Command:
+
+```bash
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train python scripts/run_hf_xvector_tail.py \
+  --model-id microsoft/wavlm-base-plus-sv \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --output-dir artifacts/backbone_public/hf_xvector/wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4_20260413T \
+  --experiment-id H6_wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4 \
+  --batch-size 80 \
+  --crop-seconds 6.0 \
+  --n-crops 3 \
+  --no-trim \
+  --top-cache-k 200 \
+  --search-batch-size 2048 \
+  --search-device cuda
+```
+
+- Completed locally on RTX 4090. Embedding runtime `1257.17s`; search `0.999s`; rerank
+  `6.579s`.
+- Validator passed, `0` errors, `134697` rows.
+- Submission:
+  `artifacts/backbone_public/hf_xvector/wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4_20260413T/submission_H6_wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4.csv`.
+- Short copy for upload:
+  `artifacts/backbone_public/hf_xvector/submission_H6_wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4.csv`.
+- Summary:
+  `artifacts/backbone_public/hf_xvector/wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4_20260413T/H6_wavlm_base_plus_sv_pretrained_official_notrim_6s3c_public_c4_summary.json`.
+- Diagnostics: `top1_score_mean=0.9646`, `top10_mean_score_mean=0.9590`,
+  `label_used_share=0.7489`, Gini@10 `0.2321`, max in-degree `34`.
+- Comparison against H1 trim run: mean overlap@10 `2.970`, median `3`, top1 equal
+  `21.93%`. H6 is a materially different no-trim ranking, but public expectation remains
+  low until LB is checked because H1 scored only `0.1228`.
+
+H7 official 3D-Speaker ERes2Net-large public C4 launch:
+
+- Hypothesis: a clean pretrained 3D-Speaker ERes2Net-large may transfer better than the
+  from-scratch ERes2NetV2/CAM++ participant checkpoints and should be tested analogously
+  to the successful ModelScope CAM++ default branch.
+- Official source: 3D-Speaker repository, ERes2Net-large model id
+  `iic/speech_eres2net_large_sv_zh-cn_3dspeaker_16k`; 3D-Speaker README lists
+  ERes2Net-large as `22.46M` parameters and the official model id.
+- arm11 preparation: cloned 3D-Speaker to `/tmp/3D-Speaker`; ModelScope downloaded
+  `eres2net_large_model.ckpt` under
+  `/root/.cache/modelscope/hub/models/iic/speech_eres2net_large_sv_zh-cn_3dspeaker_16k/`.
+- Decoder note: official `infer_sv_batch.py` uses `torchaudio.load`, but the arm11
+  environment's torchaudio requires TorchCodec/FFmpeg libraries that are unavailable for
+  FLAC decode. Smoke showed `soundfile` can read the same FLAC paths. Added
+  `scripts/run_official_3dspeaker_eres2net_tail.py`, which keeps official 3D-Speaker
+  ERes2Net architecture, weights, FBank, 10s circular chunking, and mean segment pooling,
+  replacing only the broken audio decoder with `soundfile`.
+- Smoke: 3-file extraction passed on arm11 GPU1 with the new runner; C4 smoke failed only
+  because top-cache was intentionally too small for the full label-propagation config.
+- Initial remote run id: `H7_eres2net_large_3dspeaker_pretrained_public_c4_20260413T0400Z` (stopped before 5% because batch `32` was too slow).
+- Active remote run id: `H7b_eres2net_large_3dspeaker_pretrained_public_c4_b80_20260413T0408Z`.
+- GPU assignment: `CUDA_VISIBLE_DEVICES=1` on `arm11` inside container `MK_RND`.
+- Log:
+  `artifacts/logs/H7b_eres2net_large_3dspeaker_pretrained_public_c4_b80_20260413T0408Z.log`.
+- Output directory:
+  `artifacts/backbone_public/official_3dspeaker_eres2net_large_20260413T/full_b80/`.
+- Command:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=1 uv run --with scipy \
+  python scripts/run_official_3dspeaker_eres2net_tail.py \
+  --checkpoint-path artifacts/modelscope_cache/official_3dspeaker/speech_eres2net_large_sv_zh-cn_3dspeaker_16k/eres2net_large_model.ckpt \
+  --speakerlab-root /tmp/3D-Speaker \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv artifacts/links/participants_dataset/test_public.csv \
+  --data-root artifacts/links/participants_dataset \
+  --output-dir artifacts/backbone_public/official_3dspeaker_eres2net_large_20260413T/full_b80 \
+  --experiment-id H7b_eres2net_large_3dspeaker_pretrained_public_c4_b80_20260413T0408Z \
+  --device cuda \
+  --search-device cuda \
+  --batch-size 80 \
+  --search-batch-size 2048 \
+  --top-cache-k 200
+```
+
+- Status at launch: running; active batch-80 log line processed `1/134697` rows, GPU1 memory around `48.6 GiB` with `100%` utilization. Public score pending.

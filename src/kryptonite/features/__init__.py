@@ -23,6 +23,13 @@ from .cache import (
     materialize_feature_cache,
     resolve_feature_cache_root,
 )
+from .campp_official import (
+    even_waveform_segments,
+    load_official_campp_waveform,
+    official_campp_fbank,
+    repeat_or_pad_waveform,
+    resolve_audio_path,
+)
 from .chunking import (
     SUPPORTED_CHUNK_POOLING_MODES,
     SUPPORTED_CHUNKING_STAGES,
@@ -75,6 +82,7 @@ __all__ = [
     "FbankParitySummary",
     "FeatureFrontendPolicyDecision",
     "OnlineFbankExtractor",
+    "even_waveform_segments",
     "SUPPORTED_FBANK_CMVN_MODES",
     "SUPPORTED_FBANK_OUTPUT_DTYPES",
     "SUPPORTED_FBANK_WINDOW_TYPES",
@@ -87,11 +95,15 @@ __all__ = [
     "build_fbank_parity_report",
     "chunk_utterance",
     "extract_fbank",
+    "load_official_campp_waveform",
     "materialize_feature_cache",
     "pool_chunk_tensors",
+    "official_campp_fbank",
+    "repeat_or_pad_waveform",
     "render_feature_cache_benchmark_markdown",
     "render_fbank_parity_markdown",
     "resolve_feature_cache_root",
     "write_feature_cache_benchmark_report",
     "write_fbank_parity_report",
+    "resolve_audio_path",
 ]
