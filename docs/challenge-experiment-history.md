@@ -293,6 +293,15 @@ Planned remote acquisition:
   Hub was public but contained only `.gitattributes` (`used_storage=0`), so it is not usable as
   a mirror. Historical `cslt.riit.tsinghua.edu.cn` and guessed `cnceleb.org` URLs were not
   resolvable or returned `404`. Keep the OpenSLR partial resume as the active acquisition path.
+- Prepared downstream GPU1 run as a detached watcher:
+  `MS33_campp_ms31_cnceleb_mixed_lowlr_public_c4_20260414T1545Z`, PID `482582`, log
+  `artifacts/logs/MS33_campp_ms31_cnceleb_mixed_lowlr_public_c4_20260414T1545Z.log`, latest
+  pointer `artifacts/logs/latest_MS33_campp_ms31_cnceleb_mixed_lowlr_public_c4.txt`. It waits
+  for `datasets/CN-Celeb_flac`, builds `cnceleb_v2_ms31_mixed` manifests with filename-prefix
+  speaker ids, guards on at least `100` speakers and `10000` train rows, then runs
+  `configs/training/campp-ms31-cnceleb-mixed-lowlr.toml` from the MS31 checkpoint on
+  `CUDA_VISIBLE_DEVICES=1`, followed by the standard official CAM++ public C4 tail into
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms33_cnceleb_mixed_20260414T1545Z/`.
 
 ## 2026-04-13 — MS31 Official CAM++ VoxBlink2-Like Augmentation Launch
 
