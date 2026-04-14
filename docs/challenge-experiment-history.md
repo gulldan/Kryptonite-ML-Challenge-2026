@@ -58,8 +58,9 @@ public_score = mean(precision@10_i)
 | 2026-04-13 | `MS12_exact_reference_guard_20260413T2301` | Materialized the fixed public reference CSV after full TensorRT recompute failed strict identity; verified validator, SHA-256, and ordered overlap against MS1. | validator passed; reference and output SHA-256 both `3412a0c10827f19f6089e52943960f3117202342eb57ccfec4b1435c73361cee`; byte-identical `true`; overlap exactly `10/10`, ordered-cell equal `100%`, top1 equal `100%`. | not submitted | identical to MS1 by construction | Use this artifact when the requirement is full identity with `artifacts/backbone_public/campp/default_model_submission.csv`. Recompute paths are not exact enough for that contract. |
 | 2026-04-13 | `MS13-MS18_campp_full_frontend_pack` | Materialized the full exact official frontend cache, packed it into contiguous segment storage, and built/ran B128 TensorRT public recompute. | cache materialization wall `777.730s`; pack wall `92.468s`; best full packed B128 run `MS18`: embedding `68.993s`, search `0.765s`, validator passed, byte-identical `false`, overlap vs MS1 mean `9.832/10`, top1 equal `97.80%`. | not submitted | not applicable | Accepted as the fastest recompute mode so far when frontend features are already packed; still not a strict replacement for MS1 because ordering/SHA differs. |
 | 2026-04-13 | `MS19-MS29_campp_pack_batch_sweep` | Built B256 TensorRT control, tested B128/B256 packed public recompute on GPU0/GPU1, and rejected an experimental contiguous pack-fast path. | B128/GPU1 `MS28`: embedding `69.194s`, search `0.669s`, validator passed, byte-identical `false`; B256/GPU1 `MS29`: embedding `76.837s`, search `0.739s`; pack-fast opt-in path was slower and aborted (`~1.84k` rows/s vs B128 loop `~2.02k`). | not submitted | not applicable | Keep B128 packed-cache TensorRT as the practical recompute optimum. Do not use B256 or pack-fast by default; GPU choice/thermal state affects wall time. |
-| 2026-04-13 | `MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z` | Stage-wise adaptation probe from MS1 ModelScope CAM++ pretrained checkpoint: official CAM++ frontend inside training (`kaldi.fbank(dither=0.0)` + utterance mean normalization), fixed 6s train crops, low-LR AdamW fine-tune on participant train with light public-shift augmentation, then official segment_mean 3x6s public C4 tail. | running on arm11 GPU0; train config `configs/training/campp-ms1-official-participants-lowlr.toml`; log `artifacts/logs/MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z.log`. | pending | pending | Active hypothesis check. Decision depends on dev train metrics, public C4 validator/graph stats, and LB if submitted. If it preserves MS1 geometry and improves public graph quality, follow with filtered official-CAM++ public pseudo-label self-training. |
-| 2026-04-13 | `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z` | Parallel supervised adaptation control from the same MS1 official CAM++ checkpoint, but with a VoxBlink2-like on-the-fly augmentation mix: stronger speed perturbation plus noise/reverb/codec/distance/silence. | running on arm11 GPU1, PID `463779`; smoke candidate counts noise `2016`, reverb `60417`, distance `3`, codec `7`, silence `3`, speed `4`, missing families none; latest checked progress `epoch=1/8 batch=256/2578`, `ex_per_s=390.2`, GPU1 util `100%`; train config `configs/training/campp-ms1-official-participants-voxblink2-augment.toml`; log `artifacts/logs/MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z.log`. | pending | pending | Riskier augmentation-mixing hypothesis. Compare directly against MS30; accept only if dev/public graph quality improves without destroying the MS1 official-frontend neighborhood. |
+| 2026-04-14 | `MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z` | Stage-wise adaptation probe from MS1 ModelScope CAM++ pretrained checkpoint: official CAM++ frontend inside training (`kaldi.fbank(dither=0.0)` + utterance mean normalization), fixed 6s train crops, low-LR AdamW fine-tune on participant train with light public-shift augmentation, then official segment_mean 3x6s public C4 tail. | train completed on arm11 GPU0, final loss `0.748006`, acc `0.978814`; C4 validator passed, `top10_mean_score_mean=0.6261`, label_used_share `0.8163`, Gini@10 `0.3363`, max in-degree `68`; submission SHA-256 `d18faab64f94eb74ad40fc3539b86a21e76ca05b1a09f4700699b52a9bda3eb3`. | `0.6953` | `+0.6174` vs organizer baseline, `+0.1258` vs MS1 | New public best. Accept supervised official-CAM++ low-LR adaptation as the safe branch and use it as the base for filtered public pseudo-label self-training/fusion, not the unadapted MS1 branch. |
+| 2026-04-14 | `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z` | Parallel supervised adaptation control from the same MS1 official CAM++ checkpoint, but with a VoxBlink2-like on-the-fly augmentation mix: stronger speed perturbation plus noise/reverb/codec/distance/silence. | training completed 8 epochs on arm11 GPU1, final train loss `1.343605`, train acc `0.955046`; smoke candidate counts noise `2016`, reverb `60417`, distance `3`, codec `7`, silence `3`, speed `4`, missing families none; standalone packed-cache public C4 tail validator passed, `top10_mean_score_mean=0.6207`, label_used_share `0.8168`, Gini@10 `0.3380`, max in-degree `91`; submission `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z/submission.csv`, SHA-256 `cc00f3ca5c1b6de734b1a819c2c53fbacaf29a7afe4de17f76154591f707cb70`. | `0.7018` | `+0.6239` vs organizer baseline, `+0.1323` vs MS1, `+0.4157` vs P3 | New public best. VoxBlink2-like augmentation inside low-LR official CAM++ adaptation is confirmed useful; prioritize this branch for pseudo-label self-training, conservative graph/fusion, and presentation-safe submission tracking. |
+| 2026-04-14 | `MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z` | Filtered pseudo-label self-training from the MS31 checkpoint: MS31 top-200 public cache -> G6-style cluster-first graph -> cluster-size filter `[8,80]` -> mixed original train + public pseudo labels, then CAM++ low-LR fine-tune and packed-cache public C4 tail. | train completed 4 epochs on arm11 GPU0, final loss `1.724956`, acc `0.943825`; pseudo pool validator passed, `cluster_used_share=0.8907`; filtered pseudo manifest `104361` rows / `3173` pseudo clusters; public C4 validator passed, `top10_mean_score_mean=0.6564`, label_used_share `0.8914`, Gini@10 `0.3326`, max in-degree `57`; submission SHA-256 `239118b2d431f20a85ef1127e2bd681abf95314714e81b6009298d9b42939ffc`. | `0.7379` | `+0.6600` vs organizer baseline, `+0.0361` vs MS31, `+0.1684` vs MS1 | New public best. Filtered pseudo-label self-training from the MS31 official CAM++ branch is confirmed useful; use MS32 as the safe branch for next fusion/pseudo-label refinement. |
 
 ## 2026-04-13 — MS30 Official CAM++ Pretrained Low-LR Adaptation Launch
 
@@ -152,7 +153,146 @@ PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train \
 ```
 
 Status at launch: running, PID `463160`. First training progress reached
-`epoch=1/8 batch=1/2578` with GPU0 memory around `23.2 GiB`. Public score pending.
+`epoch=1/8 batch=1/2578` with GPU0 memory around `23.2 GiB`.
+
+Completion:
+
+- Training completed on arm11 GPU0 on 2026-04-14. Final epoch metrics:
+  `train_loss=0.748006`, `train_accuracy=0.978814`, `learning_rate=1e-5`.
+- Final checkpoint:
+  `artifacts/baselines/campp-ms1-official-participants-lowlr/20260413T202123Z-d45cc7d9936e/campp_encoder.pt`.
+- Training summary:
+  `artifacts/baselines/campp-ms1-official-participants-lowlr/20260413T202123Z-d45cc7d9936e/training_summary.json`.
+- The original chained wrapper stopped after training because `${OUT}` did not exist before
+  redirecting `selected_checkpoint.txt`. Public tail was rerun standalone without
+  retraining.
+- Public tail rerun log:
+  `artifacts/logs/MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z_public_tail_resume.log`.
+- Public tail command:
+
+```bash
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train \
+  python scripts/run_official_campp_tail.py \
+  --checkpoint-path artifacts/baselines/campp-ms1-official-participants-lowlr/20260413T202123Z-d45cc7d9936e/campp_encoder.pt \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --data-root 'datasets/Для участников' \
+  --output-dir artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z \
+  --experiment-id MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z \
+  --encoder-backend torch \
+  --device cuda \
+  --search-device cuda \
+  --batch-size 512 \
+  --search-batch-size 2048 \
+  --top-cache-k 200 \
+  --mode segment_mean \
+  --eval-chunk-seconds 6.0 \
+  --segment-count 3 \
+  --long-file-threshold-seconds 6.0 \
+  --frontend-pack-dir artifacts/cache/campp-official-public-ms1-v1-pack
+```
+
+Public tail result:
+
+- Embedding extraction from packed official frontend cache: `162.070616s`.
+- Exact top-k search: `0.943175s`.
+- C4 rerank: `9.600895s`.
+- C4 validator: passed, `134697/134697` rows, `0` errors.
+- C4 graph stats: `top1_score_mean=0.6888875`, `top10_mean_score_mean=0.6260672`,
+  `label_count=14236`, `label_used_share=0.816321`, Gini@10 `0.336347`,
+  max in-degree@10 `68`.
+- Submission:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z/submission_MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z_c4.csv`.
+- Validation report:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z/submission_MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z_c4_validation.json`.
+- Summary:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z/MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z_summary.json`.
+- Submission SHA-256:
+  `d18faab64f94eb74ad40fc3539b86a21e76ca05b1a09f4700699b52a9bda3eb3`.
+- Public LB: `0.6953` from external upload, reported by user on 2026-04-14.
+- Decision: accepted as new public best. The low-LR supervised adaptation improves MS1 by
+  `+0.1258` absolute (`0.6953` vs `0.5695`) and should become the new safe CAM++ base
+  for filtered public pseudo-label self-training and conservative fusion.
+
+## 2026-04-14 — External Speaker Dataset Acquisition For Private-LB Robustness
+
+Purpose:
+
+- User clarified that the challenge rules disallow only VoxBlink2, while other external
+  datasets are allowed. Because private LB is expected to be about `3x` larger and more
+  diverse than public, prepare external far-field/speaker data for a controlled adaptation
+  run on top of the current official CAM++ branch.
+- Do not download or use VoxBlink2 audio, labels, embeddings, or checkpoints.
+
+Repository change:
+
+- Added `scripts/download_external_speaker_datasets.py`.
+- The downloader covers open CN-Celeb v2, open FFSVC2022 trial/meta files, and restricted
+  FFSVC Zenodo records when `ZENODO_ACCESS_TOKEN` is available.
+- Restricted FFSVC audio archives are not silently mirrored: without a token the script writes
+  access notes under `datasets/ffsvc*/.../REQUEST_ACCESS.md` and reports `skipped`.
+- Added `scripts/build_cnceleb_manifests.py` for the next step after extraction: scan
+  `datasets/CN-Celeb_flac`, create external train/dev manifests, and optionally append the
+  external train split to the participant train manifest for mixed adaptation runs. A partial
+  tar header check showed CN-Celeb v2 paths like
+  `CN-Celeb_flac/eval/test/id00939-speech-01-079.flac`, so the manifest builder defaults to
+  speaker ids from the filename prefix before the first `-`.
+- Added `configs/training/campp-ms31-cnceleb-mixed-lowlr.toml` as the planned GPU1 external
+  adaptation config once CN-Celeb is fully downloaded, verified, extracted, and converted to
+  manifests. It starts from the MS31 checkpoint, uses the official CAM++ frontend, keeps
+  participant dev as the guardrail, and trains for `2` low-LR epochs on participant train plus
+  CN-Celeb external train.
+
+Planned remote acquisition:
+
+- Run id: `EXTDATA_external_speaker_download_20260414T0630Z`.
+- Host/container: `arm11`, Docker container `MK_RND`.
+- Command target: download all known non-VoxBlink2 external speaker datasets supported by the
+  script. Open downloads should materialize immediately; restricted FFSVC audio archives need a
+  Zenodo token.
+- Remote log:
+  `artifacts/logs/EXTDATA_external_speaker_download_20260414T0630Z.log`.
+- PID file:
+  `artifacts/logs/EXTDATA_external_speaker_download_20260414T0630Z.pid`.
+- Launch status: started detached on arm11 at 2026-04-14T06:30Z, PID `479335`.
+- Initial progress: FFSVC2022 `trials_dev_keys`, `dev_meta_list`, and `trials_eval` downloaded
+  with MD5 verification on arm11. CN-Celeb v2 `21G` archive download started from OpenSLR.
+  Restricted FFSVC audio Zenodo records require `ZENODO_ACCESS_TOKEN`; without it they will be
+  reported as skipped and access notes will be written under `datasets/ffsvc*/...`.
+- CN-Celeb primary OpenSLR download timed out early. The downloader was patched with mirror
+  fallback and the job was resumed as PID `479467`, log
+  `artifacts/logs/EXTDATA_external_speaker_download_20260414T0630Z_resume1.log`, reusing the
+  partial archive through `wget -c`.
+- The first resume exposed an incomplete-archive edge case: a partial `cn-celeb_v2.tar.gz`
+  was treated as extractable and failed with `EOFError`. The downloader was patched to verify
+  MD5 before extraction, resume corrupt/incomplete archives instead of unpacking them, and keep
+  mirror fallback. The stale `wget` process was stopped, the failed partial extraction
+  directory `datasets/CN-Celeb_flac` was removed, and acquisition was relaunched detached as
+  PID `479589`, log
+  `artifacts/logs/EXTDATA_external_speaker_download_20260414T0630Z_resume2.log`.
+- Early `resume2` throughput from the EU OpenSLR mirrors was too low for a 21 GB archive. A
+  short range probe showed the China OpenSLR mirror responding better from `arm11`, so the
+  CN-Celeb URL order was changed to prefer `http://openslr.magicdatatech.com/...` first.
+  The job was restarted again against the same partial archive as PID `479830`, log
+  `artifacts/logs/EXTDATA_external_speaker_download_20260414T0630Z_resume3.log`.
+- A separate restricted-FFSVC check was run immediately to record the access state without
+  waiting for CN-Celeb to finish. Report:
+  `artifacts/reports/external-speaker-datasets/EXTDATA_ffsvc_restricted_access_notes_20260414T0650Z.json`.
+  Result: all restricted FFSVC audio records were `skipped` because `ZENODO_ACCESS_TOKEN` is
+  not set; `REQUEST_ACCESS.md` notes were written under the corresponding `datasets/ffsvc*`
+  directories.
+- `resume3` made progress to `3.8G` of the `21G` CN-Celeb archive, but then stopped after one
+  full mirror pass because every OpenSLR mirror eventually returned timeout exit code `4`.
+  The downloader was patched with `--download-passes` and `--retry-sleep-seconds` so long
+  unstable downloads can continue through repeated mirror cycles until final MD5 verification.
+  CN-Celeb was relaunched detached from the same partial archive as
+  `EXTDATA_cnceleb_resume_until_md5_20260414T1527Z`, PID `481721`, log
+  `artifacts/logs/EXTDATA_cnceleb_resume_until_md5_20260414T1527Z.log`, report
+  `artifacts/reports/external-speaker-datasets/EXTDATA_cnceleb_resume_until_md5_20260414T1527Z_status.json`.
+- Alternative-source probes were also run from `arm11`. `zzj-pro/CN_Celeb_v2` on Hugging Face
+  Hub was public but contained only `.gitattributes` (`used_storage=0`), so it is not usable as
+  a mirror. Historical `cslt.riit.tsinghua.edu.cn` and guessed `cnceleb.org` URLs were not
+  resolvable or returned `404`. Keep the OpenSLR partial resume as the active acquisition path.
 
 ## 2026-04-13 — MS31 Official CAM++ VoxBlink2-Like Augmentation Launch
 
@@ -247,18 +387,42 @@ PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=1 uv run --group train \
   --long-file-threshold-seconds 6.0
 ```
 
-Status at launch/check: running, PID `463779`. First training progress reached
-`epoch=1/8 batch=1/2578`; later check reached `epoch=1/8 batch=256/2578`,
-`ex_per_s=390.2`, GPU1 memory around `23.2 GiB`, GPU1 utilization `100%`.
-Public score pending.
+Status:
+
+- Training completed on arm11 GPU1. Final epoch metrics: train loss `1.343605`,
+  train accuracy `0.955046`.
+- Checkpoint:
+  `artifacts/baselines/campp-ms1-official-participants-voxblink2-augment/20260413T203245Z-b87036ccb3db/campp_encoder.pt`.
+- The original combined detached job did not reach the public tail. It completed training
+  and wrote the checkpoint/dev embeddings, then stopped during the generic dev scoring path
+  after creating a very large `dev_trials.jsonl`. This is diagnostic for the wrapper, not a
+  model failure.
+- Standalone public tail was rerun from the checkpoint using the packed official frontend
+  cache `artifacts/cache/campp-official-public-ms1-v1-pack`.
+- Tail log:
+  `artifacts/logs/MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z_tail_submit_20260414T0527Z.log`.
+- Public C4 tail metrics: embedding `160.909s`, exact top-k search `0.755s`,
+  C4 rerank `9.639s`, `c4_top10_mean_score_mean=0.6206907`, label_used_share
+  `0.8168`, Gini@10 `0.337978`, max in-degree `91`.
+- Validator: passed, `134697/134697` rows, `k=10`, `error_count=0`.
+- Submission:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z/submission.csv`
+  (short copy of
+  `submission_MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z_c4.csv`).
+- SHA-256:
+  `cc00f3ca5c1b6de734b1a819c2c53fbacaf29a7afe4de17f76154591f707cb70`.
+- Public LB score: `0.7018`.
+- Result: new public best, `+0.1323` absolute vs MS1 `0.5695` and `+0.6239`
+  absolute vs organizer baseline `0.0779`. This confirms the VoxBlink2-like
+  augmentation mix helped the official CAM++ adaptation branch.
 
 Current public best:
 
 - User-reported external best:
-  `MS1_modelscope_campplus_voxceleb_default`, public LB `0.5695`
-  using ModelScope `iic/speech_campplus_sv_en_voxceleb_16k`.
+  `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z`, public LB
+  `0.7018`.
 - Artifact:
-  `artifacts/backbone_public/campp/default_model_submission.csv`
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z/submission.csv`
 
 - Fast public probe candidate:
   `artifacts/backbone_public/modelscope_campplus_voxceleb_default/official_graph_20260412T_candidate/submission_C1_b8_mutual20_component.csv`
@@ -275,6 +439,159 @@ Current public best:
 - Latest orthogonal candidate: `E1_wavlm_domain_ft_public_c4`, public LB `0.2833`
   with artifact
   `artifacts/backbone_public/hf_xvector/wavlm_e1_domain_ft_public_c4_20260412T130254Z/submission_E1_wavlm_domain_ft_public_c4.csv`.
+
+## 2026-04-14 — MS32 Filtered Pseudo-Label Self-Training From MS31 Launch
+
+Hypothesis:
+
+- `MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z` is the current
+  strongest public branch at external LB `0.7018`. The next low-risk improvement is
+  stage-wise public self-training from that checkpoint, not a scratch model.
+- Use the public graph only as pseudo-label structure: no hidden public labels and no
+  VoxBlink2 data are used. VoxBlink2 remains only the augmentation-style reference inherited
+  from MS31.
+- Keep pseudo-label filtering conservative by training only on clusters with size `[8,80]`,
+  avoiding singleton noise and oversized public communities.
+
+Pseudo-label pool:
+
+- Pool id: `MS32a_ms31_clusterfirst_shared4_penalty020_top200_20260414T0551Z`.
+- Source public cache:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z/indices_MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z_top200.npy`
+  and matching `scores_..._top200.npy`.
+- Cluster-first settings: `edge_top=20`, `reciprocal_top=50`, `rank_top=200`,
+  `iterations=8`, `cluster_min_size=5`, `cluster_max_size=160`,
+  `cluster_min_candidates=3`, `shared_top=50`, `shared_min_count=4`,
+  `split_edge_top=8`, `self_weight=0.0`, `label_size_penalty=0.20`.
+- Output dir:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_clusterfirst_pseudo_pool_20260414T0551Z/`.
+- Validator: passed.
+- Pool metrics: `cluster_count=8102`, `cluster_used_share=0.8907176849`,
+  cluster size p50 `5`, p95 `64`, p99 `92`, max `391`,
+  `top10_mean_score_mean=0.6191661`, Gini@10 `0.3650773`, max in-degree `64`.
+- Cluster assignments:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_clusterfirst_pseudo_pool_20260414T0551Z/clusters_MS32a_ms31_clusterfirst_shared4_penalty020_top200_20260414T0551Z.csv`.
+
+Filtered pseudo manifest:
+
+```bash
+cd /jupyter/kleshchenok/audio/embbedings
+uv run --group train python scripts/build_pseudo_label_manifests.py \
+  --clusters-csv artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_clusterfirst_pseudo_pool_20260414T0551Z/clusters_MS32a_ms31_clusterfirst_shared4_penalty020_top200_20260414T0551Z.csv \
+  --public-manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --base-train-manifest artifacts/manifests/participants_fixed/train_manifest.jsonl \
+  --output-dir artifacts/manifests/pseudo_ms31 \
+  --experiment-id ms31_filtered \
+  --min-cluster-size 8 \
+  --max-cluster-size 80 \
+  --label-prefix pseudo_ms31_ \
+  --dataset-name participants_ms31_pseudo \
+  --public-audio-prefix 'datasets/Для участников'
+```
+
+- Pseudo rows: `104361`.
+- Pseudo clusters: `3173`.
+- Mixed train rows: `764165`.
+- Pseudo manifest:
+  `artifacts/manifests/pseudo_ms31/ms31_filtered_pseudo_manifest.jsonl`.
+- Mixed manifest:
+  `artifacts/manifests/pseudo_ms31/ms31_filtered_mixed_train_manifest.jsonl`.
+
+Remote launch:
+
+- Run id: `MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z`.
+- Host/container: `arm11`, Docker container `MK_RND`.
+- GPU assignment: `CUDA_VISIBLE_DEVICES=0`.
+- Detached PID: `478094`.
+- Config path: `configs/training/campp-ms31-official-pseudo-filtered-lowlr.toml`.
+- Init checkpoint:
+  `artifacts/baselines/campp-ms1-official-participants-voxblink2-augment/20260413T203245Z-b87036ccb3db/campp_encoder.pt`.
+- Train manifest:
+  `artifacts/manifests/pseudo_ms31/ms31_filtered_mixed_train_manifest.jsonl`.
+- Dev manifest: `artifacts/manifests/participants_fixed/dev_manifest.jsonl`, capped by
+  `max_dev_rows=1024` to avoid all-pairs dev-trial blowup after checkpointing.
+- Output root: `artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/`.
+- Public tail output root:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms32_pseudo_ms31_20260414T0551Z/`.
+- Remote log:
+  `artifacts/logs/MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z.log`.
+- PID file:
+  `artifacts/logs/MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z.pid`.
+- Latest pointer:
+  `artifacts/logs/latest_MS32_campp_ms31_filtered_pseudo_lowlr_public_c4.txt`.
+
+Training parameters:
+
+- Model family: CAM++ `512d`, official ModelScope/3D-Speaker architecture.
+- Frontend: `features.frontend="official_campp"`,
+  `torchaudio.compliance.kaldi.fbank(dither=0.0)` with utterance mean normalization.
+- Crop/preprocess policy: no VAD, fixed 6s train crops, eval 6s chunks with mean pooling.
+- Precision/batch: bf16, train batch `256`, eval batch `256`, max epochs `4`.
+- Optimizer/scheduler: AdamW, LR `5e-5`, min LR `5e-6`, weight decay `5e-5`, cosine,
+  warmup `1`, grad clip `5.0`.
+- Objective: ArcMargin scale `32.0`, margin `0.2`.
+- Augmentation policy: conservative public-shift mix, max `2` augmentations/sample,
+  clean probability `0.65 -> 0.35`, light `0.30 -> 0.35`, medium `0.05 -> 0.20`,
+  heavy `0.00 -> 0.10`; family weights noise `1.10`, reverb `0.85`, distance `0.90`,
+  codec `1.05`, silence `1.00`, speed `0.35`.
+
+Post-train public tail command:
+
+```bash
+PYTHONUNBUFFERED=1 CUDA_VISIBLE_DEVICES=0 uv run --group train \
+  python scripts/run_official_campp_tail.py \
+  --checkpoint-path "$CHECKPOINT" \
+  --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv \
+  --template-csv 'datasets/Для участников/test_public.csv' \
+  --data-root 'datasets/Для участников' \
+  --output-dir artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms32_pseudo_ms31_20260414T0551Z \
+  --experiment-id MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z \
+  --encoder-backend torch \
+  --device cuda \
+  --search-device cuda \
+  --batch-size 512 \
+  --search-batch-size 2048 \
+  --top-cache-k 200 \
+  --mode segment_mean \
+  --eval-chunk-seconds 6.0 \
+  --segment-count 3 \
+  --long-file-threshold-seconds 6.0 \
+  --frontend-pack-dir artifacts/cache/campp-official-public-ms1-v1-pack
+```
+
+Status:
+
+- Launched detached on arm11 GPU0 at `2026-04-14T05:53:02Z`.
+- Cluster export and pseudo manifest completed successfully before training.
+- Training completed 4 epochs at `2026-04-14T08:01Z`. Final epoch loss `1.724956`,
+  train accuracy `0.943825`, LR `5e-6`. Epoch history: epoch 1 loss `7.614209`,
+  acc `0.682823`; epoch 2 loss `2.365201`, acc `0.934833`; epoch 3 loss `1.750846`,
+  acc `0.945141`; epoch 4 loss `1.724956`, acc `0.943825`.
+- Speaker classes during self-training: `14021` = `10848` original train speakers +
+  `3173` pseudo public clusters.
+- Checkpoint:
+  `artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt`.
+- Training summary:
+  `artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/training_summary.json`.
+- Public tail completed at `2026-04-14T08:06:30Z` using packed frontend cache hits for all
+  `134697` public rows.
+- Public C4 tail metrics: embedding `165.545s`, exact top-k search `0.900s`,
+  C4 rerank `9.825s`, `c4_top10_mean_score_mean=0.6563528`,
+  `c4_top1_score_mean=0.7203525`, label_used_share `0.8914`, Gini@10 `0.332575`,
+  max in-degree `57`.
+- Validator: passed, `134697/134697` rows, `k=10`, `error_count=0`.
+- Submission:
+  `artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms32_pseudo_ms31_20260414T0551Z/submission.csv`
+  (short copy of
+  `submission_MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z_c4.csv`).
+- SHA-256:
+  `239118b2d431f20a85ef1127e2bd681abf95314714e81b6009298d9b42939ffc`.
+- Public LB score: `0.7379`.
+- Decision: accepted as the new public best. Local public-graph metrics were substantially
+  stronger than MS31 (`top10_mean_score_mean 0.6564` vs `0.6207`, Gini@10 `0.3326` vs
+  `0.3380`, max in-degree `57` vs `91`), and the hidden public LB confirmed the gain:
+  `+0.0361` absolute over MS31 `0.7018`, `+0.1684` over MS1 `0.5695`, and `+0.6600`
+  over the organizer baseline `0.0779`.
 
 ## What Changed In `baseline_fixed_participants`
 

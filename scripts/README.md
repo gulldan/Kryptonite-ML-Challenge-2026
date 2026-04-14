@@ -27,6 +27,12 @@
 
 - `build_participant_training_manifests.py` — собрать training/dev manifests из participant split CSV
 - `build_pseudo_label_manifests.py` — собрать pseudo-label manifests из public cluster assignments
+- `build_cnceleb_manifests.py` — собрать CN-Celeb external train/dev manifests и optional
+  mixed train manifest с participant train
+- `download_external_speaker_datasets.py` — скачать external speaker datasets для adaptation
+  experiments; VoxBlink2 исключён, restricted FFSVC Zenodo records требуют
+  `ZENODO_ACCESS_TOKEN`; для нестабильных больших архивов поддерживает repeated resume через
+  `--download-passes` и `--retry-sleep-seconds`
 - `acquire_ffsvc2022_surrogate.py` — скачать FFSVC2022 surrogate
 - `prepare_ffsvc2022_surrogate.py` — собрать манифесты и сплиты
 - `normalize_audio_dataset.py` — нормализация аудио (16 kHz mono)
