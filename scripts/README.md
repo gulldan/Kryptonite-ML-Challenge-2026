@@ -26,7 +26,14 @@
 ## Data preparation
 
 - `build_participant_training_manifests.py` — собрать training/dev manifests из participant split CSV
-- `build_pseudo_label_manifests.py` — собрать pseudo-label manifests из public cluster assignments
+- `build_pseudo_label_manifests.py` — собрать pseudo-label manifests из public cluster assignments;
+  умеет optional selector-stage по top1/margin, hubness indegree, acoustic prior и cap на
+  rows per cluster
+  - `control`: только `--min-cluster-size/--max-cluster-size`
+  - `tight`: добавить `--topk-scores-npy`, `--min-top1-score`, `--min-top1-margin`,
+    `--topk-indices-npy`, `--max-indegree-quantile`, `--max-rows-per-cluster`
+  - `prior-matched`: `tight` + `--public-stats`, `--max-prior-distance-quantile`,
+    `--diversity-floor-quantile`
 - `build_cnceleb_manifests.py` — собрать CN-Celeb external train/dev manifests и optional
   mixed train manifest с participant train
 - `download_external_speaker_datasets.py` — скачать external speaker datasets для adaptation
