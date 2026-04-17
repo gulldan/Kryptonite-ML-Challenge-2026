@@ -1,0 +1,111 @@
+title = "Kryptonite model-family speed comparison"
+date = "2026-04-16"
+remote_host = "<remote-host>"
+remote_host_repo = "<remote-repo>"
+remote_container = "container"
+remote_container_repo = "<repo-root>"
+dataset_root = "datasets/Для участников"
+public_csv = "datasets/Для участников/test_public.csv"
+public_manifest = "artifacts/eda/participants_public_baseline/test_public_manifest.csv"
+speed_metric_scope = "prepared-model full submission generation only; ONNX export and TensorRT build are preparation and are excluded from speed totals"
+
+[[models]]
+family = "organizer_baseline"
+label = "Organizer baseline"
+public_lb = 0.0779
+source_kind = "organizer_onnx"
+source_model = "datasets/Для участников/baseline.onnx"
+source_submission = "artifacts/baseline_submission/submission.csv"
+optimized_submission = "artifacts/speed-family-comparison/organizer_baseline/submission.csv"
+notes = "Run the organizer baseline as provided, without model modifications."
+
+[[models.commands]]
+name = "baseline_public_original"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python baseline/inference_onnx.py --onnx_path 'datasets/Для участников/baseline.onnx' --csv 'datasets/Для участников/test_public.csv' --output_emb artifacts/speed-family-comparison/organizer_baseline/embeddings.npy --output_indices artifacts/speed-family-comparison/organizer_baseline/submission.csv --batch_size 64 --num_workers 4 --device cuda --sample_rate 16000 --chunk_seconds 6.0 --num_crops 1 --topk 10 --data_base_dir 'datasets/Для участников'"
+
+[[models]]
+family = "campp"
+label = "CAM++ MS32 encoder + MS41 tail"
+public_lb = 0.7473
+source_kind = "pytorch_checkpoint"
+source_model = "artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt"
+source_submission = "artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms41_ms32_classaware_c4_weak_20260415T0530Z/submission_MS41_ms32_classaware_c4_weak_20260415T0530Z.csv"
+onnx_bundle = "artifacts/model-bundle-campp-ms32-onnx"
+tensorrt_config = "configs/release/tensorrt-fp16-ms32-b128-segment6.toml"
+optimized_summary = "artifacts/speed-family-comparison/campp_ms32_tensorrt/SPEED_CAMPP_MS32_TRT_PUBLIC_summary.json"
+optimized_submission = "artifacts/speed-family-comparison/campp_ms32_tensorrt/submission_SPEED_CAMPP_MS32_TRT_PUBLIC_c4.csv"
+notes = "MS41 uses the MS32 CAM++ encoder for embeddings/top-200, then class-aware C4 tail."
+
+[[models.commands]]
+name = "export_onnx"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/export_campp_onnx.py --config configs/base.toml --checkpoint artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt --output-root artifacts/model-bundle-campp-ms32-onnx --model-version campp-ms32-filtered-pseudo-onnx --sample-frame-count 600"
+
+[[models.commands]]
+name = "build_tensorrt"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/build_tensorrt_fp16_engine.py --config configs/release/tensorrt-fp16-ms32-b128-segment6.toml"
+
+[[models.commands]]
+name = "public_tensorrt_tail"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/run_official_campp_tail.py --checkpoint-path artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv --template-csv 'datasets/Для участников/test_public.csv' --data-root 'datasets/Для участников' --output-dir artifacts/speed-family-comparison/campp_ms32_tensorrt --experiment-id SPEED_CAMPP_MS32_TRT_PUBLIC --encoder-backend tensorrt --tensorrt-config configs/release/tensorrt-fp16-ms32-b128-segment6.toml --device cuda --search-device cuda --batch-size 128 --frontend-pack-dir artifacts/cache/campp-official-public-ms1-v1-pack --frontend-pack-fast-path --search-batch-size 4096 --top-cache-k 200 --mode segment_mean --eval-chunk-seconds 6.0 --segment-count 3 --pad-mode repeat --force-embeddings"
+
+[[models.commands]]
+name = "profile_tensorrt_layers"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/profile_tensorrt_engine_layers.py --engine artifacts/model-bundle-campp-ms32-onnx/model_b128_segment6.plan --shape encoder_input:128x600x80 --output-json artifacts/speed-family-comparison/layer-profiles/campp_ms32_b128_segment6_profile.json --output-log artifacts/speed-family-comparison/layer-profiles/campp_ms32_b128_segment6_profile.log --warmup-ms 200 --duration-s 5 --avg-runs 10"
+
+[[models]]
+family = "w2vbert2"
+label = "w2v-BERT 2.0 W2V1j stage3"
+public_lb = 0.8344
+source_kind = "teacher_peft_checkpoint"
+source_model = "artifacts/baselines/w2vbert2-mfa-lmft-stage3/20260416T073610Z-787cea6b9872/teacher_peft"
+source_submission = "artifacts/backbone_public/teacher_peft/W2V1j_teacher_peft_public_c4_20260416T131620Z_fast_bs1024_w4p1/submission_W2V1j_teacher_peft_public_c4_20260416T131620Z_fast_bs1024_w4p1.csv"
+onnx_bundle = "artifacts/model-bundle-w2vbert2-stage3-onnx"
+tensorrt_config = "configs/release/tensorrt-fp16-w2vbert2-stage3.toml"
+optimized_summary = "artifacts/speed-family-comparison/w2vbert2_stage3_tensorrt/SPEED_W2V1J_STAGE3_TRT_PUBLIC_summary.json"
+optimized_submission = "artifacts/speed-family-comparison/w2vbert2_stage3_tensorrt/submission_SPEED_W2V1J_STAGE3_TRT_PUBLIC.csv"
+notes = "Current public best. Boundary starts after Hugging Face audio feature extraction."
+
+[[models.commands]]
+name = "export_onnx"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/export_teacher_peft_onnx.py --checkpoint-path artifacts/baselines/w2vbert2-mfa-lmft-stage3/20260416T073610Z-787cea6b9872/teacher_peft --output-root artifacts/model-bundle-w2vbert2-stage3-onnx --model-version w2vbert2-w2v1j-stage3-onnx --sample-seconds 6.0 --sample-batch-size 1 --opset 18"
+
+[[models.commands]]
+name = "build_tensorrt"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/build_generic_tensorrt_engine.py --config configs/release/tensorrt-fp16-w2vbert2-stage3.toml"
+
+[[models.commands]]
+name = "public_tensorrt_tail"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/run_teacher_peft_c4_tail.py --checkpoint-path artifacts/baselines/w2vbert2-mfa-lmft-stage3/20260416T073610Z-787cea6b9872/teacher_peft --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv --template-csv 'datasets/Для участников/test_public.csv' --data-root 'datasets/Для участников' --output-dir artifacts/speed-family-comparison/w2vbert2_stage3_tensorrt --experiment-id SPEED_W2V1J_STAGE3_TRT_PUBLIC --encoder-backend tensorrt --tensorrt-engine-path artifacts/model-bundle-w2vbert2-stage3-onnx/model.plan --device cuda --search-device cuda --precision bf16 --batch-size 1024 --num-workers 4 --prefetch-factor 1 --search-batch-size 4096 --top-cache-k 300 --crop-seconds 6.0 --n-crops 3 --force-embeddings"
+
+[[models.commands]]
+name = "profile_tensorrt_layers"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/profile_tensorrt_engine_layers.py --engine artifacts/model-bundle-w2vbert2-stage3-onnx/model.plan --shape input_features:1024x299x160 --shape attention_mask:1024x299 --output-json artifacts/speed-family-comparison/layer-profiles/w2vbert2_stage3_b1024_crop6_profile.json --output-log artifacts/speed-family-comparison/layer-profiles/w2vbert2_stage3_b1024_crop6_profile.log --warmup-ms 200 --duration-s 5 --avg-runs 10"
+
+[[models]]
+family = "eres_wavlm"
+label = "Official ERes2Net H9"
+public_lb = 0.5834
+source_kind = "official_3dspeaker_checkpoint"
+source_model = "artifacts/baselines/official-3dspeaker-eres2net-large-filtered-pseudo-lowlr/20260415T040647Z-1f4c2e26a77f/official_3dspeaker_eres2net_encoder.pt"
+source_submission = "artifacts/backbone_public/official_3dspeaker_eres2net_large_h9_pseudo_20260414T2113Z/submission_H9_official_eres_filtered_pseudo_public_c4_20260414T2113Z_c4.csv"
+onnx_bundle = "artifacts/model-bundle-official-eres2net-h9-onnx"
+tensorrt_config = "configs/release/tensorrt-fp16-official-eres2net-h9.toml"
+optimized_summary = "artifacts/speed-family-comparison/official_eres2net_h9_tensorrt/SPEED_H9_ERES_TRT_PUBLIC_summary.json"
+optimized_submission = "artifacts/speed-family-comparison/official_eres2net_h9_tensorrt/submission_SPEED_H9_ERES_TRT_PUBLIC_c4.csv"
+notes = "Best submitted ERes/WavLM-family branch in the recorded public history."
+
+[[models.commands]]
+name = "export_onnx"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/export_official_3dspeaker_eres2net_onnx.py --checkpoint-path artifacts/baselines/official-3dspeaker-eres2net-large-filtered-pseudo-lowlr/20260415T040647Z-1f4c2e26a77f/official_3dspeaker_eres2net_encoder.pt --speakerlab-root /tmp/3D-Speaker --output-root artifacts/model-bundle-official-eres2net-h9-onnx --model-version official-eres2net-h9-filtered-pseudo-onnx --sample-frame-count 1000 --opset 18"
+
+[[models.commands]]
+name = "build_tensorrt"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/build_generic_tensorrt_engine.py --config configs/release/tensorrt-fp16-official-eres2net-h9.toml"
+
+[[models.commands]]
+name = "public_tensorrt_tail"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/run_official_3dspeaker_eres2net_tail.py --checkpoint-path artifacts/baselines/official-3dspeaker-eres2net-large-filtered-pseudo-lowlr/20260415T040647Z-1f4c2e26a77f/official_3dspeaker_eres2net_encoder.pt --speakerlab-root /tmp/3D-Speaker --manifest-csv artifacts/eda/participants_public_baseline/test_public_manifest.csv --template-csv 'datasets/Для участников/test_public.csv' --data-root 'datasets/Для участников' --output-dir artifacts/speed-family-comparison/official_eres2net_h9_tensorrt --experiment-id SPEED_H9_ERES_TRT_PUBLIC --encoder-backend tensorrt --tensorrt-engine-path artifacts/model-bundle-official-eres2net-h9-onnx/model.plan --device cuda --search-device cuda --batch-size 128 --precision fp32 --search-batch-size 4096 --top-cache-k 200 --chunk-seconds 10.0 --force-embeddings"
+
+[[models.commands]]
+name = "profile_tensorrt_layers"
+command = "CUDA_VISIBLE_DEVICES=1 PYTHONUNBUFFERED=1 uv run --group train python scripts/profile_tensorrt_engine_layers.py --engine artifacts/model-bundle-official-eres2net-h9-onnx/model.plan --shape features:128x1000x80 --output-json artifacts/speed-family-comparison/layer-profiles/official_eres2net_h9_b128_chunk10_profile.json --output-log artifacts/speed-family-comparison/layer-profiles/official_eres2net_h9_b128_chunk10_profile.log --warmup-ms 200 --duration-s 5 --avg-runs 10"

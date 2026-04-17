@@ -1,0 +1,277 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import cast
+
+import numpy as np
+import soundfile as sf
+import torch
+
+from kryptonite.models import ArcMarginLoss, CosineClassifier, ERes2NetV2Config, ERes2NetV2Encoder
+from kryptonite.training import load_eres2netv2_baseline_config, run_eres2netv2_baseline
+
+
+def test_eres2netv2_encoder_produces_embeddings_and_margin_loss() -> None:
+    encoder = ERes2NetV2Encoder(
+        ERes2NetV2Config(
+            feat_dim=16,
+            embedding_size=32,
+            m_channels=16,
+            base_width=16,
+            scale=2,
+            expansion=2,
+            num_blocks=(1, 1, 1, 1),
+            pooling_func="TSTP",
+            two_embedding_layers=False,
+        )
+    )
+    classifier = CosineClassifier(32, num_classes=3)
+    subcenter_classifier = CosineClassifier(32, num_classes=3, subcenters_per_class=2)
+    criterion = ArcMarginLoss(scale=16.0, margin=0.2)
+
+    features = torch.randn(4, 80, 16, dtype=torch.float32)
+    labels = torch.tensor([0, 1, 2, 1], dtype=torch.long)
+
+    embeddings = encoder(features)
+    logits = classifier(embeddings)
+    subcenter_logits = subcenter_classifier(embeddings)
+    loss = criterion(logits, labels)
+
+    assert embeddings.shape == (4, 32)
+    assert logits.shape == (4, 3)
+    assert subcenter_logits.shape == (4, 3)
+    assert subcenter_classifier.weight.shape == (6, 32)
+    assert torch.isfinite(loss)
+
+
+def test_eres2netv2_baseline_smoke_run_writes_checkpoint_embeddings_and_scores(
+    tmp_path: Path,
+) -> None:
+    train_manifest, dev_manifest = _write_manifest_fixtures(tmp_path)
+    config_path = _write_eres2netv2_config(
+        tmp_path,
+        train_manifest=train_manifest,
+        dev_manifest=dev_manifest,
+    )
+
+    config = load_eres2netv2_baseline_config(config_path=config_path, env_file=tmp_path / ".env")
+    artifacts = run_eres2netv2_baseline(config, config_path=config_path, device_override="cpu")
+
+    assert Path(artifacts.checkpoint_path).is_file()
+    assert Path(artifacts.embeddings_path).is_file()
+    assert Path(artifacts.embedding_metadata_jsonl_path).is_file()
+    assert Path(artifacts.embedding_metadata_parquet_path).is_file()
+    assert Path(artifacts.scores_path).is_file()
+    assert Path(artifacts.score_summary_path).is_file()
+    assert Path(artifacts.report_path).is_file()
+    cohort_summary_path = Path(artifacts.output_root) / "cohort_summary.json"
+    assert cohort_summary_path.is_file()
+    assert artifacts.verification_report is not None
+    assert Path(artifacts.verification_report.report_json_path).is_file()
+    assert Path(artifacts.verification_report.report_markdown_path).is_file()
+    assert artifacts.training_summary.epochs[-1].mean_loss > 0.0
+    assert artifacts.training_summary.provenance_ruleset == "standard"
+    assert artifacts.training_summary.provenance_initialization == "from_scratch"
+    assert artifacts.score_summary.trial_count > 0
+    assert artifacts.score_summary.positive_count > 0
+    assert artifacts.score_summary.negative_count > 0
+    assert (
+        artifacts.verification_report.summary.metrics.trial_count
+        == artifacts.score_summary.trial_count
+    )
+
+    payload = np.load(artifacts.embeddings_path)
+    assert payload["embeddings"].shape == (4, 32)
+    metadata_rows = _read_jsonl(Path(artifacts.embedding_metadata_jsonl_path))
+    assert metadata_rows[0]["corruption_family"] == "noise"
+    assert metadata_rows[0]["corruption_severity"] == "light"
+    corruption_metadata = metadata_rows[0]["corruption_metadata"]
+    assert isinstance(corruption_metadata, dict)
+    assert cast(dict[str, object], corruption_metadata)["corruption_category"] == "stationary"
+
+    report_text = Path(artifacts.report_path).read_text()
+    assert "# ERes2NetV2 Baseline Report" in report_text
+    assert "- Ruleset: `standard`" in report_text
+    assert "## Verification Eval" in report_text
+    assert "## Cohort Bank" in report_text
+    cohort_summary = json.loads(cohort_summary_path.read_text())
+    assert cohort_summary["selected_row_count"] == 4
+    assert cohort_summary["selected_speaker_count"] == 2
+    assert cohort_summary["trial_overlap_fallback_used"] is True
+    assert cohort_summary["overlapping_validation_speakers"] == []
+
+
+def test_eres2netv2_baseline_early_stopping_records_and_restores_best(
+    tmp_path: Path,
+) -> None:
+    train_manifest, dev_manifest = _write_manifest_fixtures(tmp_path)
+    config_path = _write_eres2netv2_config(
+        tmp_path,
+        train_manifest=train_manifest,
+        dev_manifest=dev_manifest,
+        max_epochs=3,
+        optimization_lines=[
+            "early_stopping_enabled = true",
+            'early_stopping_monitor = "train_loss"',
+            "early_stopping_min_delta = 0.0",
+            "early_stopping_patience_epochs = 2",
+            "early_stopping_min_epochs = 1",
+            "early_stopping_restore_best = true",
+            "early_stopping_stop_train_accuracy = 0.0",
+        ],
+    )
+
+    config = load_eres2netv2_baseline_config(config_path=config_path, env_file=tmp_path / ".env")
+    artifacts = run_eres2netv2_baseline(config, config_path=config_path, device_override="cpu")
+
+    assert len(artifacts.training_summary.epochs) == 1
+    early_stopping = artifacts.training_summary.early_stopping
+    assert early_stopping is not None
+    assert early_stopping.stopped is True
+    assert early_stopping.reason == "train_accuracy_threshold"
+    assert early_stopping.best_epoch == 1
+    assert early_stopping.restored_best is True
+
+    summary_payload = json.loads(Path(artifacts.training_summary_path).read_text())
+    assert summary_payload["early_stopping"]["stopped"] is True
+    assert summary_payload["epochs"][0]["is_best_checkpoint"] is True
+
+
+def _write_eres2netv2_config(
+    tmp_path: Path,
+    *,
+    train_manifest: Path,
+    dev_manifest: Path,
+    max_epochs: int = 1,
+    optimization_lines: list[str] | None = None,
+) -> Path:
+    config_root = tmp_path / "configs" / "training"
+    config_root.mkdir(parents=True, exist_ok=True)
+    config_path = config_root / "eres2netv2-test.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                f'base_config = "{Path("configs/base.toml").resolve().as_posix()}"',
+                "project_overrides = [",
+                f"  'paths.project_root=\"{tmp_path.as_posix()}\"',",
+                "  'tracking.enabled=false',",
+                "  'runtime.num_workers=0',",
+                "  'training.batch_size=2',",
+                "  'training.eval_batch_size=2',",
+                f"  'training.max_epochs={max_epochs}',",
+                "  'chunking.train_min_crop_seconds=0.5',",
+                "  'chunking.train_max_crop_seconds=0.5',",
+                "  'chunking.train_num_crops=1',",
+                "  'features.num_mel_bins=16',",
+                "]",
+                "",
+                "[data]",
+                f'train_manifest = "{train_manifest.as_posix()}"',
+                f'dev_manifest = "{dev_manifest.as_posix()}"',
+                'output_root = "artifacts/baselines/eres2netv2-test"',
+                "generate_demo_artifacts_if_missing = false",
+                "",
+                "[model]",
+                "feat_dim = 16",
+                "embedding_size = 32",
+                "m_channels = 16",
+                "base_width = 16",
+                "scale = 2",
+                "expansion = 2",
+                "num_blocks = [1, 1, 1, 1]",
+                'pooling_func = "TSTP"',
+                "two_embedding_layers = false",
+                "",
+                "[objective]",
+                "classifier_hidden_dim = 16",
+                "scale = 16.0",
+                "margin = 0.2",
+                "",
+                "[optimization]",
+                "learning_rate = 0.05",
+                "min_learning_rate = 0.01",
+                "weight_decay = 0.0",
+                "warmup_epochs = 0",
+                "grad_clip_norm = 5.0",
+                *(optimization_lines or []),
+                "",
+            ]
+        )
+    )
+    return config_path
+
+
+def _write_manifest_fixtures(tmp_path: Path) -> tuple[Path, Path]:
+    dataset_root = tmp_path / "datasets" / "fixture"
+    manifest_root = tmp_path / "artifacts" / "manifests"
+    dataset_root.mkdir(parents=True, exist_ok=True)
+    manifest_root.mkdir(parents=True, exist_ok=True)
+
+    train_rows: list[dict[str, object]] = []
+    dev_rows: list[dict[str, object]] = []
+    train_specs = [
+        ("speaker_alpha", "train_a_0.wav", 220.0),
+        ("speaker_alpha", "train_a_1.wav", 233.0),
+        ("speaker_bravo", "train_b_0.wav", 330.0),
+        ("speaker_bravo", "train_b_1.wav", 347.0),
+    ]
+    for speaker_id, file_name, frequency in train_specs:
+        _write_tone(dataset_root / file_name, frequency_hz=frequency)
+        train_rows.append(
+            {
+                "schema_version": "kryptonite.manifest.v1",
+                "record_type": "utterance",
+                "dataset": "fixture",
+                "source_dataset": "fixture",
+                "speaker_id": speaker_id,
+                "utterance_id": f"{speaker_id}:{Path(file_name).stem}",
+                "split": "train",
+                "audio_path": f"datasets/fixture/{file_name}",
+                "channel": "mono",
+            }
+        )
+
+    dev_specs = [
+        ("speaker_charlie", "enrollment", "dev_c_enroll.wav", 241.0),
+        ("speaker_charlie", "test", "dev_c_test.wav", 251.0),
+        ("speaker_delta", "enrollment", "dev_d_enroll.wav", 361.0),
+        ("speaker_delta", "test", "dev_d_test.wav", 371.0),
+    ]
+    for speaker_id, role, file_name, frequency in dev_specs:
+        _write_tone(dataset_root / file_name, frequency_hz=frequency)
+        dev_rows.append(
+            {
+                "schema_version": "kryptonite.manifest.v1",
+                "record_type": "utterance",
+                "dataset": "fixture",
+                "source_dataset": "fixture",
+                "speaker_id": speaker_id,
+                "utterance_id": f"{speaker_id}:{Path(file_name).stem}",
+                "split": "dev",
+                "role": role,
+                "audio_path": f"datasets/fixture/{file_name}",
+                "channel": "mono",
+                "corruption_suite": "dev_snr",
+                "corruption_family": "noise",
+                "corruption_severity": "light",
+                "corruption_metadata": {"corruption_category": "stationary"},
+            }
+        )
+
+    train_manifest = manifest_root / "train_manifest.jsonl"
+    dev_manifest = manifest_root / "dev_manifest.jsonl"
+    train_manifest.write_text("".join(json.dumps(row) + "\n" for row in train_rows))
+    dev_manifest.write_text("".join(json.dumps(row) + "\n" for row in dev_rows))
+    return train_manifest, dev_manifest
+
+
+def _write_tone(path: Path, *, frequency_hz: float, sample_rate_hz: int = 16_000) -> None:
+    sample_count = int(sample_rate_hz * 0.5)
+    timeline = np.arange(sample_count, dtype=np.float32) / np.float32(sample_rate_hz)
+    waveform = 0.3 * np.sin(2.0 * np.pi * frequency_hz * timeline)
+    sf.write(path, waveform, sample_rate_hz, format="WAV")
+
+
+def _read_jsonl(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]

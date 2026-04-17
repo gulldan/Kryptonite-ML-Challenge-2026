@@ -1,0 +1,46 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="eres2netv2-ffsvc2022-surrogate"',
+  'tracking.run_name_prefix="eres2netv2-ffsvc2022"',
+  'runtime.num_workers=8',
+  'training.batch_size=16',
+  'training.eval_batch_size=16',
+  'training.max_epochs=10',
+  'chunking.train_min_crop_seconds=3.0',
+  'chunking.train_max_crop_seconds=3.0',
+  'chunking.train_num_crops=1',
+]
+
+[data]
+train_manifest = "artifacts/manifests/ffsvc2022-surrogate/train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/ffsvc2022-surrogate/dev_manifest.jsonl"
+output_root = "artifacts/baselines/eres2netv2/ffsvc2022-surrogate"
+trials_manifest = "artifacts/manifests/ffsvc2022-surrogate/speaker_disjoint_dev_trials.jsonl"
+checkpoint_name = "eres2netv2_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[model]
+embedding_size = 192
+m_channels = 64
+base_width = 26
+scale = 2
+expansion = 2
+num_blocks = [3, 4, 6, 3]
+pooling_func = "TSTP"
+two_embedding_layers = false
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 192
+scale = 32.0
+margin = 0.3
+easy_margin = false
+
+[optimization]
+learning_rate = 0.2
+min_learning_rate = 0.00005
+momentum = 0.9
+weight_decay = 0.0001
+warmup_epochs = 5
+grad_clip_norm = 5.0

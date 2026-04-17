@@ -1,0 +1,156 @@
+[paths]
+project_root = "."
+dataset_root = "datasets"
+artifacts_root = "artifacts"
+cache_root = "artifacts/cache"
+manifests_root = "artifacts/manifests"
+
+[runtime]
+seed = 42
+device = "auto"
+log_level = "INFO"
+num_workers = 4
+
+[reproducibility]
+deterministic = true
+pythonhashseed = 42
+fingerprint_paths = ["configs/base.toml", "configs/schema.json"]
+
+[training]
+batch_size = 16
+eval_batch_size = 32
+max_epochs = 10
+precision = "fp32"
+
+[backends]
+inference = "torch"
+export = "onnx"
+allow_torch = true
+allow_onnx = true
+allow_tensorrt = false
+
+[export]
+opset = 18
+dynamic_axes = true
+profile = "baseline"
+boundary = "encoder_only"
+input_name = "encoder_input"
+output_name = "embedding"
+
+[tracking]
+enabled = true
+backend = "local"
+experiment = "kryptonite-dev"
+run_name_prefix = "smoke"
+output_root = "artifacts/tracking"
+copy_artifacts = true
+
+[telemetry]
+enabled = true
+structured_logs = true
+metrics_enabled = true
+metrics_path = "/metrics"
+
+[normalization]
+target_sample_rate_hz = 16000
+target_channels = 1
+output_format = "wav"
+output_pcm_bits_per_sample = 16
+peak_headroom_db = 1.0
+dc_offset_threshold = 0.01
+clipped_sample_threshold = 0.999
+loudness_mode = "none"
+target_loudness_dbfs = -27.0
+max_loudness_gain_db = 20.0
+max_loudness_attenuation_db = 12.0
+
+[vad]
+mode = "none"
+backend = "silero_vad_v6_onnx"
+provider = "auto"
+min_output_duration_seconds = 1.0
+min_retained_ratio = 0.4
+
+[silence_augmentation]
+enabled = false
+max_leading_padding_seconds = 0.15
+max_trailing_padding_seconds = 0.20
+max_inserted_pauses = 2
+min_inserted_pause_seconds = 0.08
+max_inserted_pause_seconds = 0.25
+pause_ratio_min = 0.9
+pause_ratio_max = 1.4
+min_detected_pause_seconds = 0.08
+max_perturbed_pause_seconds = 0.6
+analysis_frame_ms = 20.0
+silence_threshold_dbfs = -45.0
+
+[augmentation_scheduler]
+enabled = true
+warmup_epochs = 2
+ramp_epochs = 3
+max_augmentations_per_sample = 2
+clean_probability_start = 0.70
+clean_probability_end = 0.25
+light_probability_start = 0.25
+light_probability_end = 0.30
+medium_probability_start = 0.05
+medium_probability_end = 0.25
+heavy_probability_start = 0.0
+heavy_probability_end = 0.20
+
+[augmentation_scheduler.family_weights]
+noise = 1.0
+reverb = 1.0
+distance = 0.9
+codec = 0.8
+silence = 0.6
+
+[features]
+sample_rate_hz = 16000
+num_mel_bins = 80
+frame_length_ms = 25.0
+frame_shift_ms = 10.0
+fft_size = 512
+window_type = "hann"
+f_min_hz = 20.0
+power = 2.0
+log_offset = 1e-6
+pad_end = true
+cmvn_mode = "none"
+cmvn_window_frames = 300
+output_dtype = "float32"
+
+[feature_cache]
+namespace = "fbank-v1"
+train_policy = "precompute_cpu"
+dev_policy = "optional"
+infer_policy = "runtime"
+benchmark_device = "auto"
+benchmark_warmup_iterations = 1
+benchmark_iterations = 3
+
+[chunking]
+train_min_crop_seconds = 1.0
+train_max_crop_seconds = 4.0
+train_num_crops = 1
+train_short_utterance_policy = "repeat_pad"
+eval_max_full_utterance_seconds = 4.0
+eval_chunk_seconds = 4.0
+eval_chunk_overlap_seconds = 1.0
+eval_pooling = "mean"
+demo_max_full_utterance_seconds = 4.0
+demo_chunk_seconds = 4.0
+demo_chunk_overlap_seconds = 1.0
+demo_pooling = "mean"
+
+[secrets]
+wandb_api_key = "WANDB_API_KEY"
+mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"
+huggingface_hub_token = "HUGGINGFACE_HUB_TOKEN"
+
+[deployment]
+model_bundle_root = "artifacts/model-bundle"
+demo_subset_root = "artifacts/demo-subset"
+enrollment_cache_root = "artifacts/enrollment-cache"
+require_artifacts = false

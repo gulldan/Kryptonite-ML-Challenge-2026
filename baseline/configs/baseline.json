@@ -1,0 +1,22 @@
+{
+  "exp_dir": "./experiments/baseline",
+  "data_base_dir": "./data",
+  "train_csv": "./data/train.csv",
+  "train_ratio": 0.8,
+  "min_val_utts": 11,
+  "seed": 2026,
+  "sample_rate": 16000,
+  "train_chunk_seconds": 3.0,
+  "val_chunk_seconds": 6.0,
+  "n_mels": 80,
+  "n_fft": 400,
+  "hop_length": 160,
+  "batch_size": 64,
+  "num_workers": 4,
+  "epochs": 10,
+  "lr": 0.001,
+  "weight_decay": 0.00001,
+  "embed_dim": 192,
+  "val_ks": [1, 10, 50],
+  "device": "auto"
+}

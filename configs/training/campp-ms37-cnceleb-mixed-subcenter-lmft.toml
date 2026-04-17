@@ -1,0 +1,88 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-ms37-cnceleb-mixed-subcenter-lmft"',
+  'tracking.run_name_prefix="campp-ms37-cnceleb-subcenter-lmft"',
+  'runtime.num_workers=8',
+  'training.precision="bf16"',
+  'training.batch_size=128',
+  'training.eval_batch_size=128',
+  'training.max_epochs=1',
+  'training.domain_balance_enabled=true',
+  'training.domain_balance_external_share=0.30',
+  'training.domain_balance_external_source_prefixes=["cnceleb","ffsvc"]',
+  'features.frontend="official_campp"',
+  'features.output_dtype="float32"',
+  'feature_cache.namespace="official-campp-fbank-v1"',
+  'chunking.train_min_crop_seconds=10.0',
+  'chunking.train_max_crop_seconds=10.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+  'silence_augmentation.enabled=false',
+  'augmentation_scheduler.enabled=false',
+]
+
+[data]
+train_manifest = "artifacts/manifests/cnceleb_v2_ms37/cnceleb_v2_ms37_mixed_train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/campp-ms37-cnceleb-mixed-subcenter-lmft"
+trials_manifest = ""
+checkpoint_name = "campp_encoder.pt"
+generate_demo_artifacts_if_missing = false
+max_dev_rows = 1024
+
+[model]
+embedding_size = 512
+growth_rate = 32
+bottleneck_scale = 4
+init_channels = 128
+head_channels = 32
+head_res_blocks = [2, 2]
+tdnn_stride = 2
+block_layers = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations = [1, 2, 2]
+config = "batchnorm-relu"
+memory_efficient = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+subcenters_per_class = 3
+scale = 32.0
+margin = 0.4
+easy_margin = false
+inter_topk_penalty_weight = 0.02
+inter_topk_penalty_k = 5
+inter_topk_margin = 0.0
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.00001
+min_learning_rate = 0.000001
+momentum = 0.9
+weight_decay = 0.00005
+warmup_epochs = 0
+gradient_accumulation_steps = 1
+grad_clip_norm = 5.0
+early_stopping_enabled = false
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+pretrained_resources = [
+  "local://artifacts/baselines/campp-ms37-cnceleb-mixed-subcenter-lowlr/<stage-a-run>/campp_encoder.pt",
+  "openslr://82/cn-celeb_v2.tar.gz",
+]
+notes = [
+  "Stage B of MS37: one-epoch large-margin fine-tuning from the Stage A checkpoint.",
+  "Training keeps the same mixed manifest and 70/30 participant/external domain-balanced batches.",
+  "LMFT uses fixed 10s crops, lower LR, margin 0.4, sub-center ArcMargin, and no scheduled augmentation.",
+  "The classifier is restored from the Stage A checkpoint before LMFT so the large-margin pass is a continuation rather than a fresh random head.",
+  "Public evaluation should keep the MS32 C4 tail settings to isolate encoder/training effects.",
+]

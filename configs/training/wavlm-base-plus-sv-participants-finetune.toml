@@ -1,0 +1,26 @@
+[run]
+model_id = "microsoft/wavlm-base-plus-sv"
+revision = ""
+hf_token_env = "HUGGINGFACE_HUB_TOKEN"
+project_root = "."
+train_manifest = "artifacts/manifests/participants_fixed/train_manifest.jsonl"
+output_root = "artifacts/baselines/wavlm-base-plus-sv-participants-finetune"
+seed = 42
+batch_size = 8
+num_workers = 4
+max_epochs = 1
+steps_per_epoch = 2000
+crop_seconds = 4.0
+learning_rate = 0.00002
+classifier_learning_rate = 0.001
+min_learning_rate_ratio = 0.05
+weight_decay = 0.01
+warmup_steps = 200
+grad_clip_norm = 1.0
+scale = 32.0
+margin = 0.2
+precision = "bf16"
+device = "cuda"
+freeze_feature_encoder = true
+gradient_checkpointing = true
+log_every_steps = 50

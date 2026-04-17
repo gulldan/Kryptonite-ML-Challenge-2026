@@ -1,0 +1,282 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 960" role="img" aria-labelledby="title desc">
+<title>Public leaderboard hypothesis map</title>
+<desc>Public Precision@10 chart split by model families with milestone labels.</desc>
+<defs>
+<linearGradient id="score-bg" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#eff6ff"/>
+<stop offset="62%" stop-color="#f8fafc"/>
+<stop offset="100%" stop-color="#ffffff"/>
+</linearGradient>
+</defs>
+<rect width="1100" height="960" fill="url(#score-bg)"/>
+<rect x="18" y="22" width="1064" height="902" rx="22" fill="#ffffff" stroke="#dbe4ee"/>
+<text x="42.0" y="68.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800">Public LB: карта гипотез</text>
+<text x="42.0" y="104.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Все public submissions видны точками; крупные бейджи отмечают новые рекорды.</text>
+<rect x="790.0" y="42.0" width="260.0" height="82.0" rx="8" fill="#f8fafc" stroke="#dbe4ee"/>
+<text x="812.0" y="74.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Лучший public</text>
+<text x="812.0" y="111.0" text-anchor="start" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">0.8344</text>
+<text x="940.0" y="102.0" text-anchor="start" fill="#166534" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700">+0.7565</text>
+<rect x="72" y="168" width="994" height="140.2" fill="#dcfce7" opacity="0.38"/>
+<text x="92.0" y="296.2" text-anchor="start" fill="#166534" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">зона сильных public веток</text>
+<line x1="72" y1="799.1" x2="1066" y2="799.1" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="804.1" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.0</text>
+<line x1="72" y1="728.9" x2="1066" y2="728.9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="733.9" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.1</text>
+<line x1="72" y1="658.8" x2="1066" y2="658.8" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="663.8" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.2</text>
+<line x1="72" y1="588.7" x2="1066" y2="588.7" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="593.7" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.3</text>
+<line x1="72" y1="518.6" x2="1066" y2="518.6" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="523.6" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.4</text>
+<line x1="72" y1="448.5" x2="1066" y2="448.5" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="453.5" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.5</text>
+<line x1="72" y1="378.4" x2="1066" y2="378.4" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="383.4" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.6</text>
+<line x1="72" y1="308.2" x2="1066" y2="308.2" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="313.2" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.7</text>
+<line x1="72" y1="238.1" x2="1066" y2="238.1" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="243.1" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.8</text>
+<line x1="72" y1="168.0" x2="1066" y2="168.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="58.0" y="173.0" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">0.9</text>
+<line x1="72.0" y1="168" x2="72.0" y2="764" stroke="#e7edf4" stroke-width="1"/>
+<text x="72.0" y="806.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">2026-04-11</text>
+<line x1="282.8" y1="168" x2="282.8" y2="764" stroke="#e7edf4" stroke-width="1"/>
+<text x="282.8" y="806.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">2026-04-12</text>
+<line x1="584.1" y1="168" x2="584.1" y2="764" stroke="#e7edf4" stroke-width="1"/>
+<text x="584.1" y="806.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">2026-04-14</text>
+<line x1="855.2" y1="168" x2="855.2" y2="764" stroke="#e7edf4" stroke-width="1"/>
+<text x="855.2" y="806.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">2026-04-15</text>
+<line x1="975.6" y1="168" x2="975.6" y2="764" stroke="#e7edf4" stroke-width="1"/>
+<text x="975.6" y="806.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="400">2026-04-16</text>
+<polyline points="72.0,744.4 102.1,727.3 132.2,722.1 162.4,718.4 192.5,714.5 222.6,713.3 252.7,711.5 282.8,676.1 313.0,630.1 343.1,637.4 373.2,633.0 403.3,725.7 433.5,598.5 463.6,600.4 493.7,713.0 523.8,399.7 553.9,617.0 584.1,311.5 614.2,307.0 644.3,281.7 674.4,309.6 704.5,309.6 734.7,322.9 764.8,316.4 794.9,314.8 825.0,390.0 855.2,280.5 885.3,275.1 915.4,277.3 945.5,306.1 975.6,233.8 1005.8,222.6 1035.9,214.0 1066.0,281.5" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 7" stroke-linecap="round" stroke-linejoin="round" opacity="0.58"/>
+<line x1="72" y1="764" x2="1066" y2="764" stroke="#334155" stroke-width="1.6"/>
+<line x1="72" y1="168" x2="72" y2="764" stroke="#334155" stroke-width="1.6"/>
+<polyline points="72.0,744.4 102.1,727.3 132.2,722.1 162.4,718.4 192.5,714.5 222.6,713.3 252.7,711.5 403.3,725.7" fill="none" stroke="#0f766e" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="282.8,676.1 523.8,399.7 553.9,617.0 584.1,311.5 614.2,307.0 644.3,281.7 674.4,309.6 704.5,309.6 734.7,322.9 764.8,316.4 794.9,314.8 855.2,280.5 885.3,275.1 915.4,277.3 945.5,306.1 1066.0,281.5" fill="none" stroke="#c2410c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="975.6,233.8 1005.8,222.6 1035.9,214.0" fill="none" stroke="#16a34a" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="313.0,630.1 343.1,637.4 373.2,633.0 433.5,598.5 463.6,600.4 493.7,713.0 825.0,390.0" fill="none" stroke="#2563eb" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<g>
+<title>Organizer baseline: 0.0779</title>
+<circle cx="72.0" cy="744.4" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>baseline_fixed_participants: 0.1024</title>
+<circle cx="102.1" cy="727.3" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B2_raw_3crop: 0.1098</title>
+<circle cx="132.2" cy="722.1" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B4_trim_3crop: 0.1150</title>
+<circle cx="162.4" cy="718.4" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B7_trim_3crop_reciprocal_top50: 0.1206</title>
+<circle cx="192.5" cy="714.5" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B8_trim_3crop_reciprocal_local_scaling: 0.1223</title>
+<circle cx="222.6" cy="713.3" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>C4_b8_labelprop_mutual10: 0.1249</title>
+<circle cx="252.7" cy="711.5" r="8" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>P2_campp_h100_b1024_public_c4: 0.1753</title>
+<circle cx="282.8" cy="676.1" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>P1_eres2netv2_h100_b128_public_c4: 0.2410</title>
+<circle cx="313.0" cy="630.1" r="8" fill="#2563eb" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>F1_eres075_cam025_rankscore_public_c4: 0.2305</title>
+<circle cx="343.1" cy="637.4" r="6.2" fill="#2563eb" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>G6_p1_clusterfirst_mutual20_shared4_penalty020_top300: 0.2369</title>
+<circle cx="373.2" cy="633.0" r="6.2" fill="#2563eb" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>organizer_baseline_e20_earlystop_epoch10_center: 0.1046</title>
+<circle cx="403.3" cy="725.7" r="6.2" fill="#0f766e" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>P3_eres2netv2_g6_pseudo_ft_public_c4: 0.2861</title>
+<circle cx="433.5" cy="598.5" r="8" fill="#2563eb" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>E1_wavlm_domain_ft_public_c4: 0.2833</title>
+<circle cx="463.6" cy="600.4" r="6.2" fill="#2563eb" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>H1_wavlm_base_plus_sv_pretrained_public_c4: 0.1228</title>
+<circle cx="493.7" cy="713.0" r="6.2" fill="#2563eb" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS1_modelscope_campplus_voxceleb_default: 0.5695</title>
+<circle cx="523.8" cy="399.7" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS7_campp_from_scratch_official_frontend_recalc: 0.2597</title>
+<circle cx="553.9" cy="617.0" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z: 0.6953</title>
+<circle cx="584.1" cy="311.5" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z: 0.7018</title>
+<circle cx="614.2" cy="307.0" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z: 0.7379</title>
+<circle cx="644.3" cy="281.7" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS33c_ms32_reciplocal_only_20260414T1616Z: 0.6980</title>
+<circle cx="674.4" cy="309.6" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS33_ms32_tail_ablations_20260414T1616Z: 0.6980</title>
+<circle cx="704.5" cy="309.6" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS34_ms32_strict_consensus_pseudo_clean_20260414T1616Z: 0.6791</title>
+<circle cx="734.7" cy="322.9" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS35_ms32_gll_weighted_pseudo_public_c4_20260414T1904Z: 0.6884</title>
+<circle cx="764.8" cy="316.4" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS36b_multiteacher_soft_pseudo_fast_public_c4_20260414T1922Z: 0.6906</title>
+<circle cx="794.9" cy="314.8" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>H9_official_eres_filtered_pseudo_public_c4_20260414T2113Z: 0.5834</title>
+<circle cx="825.0" cy="390.0" r="6.2" fill="#2563eb" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS38_campp_weight_soup_public_c4_20260415T0531Z: 0.7396</title>
+<circle cx="855.2" cy="280.5" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS41_ms32_classaware_c4_weak_20260415T0530Z: 0.7473</title>
+<circle cx="885.3" cy="275.1" r="8" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS40_rowwise_tail_router_20260415T0611Z: 0.7441</title>
+<circle cx="915.4" cy="277.3" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>MS39_campp_ms31_bn_adapter_pseudo_20260415T0639Z: 0.7031</title>
+<circle cx="945.5" cy="306.1" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g>
+<title>W2V1k_stage1_teacher_peft_public_c4_20260416T144453Z_fast_bs1024_w4p1: 0.8062</title>
+<circle cx="975.6" cy="233.8" r="8" fill="#16a34a" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>W2V1l_stage2_teacher_peft_public_c4_20260416T144453Z_fast_bs1024_w4p1: 0.8222</title>
+<circle cx="1005.8" cy="222.6" r="8" fill="#16a34a" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>W2V1j_teacher_peft_public_c4_20260416T131620Z_fast_bs1024_w4p1: 0.8344</title>
+<circle cx="1035.9" cy="214.0" r="8" fill="#16a34a" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS42_campp_ms32_tensorrt_public_c4_20260416: 0.7381</title>
+<circle cx="1066.0" cy="281.5" r="6.2" fill="#c2410c" stroke="#ffffff" stroke-width="2.2"/>
+</g>
+<g class="point-label" data-experiment="Organizer baseline">
+<line x1="72.0" y1="744.4" x2="158.0" y2="702.4" stroke="#0f766e" stroke-width="1.3" opacity="0.72"/>
+<rect x="92.0" y="675.4" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#0f766e"/>
+<text x="158.0" y="698.4" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Орг старт</text>
+<text x="158.0" y="718.4" text-anchor="middle" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.0779</text>
+</g>
+<g class="point-label" data-experiment="C4_b8_labelprop_mutual10">
+<line x1="252.7" y1="711.5" x2="326.7" y2="715.5" stroke="#0f766e" stroke-width="1.3" opacity="0.72"/>
+<rect x="260.7" y="688.5" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#0f766e"/>
+<text x="326.7" y="711.5" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Graph tail</text>
+<text x="326.7" y="731.5" text-anchor="middle" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.1249</text>
+</g>
+<g class="point-label" data-experiment="P1_eres2netv2_h100_b128_public_c4">
+<line x1="313.0" y1="630.1" x2="391.0" y2="638.1" stroke="#2563eb" stroke-width="1.3" opacity="0.72"/>
+<rect x="325.0" y="611.1" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#2563eb"/>
+<text x="391.0" y="634.1" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">ERes jump</text>
+<text x="391.0" y="654.1" text-anchor="middle" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.2410</text>
+</g>
+<g class="point-label" data-experiment="P3_eres2netv2_g6_pseudo_ft_public_c4">
+<line x1="433.5" y1="598.5" x2="515.5" y2="532.5" stroke="#2563eb" stroke-width="1.3" opacity="0.72"/>
+<rect x="449.5" y="505.5" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#2563eb"/>
+<text x="515.5" y="528.5" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">ERes pseudo</text>
+<text x="515.5" y="548.5" text-anchor="middle" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.2861</text>
+</g>
+<g class="point-label" data-experiment="MS1_modelscope_campplus_voxceleb_default">
+<line x1="523.8" y1="399.7" x2="431.8" y2="353.7" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="365.8" y="326.7" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="431.8" y="349.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">CAM++ base</text>
+<text x="431.8" y="369.7" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.5695</text>
+</g>
+<g class="point-label" data-experiment="MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z">
+<line x1="584.1" y1="311.5" x2="400.1" y2="239.5" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="334.1" y="212.5" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="400.1" y="235.5" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">LowLR tune</text>
+<text x="400.1" y="255.5" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.6953</text>
+</g>
+<g class="point-label" data-experiment="MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z">
+<line x1="614.2" y1="307.0" x2="634.2" y2="435.0" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="565.6" y="408.0" width="137.2" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="634.2" y="431.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">VoxBlink aug</text>
+<text x="634.2" y="451.0" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.7018</text>
+</g>
+<g class="point-label" data-experiment="MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z">
+<line x1="644.3" y1="281.7" x2="620.3" y2="259.7" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="551.7" y="232.7" width="137.2" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="620.3" y="255.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Pseudo boost</text>
+<text x="620.3" y="275.7" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.7379</text>
+</g>
+<g class="point-label" data-experiment="MS38_campp_weight_soup_public_c4_20260415T0531Z">
+<line x1="855.2" y1="280.5" x2="747.2" y2="350.5" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="681.2" y="323.5" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="747.2" y="346.5" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Weight soup</text>
+<text x="747.2" y="366.5" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.7396</text>
+</g>
+<g class="point-label" data-experiment="MS41_ms32_classaware_c4_weak_20260415T0530Z">
+<line x1="885.3" y1="275.1" x2="803.3" y2="257.1" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="737.3" y="230.1" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="803.3" y="253.1" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Class bonus</text>
+<text x="803.3" y="273.1" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.7473</text>
+</g>
+<g class="point-label" data-experiment="W2V1k_stage1_teacher_peft_public_c4_20260416T144453Z_fast_bs1024_w4p1">
+<line x1="975.6" y1="233.8" x2="998.0" y2="413.8" stroke="#16a34a" stroke-width="1.3" opacity="0.72"/>
+<rect x="932.0" y="386.8" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#16a34a"/>
+<text x="998.0" y="409.8" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">w2vBERT s1</text>
+<text x="998.0" y="429.8" text-anchor="middle" fill="#16a34a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.8062</text>
+</g>
+<g class="point-label" data-experiment="W2V1l_stage2_teacher_peft_public_c4_20260416T144453Z_fast_bs1024_w4p1">
+<line x1="1005.8" y1="222.6" x2="998.0" y2="327.0" stroke="#16a34a" stroke-width="1.3" opacity="0.72"/>
+<rect x="932.0" y="300.0" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#16a34a"/>
+<text x="998.0" y="323.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">w2vBERT s2</text>
+<text x="998.0" y="343.0" text-anchor="middle" fill="#16a34a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.8222</text>
+</g>
+<g class="point-label" data-experiment="W2V1j_teacher_peft_public_c4_20260416T131620Z_fast_bs1024_w4p1">
+<line x1="1035.9" y1="214.0" x2="998.0" y2="195.0" stroke="#16a34a" stroke-width="1.3" opacity="0.72"/>
+<rect x="932.0" y="168.0" width="132.0" height="54.0" rx="8" fill="#ffffff" stroke="#16a34a"/>
+<text x="998.0" y="191.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">w2vBERT s3</text>
+<text x="998.0" y="211.0" text-anchor="middle" fill="#16a34a" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">0.8344</text>
+</g>
+<line x1="72" y1="828.0" x2="114" y2="828.0" stroke="#0f766e" stroke-width="5" stroke-linecap="round"/>
+<text x="124.0" y="834.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="400">Organizer baseline</text>
+<line x1="502" y1="828.0" x2="544" y2="828.0" stroke="#c2410c" stroke-width="5" stroke-linecap="round"/>
+<text x="554.0" y="834.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="400">CAM++</text>
+<line x1="72" y1="864.0" x2="114" y2="864.0" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+<text x="124.0" y="870.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="400">w2v-BERT 2.0</text>
+<line x1="502" y1="864.0" x2="544" y2="864.0" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+<text x="554.0" y="870.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="400">ERes / WavLM</text>
+<text x="569.0" y="922" text-anchor="middle" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16">Порядок public submissions; серый пунктир связывает все отправки во времени</text>
+<text x="27" y="466.0" text-anchor="middle" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="16" transform="rotate(-90 27 466.0)">Precision@10 public</text>
+</svg>

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="754" viewBox="0 0 1000 754" role="img">
+<title>Kryptonite speed comparison</title>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="36.0" y="46.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">End-to-end speed comparison</text>
+<text x="36.0" y="78.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="400">Lower is faster. Wall time covers prepared-model public submission generation on remote GPU1.</text>
+<rect x="36" y="106" width="18" height="12" rx="4" fill="#475569"/>
+<text x="62.0" y="118.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">embedding</text>
+<rect x="166" y="106" width="18" height="12" rx="4" fill="#94a3b8"/>
+<text x="192.0" y="118.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">search</text>
+<rect x="262" y="106" width="18" height="12" rx="4" fill="#cbd5e1"/>
+<text x="288.0" y="118.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">rerank</text>
+<rect x="366" y="106" width="18" height="12" rx="4" fill="#e2e8f0"/>
+<text x="392.0" y="118.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">validation</text>
+<rect x="498" y="106" width="18" height="12" rx="4" fill="#f1f5f9"/>
+<text x="524.0" y="118.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">other</text>
+<line x1="302.0" y1="152.0" x2="820.0" y2="152.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="880.0" y="142.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">vs baseline</text>
+<line x1="302.0" y1="146.0" x2="302.0" y2="672.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="302.0" y="140.0" text-anchor="middle" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">0s</text>
+<line x1="504.2" y1="146.0" x2="504.2" y2="672.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="504.2" y="140.0" text-anchor="middle" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">1000s</text>
+<line x1="706.4" y1="146.0" x2="706.4" y2="672.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="706.4" y="140.0" text-anchor="middle" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">2000s</text>
+<rect x="24" y="156" width="948" height="94" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+<circle cx="44" cy="196" r="8" fill="#0f766e"><title>organizer_baseline</title></circle>
+<text x="66.0" y="192.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">Organizer baseline</text>
+<text x="66.0" y="218.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">organizer ONNX full submit</text>
+<text x="66.0" y="242.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">wall 254.8s / LB 0.0779 / validator OK</text>
+<rect x="302.0" y="180.0" width="51.5" height="36" rx="8" fill="#475569"><title>embedding: 254.828s</title></rect>
+<text x="363.5" y="204.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">254.8s</text>
+<text x="880.0" y="211.0" text-anchor="start" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">baseline</text>
+<rect x="24" y="274" width="948" height="94" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+<circle cx="44" cy="314" r="8" fill="#c2410c"><title>campp</title></circle>
+<text x="66.0" y="310.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">CAM++ MS32 + MS41</text>
+<text x="66.0" y="336.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">prepared TensorRT full submit</text>
+<text x="66.0" y="360.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">wall 80.5s / LB 0.7473 / validator OK</text>
+<rect x="302.0" y="298.0" width="13.6" height="36" rx="8" fill="#475569"><title>embedding: 67.402s</title></rect>
+<rect x="315.6" y="298.0" width="1.0" height="36" rx="8" fill="#94a3b8"><title>search: 0.775s</title></rect>
+<rect x="316.6" y="298.0" width="2.4" height="36" rx="8" fill="#cbd5e1"><title>rerank: 11.690s</title></rect>
+<rect x="319.0" y="298.0" width="1.0" height="36" rx="8" fill="#f1f5f9"><title>other: 0.619s</title></rect>
+<text x="328.3" y="322.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">80.5s</text>
+<text x="880.0" y="329.0" text-anchor="start" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">3.17x</text>
+<rect x="24" y="392" width="948" height="94" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+<circle cx="44" cy="432" r="8" fill="#16a34a"><title>w2vbert2</title></circle>
+<text x="66.0" y="428.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">w2v-BERT W2V1j</text>
+<text x="66.0" y="454.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">prepared TensorRT full submit</text>
+<text x="66.0" y="478.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">wall 2562.1s / LB 0.8344 / validator OK</text>
+<rect x="302.0" y="416.0" width="515.4" height="36" rx="8" fill="#475569"><title>embedding: 2549.060s</title></rect>
+<rect x="817.4" y="416.0" width="1.0" height="36" rx="8" fill="#94a3b8"><title>search: 0.708s</title></rect>
+<rect x="818.4" y="416.0" width="2.4" height="36" rx="8" fill="#cbd5e1"><title>rerank: 11.653s</title></rect>
+<rect x="820.7" y="416.0" width="1.0" height="36" rx="8" fill="#f1f5f9"><title>other: 0.647s</title></rect>
+<text x="810.0" y="440.0" text-anchor="end" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">2562.1s</text>
+<text x="880.0" y="447.0" text-anchor="start" fill="#16a34a" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">0.10x</text>
+<rect x="24" y="510" width="948" height="94" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+<circle cx="44" cy="550" r="8" fill="#2563eb"><title>eres_wavlm</title></circle>
+<text x="66.0" y="546.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">ERes2Net H9</text>
+<text x="66.0" y="572.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">prepared TensorRT full submit</text>
+<text x="66.0" y="596.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">wall 345.6s / LB 0.5834 / validator OK</text>
+<rect x="302.0" y="534.0" width="67.3" height="36" rx="8" fill="#475569"><title>embedding: 332.742s</title></rect>
+<rect x="369.3" y="534.0" width="1.0" height="36" rx="8" fill="#94a3b8"><title>search: 0.741s</title></rect>
+<rect x="370.3" y="534.0" width="2.3" height="36" rx="8" fill="#cbd5e1"><title>rerank: 11.532s</title></rect>
+<rect x="372.6" y="534.0" width="1.0" height="36" rx="8" fill="#f1f5f9"><title>other: 0.625s</title></rect>
+<text x="381.9" y="558.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="400">345.6s</text>
+<text x="880.0" y="565.0" text-anchor="start" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">0.74x</text>
+<text x="48.0" y="720.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="400">Generated by scripts/render_speed_comparison_chart.py</text>
+</svg>

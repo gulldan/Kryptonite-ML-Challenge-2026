@@ -1,0 +1,6 @@
+*
+!.gitignore
+!release-bundles/
+!release-bundles/ms41-final-evidence-v1/
+!release-bundles/ms41-final-evidence-v1/**
+!release-bundles/ms41-final-evidence-v1.tar.gz

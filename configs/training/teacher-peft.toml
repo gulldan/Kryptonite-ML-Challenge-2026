@@ -1,0 +1,68 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="teacher-peft"',
+  'tracking.run_name_prefix="teacher"',
+  'runtime.num_workers=0',
+  'training.precision="bf16"',
+  'training.batch_size=1',
+  'training.eval_batch_size=2',
+  'training.max_epochs=1',
+  'chunking.train_min_crop_seconds=3.0',
+  'chunking.train_max_crop_seconds=3.0',
+  'chunking.train_num_crops=1',
+]
+
+[data]
+train_manifest = "artifacts/manifests/demo_manifest.jsonl"
+dev_manifest = "artifacts/manifests/demo_manifest.jsonl"
+output_root = "artifacts/baselines/teacher-peft"
+trials_manifest = ""
+checkpoint_name = "teacher_peft"
+generate_demo_artifacts_if_missing = true
+
+[model]
+model_id = "microsoft/wavlm-base-plus"
+embedding_dim = 256
+projection_dropout = 0.1
+pooling_mode = "mean"
+gradient_checkpointing = true
+freeze_feature_encoder = true
+mfa_num_layers = 1
+layer_adapter_enabled = false
+adapter_dim = 128
+
+[adapter]
+rank = 16
+alpha = 32
+dropout = 0.05
+target_modules = ["all-linear"]
+bias = "none"
+use_rslora = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 256
+scale = 16.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.0002
+min_learning_rate = 0.00001
+weight_decay = 0.0001
+warmup_epochs = 1
+gradient_accumulation_steps = 8
+grad_clip_norm = 1.0
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+teacher_resources = []
+pretrained_resources = ["huggingface://microsoft/wavlm-base-plus"]
+notes = [
+  "Repository-native Hugging Face PEFT lane for large teacher-style speech encoders.",
+  "Switch model.model_id to facebook/w2v-bert-2.0 for the larger multilingual family.",
+]

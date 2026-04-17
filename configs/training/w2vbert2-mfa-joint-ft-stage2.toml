@@ -1,0 +1,71 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="w2vbert2-mfa-joint-ft-stage2"',
+  'tracking.run_name_prefix="w2vbert2-s2"',
+  'runtime.num_workers=8',
+  'training.precision="bf16"',
+  'training.batch_size=96',
+  'training.eval_batch_size=16',
+  'training.max_epochs=2',
+  'chunking.train_min_crop_seconds=3.0',
+  'chunking.train_max_crop_seconds=3.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.0',
+]
+
+[data]
+train_manifest = "artifacts/manifests/pseudo_ms31/ms31_filtered_mixed_train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/w2vbert2-mfa-joint-ft-stage2"
+trials_manifest = ""
+checkpoint_name = "teacher_peft"
+generate_demo_artifacts_if_missing = false
+
+[model]
+model_id = "facebook/w2v-bert-2.0"
+embedding_dim = 256
+projection_dropout = 0.0
+pooling_mode = "asp"
+gradient_checkpointing = true
+freeze_feature_encoder = false
+mfa_num_layers = -1
+layer_adapter_enabled = true
+adapter_dim = 128
+
+[adapter]
+rank = 64
+alpha = 128
+dropout = 0.0
+target_modules = ["linear_q", "linear_v"]
+bias = "none"
+use_rslora = false
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.00001
+min_learning_rate = 0.000005
+weight_decay = 0.0001
+warmup_epochs = 0
+gradient_accumulation_steps = 1
+grad_clip_norm = 1.0
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+teacher_resources = []
+pretrained_resources = ["huggingface://facebook/w2v-bert-2.0"]
+notes = [
+  "Stage2 of the w2v-BERT 2.0 moonshot: LoRA weights are merged and the full encoder is unfrozen for joint fine-tuning.",
+  "Classifier head is restored from stage1 because the speaker inventory stays the same across all three stages.",
+]

@@ -1,0 +1,61 @@
+[paths]
+project_root = "."
+dataset_root = "datasets"
+artifacts_root = "artifacts"
+cache_root = "artifacts/cache"
+manifests_root = "artifacts/manifests"
+
+[runtime]
+seed = 42
+device = "auto"
+log_level = "INFO"
+num_workers = 4
+
+[reproducibility]
+deterministic = true
+pythonhashseed = 42
+fingerprint_paths = [
+  "configs/base.toml",
+  "configs/deployment/train.toml",
+  "configs/schema.json",
+]
+
+[training]
+batch_size = 16
+eval_batch_size = 32
+max_epochs = 10
+precision = "fp32"
+
+[backends]
+inference = "torch"
+export = "onnx"
+allow_torch = true
+allow_onnx = true
+allow_tensorrt = false
+
+[export]
+opset = 18
+dynamic_axes = true
+profile = "train-smoke"
+boundary = "encoder_only"
+input_name = "encoder_input"
+output_name = "embedding"
+
+[tracking]
+enabled = true
+backend = "local"
+experiment = "kryptonite-train"
+run_name_prefix = "train-smoke"
+output_root = "artifacts/tracking"
+copy_artifacts = true
+
+[secrets]
+wandb_api_key = "WANDB_API_KEY"
+mlflow_tracking_token = "MLFLOW_TRACKING_TOKEN"
+huggingface_hub_token = "HUGGINGFACE_HUB_TOKEN"
+
+[deployment]
+model_bundle_root = "artifacts/model-bundle"
+demo_subset_root = "artifacts/demo-subset"
+enrollment_cache_root = "artifacts/enrollment-cache"
+require_artifacts = false

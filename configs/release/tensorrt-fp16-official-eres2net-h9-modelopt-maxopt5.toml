@@ -1,0 +1,42 @@
+title = "Kryptonite H9 official 3D-Speaker ERes2Net ModelOpt TensorRT FP16 maxopt5 engine"
+project_root = "."
+onnx_path = "artifacts/model-bundle-official-eres2net-h9-onnx-modelopt-fp16/model_modelopt_fp16.onnx"
+engine_path = "artifacts/model-bundle-official-eres2net-h9-onnx-modelopt-fp16/model_maxopt5.plan"
+output_root = "artifacts/release/official-eres2net-h9/modelopt-fp16-maxopt5"
+output_name = "embedding"
+workspace_size_mib = 8192
+builder_optimization_level = 5
+fp16 = true
+
+[[profiles]]
+profile_id = "chunk10"
+
+[profiles.inputs.features]
+min = [1, 100, 80]
+opt = [128, 1000, 80]
+max = [128, 1200, 80]
+
+[validation]
+enabled = true
+max_mean_abs_diff = 0.05
+max_cosine_distance = 0.01
+
+[[validation.samples]]
+sample_id = "chunk10_b1"
+shapes = { features = [1, 1000, 80] }
+
+[benchmark]
+warmup_iterations = 10
+benchmark_iterations = 50
+
+[[benchmark.samples]]
+sample_id = "chunk10_b1"
+shapes = { features = [1, 1000, 80] }
+
+[[benchmark.samples]]
+sample_id = "chunk10_b64"
+shapes = { features = [64, 1000, 80] }
+
+[[benchmark.samples]]
+sample_id = "chunk10_b128"
+shapes = { features = [128, 1000, 80] }

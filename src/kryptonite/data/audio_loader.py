@@ -1,0 +1,375 @@
+"""Audio loading helpers for direct files and manifests-backed corpora."""
+
+from __future__ import annotations
+
+import json
+import math
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from kryptonite.config import NormalizationConfig, VADConfig
+from kryptonite.deployment import resolve_project_path
+
+from .audio_io import AudioFileInfo, inspect_audio_file, read_audio_file, resample_waveform
+from .loudness import (
+    SUPPORTED_LOUDNESS_MODES,
+    LoudnessNormalizationSettings,
+    apply_loudness_normalization,
+)
+from .schema import ManifestRow
+from .vad import (
+    DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS,
+    DEFAULT_VAD_MIN_RETAINED_RATIO,
+    SUPPORTED_VAD_BACKENDS,
+    SUPPORTED_VAD_MODES,
+    SUPPORTED_VAD_PROVIDERS,
+    apply_vad_policy,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class AudioLoadRequest:
+    target_sample_rate_hz: int | None = None
+    target_channels: int | None = None
+    start_seconds: float = 0.0
+    duration_seconds: float | None = None
+    loudness_mode: str = "none"
+    target_loudness_dbfs: float = -27.0
+    max_loudness_gain_db: float = 20.0
+    max_loudness_attenuation_db: float = 12.0
+    peak_headroom_db: float = 1.0
+    vad_mode: str = "none"
+    vad_backend: str = "silero_vad_v6_onnx"
+    vad_provider: str = "auto"
+    vad_min_output_duration_seconds: float | None = DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS
+    vad_min_retained_ratio: float | None = DEFAULT_VAD_MIN_RETAINED_RATIO
+
+    def __post_init__(self) -> None:
+        if self.target_sample_rate_hz is not None and self.target_sample_rate_hz <= 0:
+            raise ValueError("target_sample_rate_hz must be positive when provided")
+        if self.target_channels is not None and self.target_channels <= 0:
+            raise ValueError("target_channels must be positive when provided")
+        if self.start_seconds < 0.0:
+            raise ValueError("start_seconds must be non-negative")
+        if self.duration_seconds is not None and self.duration_seconds <= 0.0:
+            raise ValueError("duration_seconds must be positive when provided")
+        if self.loudness_mode.lower() not in SUPPORTED_LOUDNESS_MODES:
+            raise ValueError(f"loudness_mode must be one of {SUPPORTED_LOUDNESS_MODES}")
+        if self.max_loudness_gain_db < 0.0:
+            raise ValueError("max_loudness_gain_db must be non-negative")
+        if self.max_loudness_attenuation_db < 0.0:
+            raise ValueError("max_loudness_attenuation_db must be non-negative")
+        if self.peak_headroom_db < 0.0:
+            raise ValueError("peak_headroom_db must be non-negative")
+        if self.vad_mode.lower() not in SUPPORTED_VAD_MODES:
+            raise ValueError(f"vad_mode must be one of {SUPPORTED_VAD_MODES}")
+        if self.vad_backend.lower() not in SUPPORTED_VAD_BACKENDS:
+            raise ValueError(f"vad_backend must be one of {SUPPORTED_VAD_BACKENDS}")
+        if self.vad_provider.lower() not in SUPPORTED_VAD_PROVIDERS:
+            raise ValueError(f"vad_provider must be one of {SUPPORTED_VAD_PROVIDERS}")
+        if (
+            self.vad_min_output_duration_seconds is not None
+            and self.vad_min_output_duration_seconds < 0.0
+        ):
+            raise ValueError("vad_min_output_duration_seconds must be non-negative when provided")
+        if (
+            self.vad_min_retained_ratio is not None
+            and not 0.0 <= self.vad_min_retained_ratio <= 1.0
+        ):
+            raise ValueError("vad_min_retained_ratio must be within [0.0, 1.0] when provided")
+
+    @classmethod
+    def from_config(
+        cls,
+        config: NormalizationConfig,
+        *,
+        vad: VADConfig | None = None,
+        start_seconds: float = 0.0,
+        duration_seconds: float | None = None,
+    ) -> AudioLoadRequest:
+        return cls(
+            target_sample_rate_hz=config.target_sample_rate_hz,
+            target_channels=config.target_channels,
+            start_seconds=start_seconds,
+            duration_seconds=duration_seconds,
+            loudness_mode=config.loudness_mode,
+            target_loudness_dbfs=config.target_loudness_dbfs,
+            max_loudness_gain_db=config.max_loudness_gain_db,
+            max_loudness_attenuation_db=config.max_loudness_attenuation_db,
+            peak_headroom_db=config.peak_headroom_db,
+            vad_mode="none" if vad is None else vad.mode,
+            vad_backend="silero_vad_v6_onnx" if vad is None else vad.backend,
+            vad_provider="auto" if vad is None else vad.provider,
+            vad_min_output_duration_seconds=(
+                DEFAULT_VAD_MIN_OUTPUT_DURATION_SECONDS
+                if vad is None
+                else vad.min_output_duration_seconds
+            ),
+            vad_min_retained_ratio=(
+                DEFAULT_VAD_MIN_RETAINED_RATIO if vad is None else vad.min_retained_ratio
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class LoadedAudio:
+    configured_path: str
+    resolved_path: str
+    waveform: Any
+    sample_rate_hz: int
+    num_channels: int
+    frame_count: int
+    duration_seconds: float
+    source_format: str
+    source_subtype: str | None
+    source_sample_rate_hz: int
+    source_num_channels: int
+    source_frame_count: int
+    source_duration_seconds: float
+    start_seconds: float
+    requested_duration_seconds: float | None
+    resampled: bool
+    downmixed: bool
+    loudness_mode: str
+    loudness_target_dbfs: float
+    loudness_applied: bool
+    loudness_gain_db: float
+    loudness_gain_clamped: bool
+    loudness_peak_limited: bool
+    loudness_skip_reason: str
+    pre_loudness_rms_dbfs: float | None
+    post_loudness_rms_dbfs: float | None
+    loudness_alignment_error: float
+    loudness_degradation_check_passed: bool
+    vad_mode: str
+    vad_backend: str
+    vad_provider: str
+    vad_min_output_duration_seconds: float | None
+    vad_min_retained_ratio: float | None
+    vad_speech_detected: bool
+    trim_applied: bool
+    trim_reason: str
+    trim_start_seconds: float
+    trim_end_seconds: float
+    trimmed_leading_seconds: float
+    trimmed_trailing_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
+class LoadedManifestAudio:
+    manifest_path: str | None
+    line_number: int | None
+    row: ManifestRow
+    audio: LoadedAudio
+
+
+def load_audio(
+    path: Path | str,
+    *,
+    project_root: Path | str = ".",
+    request: AudioLoadRequest | None = None,
+) -> LoadedAudio:
+    active_request = request or AudioLoadRequest()
+    project_root_path = resolve_project_path(str(project_root), ".")
+    configured_path = str(path)
+    resolved_path = resolve_project_path(str(project_root_path), configured_path)
+
+    source_info = _inspect_for_window(resolved_path)
+    source_frame_offset = _seconds_to_frame_offset(
+        active_request.start_seconds,
+        sample_rate_hz=source_info.sample_rate_hz,
+    )
+    requested_source_frames = _seconds_to_frame_count(
+        active_request.duration_seconds,
+        sample_rate_hz=source_info.sample_rate_hz,
+    )
+
+    waveform, read_info = read_audio_file(
+        resolved_path,
+        frame_offset=source_frame_offset,
+        frame_count=requested_source_frames,
+    )
+    if waveform.ndim != 2 or int(waveform.shape[-1]) == 0:
+        raise ValueError(f"Decoded audio window is empty for {configured_path!r}")
+
+    downmixed = False
+    if active_request.target_channels is not None:
+        waveform, downmixed = _apply_channel_policy(
+            waveform,
+            target_channels=active_request.target_channels,
+        )
+
+    sample_rate_hz = read_info.sample_rate_hz
+    resampled = False
+    if (
+        active_request.target_sample_rate_hz is not None
+        and active_request.target_sample_rate_hz != sample_rate_hz
+    ):
+        waveform = resample_waveform(
+            waveform,
+            orig_freq=sample_rate_hz,
+            new_freq=active_request.target_sample_rate_hz,
+        )
+        sample_rate_hz = active_request.target_sample_rate_hz
+        resampled = True
+
+    waveform, trim_decision = apply_vad_policy(
+        waveform,
+        sample_rate_hz=sample_rate_hz,
+        mode=active_request.vad_mode,
+        backend=active_request.vad_backend,
+        provider=active_request.vad_provider,
+        min_output_duration_seconds=active_request.vad_min_output_duration_seconds,
+        min_retained_ratio=active_request.vad_min_retained_ratio,
+    )
+    waveform, loudness_decision = apply_loudness_normalization(
+        waveform,
+        settings=LoudnessNormalizationSettings(
+            mode=active_request.loudness_mode,
+            target_loudness_dbfs=active_request.target_loudness_dbfs,
+            max_gain_db=active_request.max_loudness_gain_db,
+            max_attenuation_db=active_request.max_loudness_attenuation_db,
+            peak_headroom_db=active_request.peak_headroom_db,
+        ),
+    )
+    frame_count = int(waveform.shape[-1])
+    num_channels = int(waveform.shape[0])
+    return LoadedAudio(
+        configured_path=configured_path,
+        resolved_path=str(resolved_path),
+        waveform=waveform,
+        sample_rate_hz=sample_rate_hz,
+        num_channels=num_channels,
+        frame_count=frame_count,
+        duration_seconds=round(float(frame_count) / float(sample_rate_hz), 6),
+        source_format=read_info.format,
+        source_subtype=read_info.subtype,
+        source_sample_rate_hz=read_info.sample_rate_hz,
+        source_num_channels=read_info.num_channels,
+        source_frame_count=read_info.frame_count,
+        source_duration_seconds=read_info.duration_seconds,
+        start_seconds=active_request.start_seconds,
+        requested_duration_seconds=active_request.duration_seconds,
+        resampled=resampled,
+        downmixed=downmixed,
+        loudness_mode=loudness_decision.mode,
+        loudness_target_dbfs=active_request.target_loudness_dbfs,
+        loudness_applied=loudness_decision.applied,
+        loudness_gain_db=loudness_decision.applied_gain_db,
+        loudness_gain_clamped=loudness_decision.gain_clamped,
+        loudness_peak_limited=loudness_decision.peak_limited,
+        loudness_skip_reason=loudness_decision.skip_reason,
+        pre_loudness_rms_dbfs=loudness_decision.source_rms_dbfs,
+        post_loudness_rms_dbfs=loudness_decision.output_rms_dbfs,
+        loudness_alignment_error=loudness_decision.alignment_error,
+        loudness_degradation_check_passed=loudness_decision.degradation_check_passed,
+        vad_mode=active_request.vad_mode.lower(),
+        vad_backend=active_request.vad_backend.lower(),
+        vad_provider=active_request.vad_provider.lower(),
+        vad_min_output_duration_seconds=active_request.vad_min_output_duration_seconds,
+        vad_min_retained_ratio=active_request.vad_min_retained_ratio,
+        vad_speech_detected=trim_decision.speech_detected,
+        trim_applied=trim_decision.applied,
+        trim_reason=trim_decision.reason,
+        trim_start_seconds=round(float(trim_decision.start_frame) / float(sample_rate_hz), 6),
+        trim_end_seconds=round(float(trim_decision.end_frame) / float(sample_rate_hz), 6),
+        trimmed_leading_seconds=round(
+            float(trim_decision.leading_trim_frames) / float(sample_rate_hz),
+            6,
+        ),
+        trimmed_trailing_seconds=round(
+            float(trim_decision.trailing_trim_frames) / float(sample_rate_hz),
+            6,
+        ),
+    )
+
+
+def load_manifest_audio(
+    row: ManifestRow | Mapping[str, object],
+    *,
+    project_root: Path | str = ".",
+    request: AudioLoadRequest | None = None,
+    manifest_path: Path | str | None = None,
+    line_number: int | None = None,
+) -> LoadedManifestAudio:
+    manifest_row = row if isinstance(row, ManifestRow) else ManifestRow.from_mapping(row)
+    audio = load_audio(
+        manifest_row.audio_path,
+        project_root=project_root,
+        request=request,
+    )
+    project_root_path = resolve_project_path(str(project_root), ".")
+    return LoadedManifestAudio(
+        manifest_path=(
+            None
+            if manifest_path is None
+            else _relative_to_project(
+                resolve_project_path(str(project_root_path), str(manifest_path)),
+                project_root=project_root_path,
+            )
+        ),
+        line_number=line_number,
+        row=manifest_row,
+        audio=audio,
+    )
+
+
+def iter_manifest_audio(
+    manifest_path: Path | str,
+    *,
+    project_root: Path | str = ".",
+    request: AudioLoadRequest | None = None,
+) -> Iterator[LoadedManifestAudio]:
+    project_root_path = resolve_project_path(str(project_root), ".")
+    manifest_file = resolve_project_path(str(project_root_path), str(manifest_path))
+    manifest_location = _relative_to_project(manifest_file, project_root=project_root_path)
+
+    for line_number, raw_line in enumerate(manifest_file.read_text().splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        payload = json.loads(line)
+        if not isinstance(payload, dict):
+            raise ValueError(f"Expected object JSONL rows in {manifest_location}:{line_number}")
+        yield load_manifest_audio(
+            payload,
+            project_root=project_root_path,
+            request=request,
+            manifest_path=manifest_location,
+            line_number=line_number,
+        )
+
+
+def _inspect_for_window(path: Path) -> AudioFileInfo:
+    return inspect_audio_file(path)
+
+
+def _apply_channel_policy(waveform: Any, *, target_channels: int) -> tuple[Any, bool]:
+    current_channels = int(waveform.shape[0])
+    if current_channels == target_channels:
+        return waveform, False
+    if target_channels == 1:
+        return waveform.mean(axis=0, keepdims=True, dtype="float32"), True
+    raise ValueError(
+        f"Unsupported channel conversion: source has {current_channels} channels, "
+        f"target requested {target_channels}"
+    )
+
+
+def _seconds_to_frame_offset(start_seconds: float, *, sample_rate_hz: int) -> int:
+    return int(start_seconds * float(sample_rate_hz))
+
+
+def _seconds_to_frame_count(duration_seconds: float | None, *, sample_rate_hz: int) -> int | None:
+    if duration_seconds is None:
+        return None
+    return max(1, math.ceil(duration_seconds * float(sample_rate_hz)))
+
+
+def _relative_to_project(path: Path, *, project_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(project_root.resolve()))
+    except ValueError:
+        return str(path.resolve())

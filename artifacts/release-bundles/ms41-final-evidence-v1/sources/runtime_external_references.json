@@ -1,0 +1,65 @@
+{
+  "bundle_id": "ms41-final-evidence-v1",
+  "candidate_run_id": "MS41_ms32_classaware_c4_weak_20260415T0530Z",
+  "workspace_status": {
+    "current_workspace_has_full_ms41_runtime_artifacts": false,
+    "remote_alias_resolved_from_current_environment": false,
+    "note": "The current local repository snapshot contains the documentary evidence and the staged MS32 parent records, but not the full MS41 runtime artifact set."
+  },
+  "documented_runtime_environment": {
+    "<remote-shell>_host_alias": "remote",
+    "docker_container": "container",
+    "host_repo_root": "<remote-repo>",
+    "container_repo_root": "<repo-root>"
+  },
+  "recorded_final_candidate": {
+    "public_lb": 0.7473,
+    "submission_sha256": "8b58013c3a710ef7e4c9f2fc5466ee9b2918d2ee271b5eaaa095b4976e194e84",
+    "completed_at_utc": "2026-04-15T05:32:11Z",
+    "artifacts": [
+      {
+        "kind": "submission_csv",
+        "recorded_path": "artifacts/submissions/MS41_ms32_classaware_c4_weak_20260415T0530Z_submission.csv",
+        "expected_sha256": "8b58013c3a710ef7e4c9f2fc5466ee9b2918d2ee271b5eaaa095b4976e194e84",
+        "staged_in_current_workspace": false
+      },
+      {
+        "kind": "summary_json",
+        "recorded_path": "artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms41_ms32_classaware_c4_weak_20260415T0530Z/MS41_ms32_classaware_c4_weak_20260415T0530Z_summary.json",
+        "staged_in_current_workspace": false
+      },
+      {
+        "kind": "overlap_json",
+        "recorded_path": "artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms41_ms32_classaware_c4_weak_20260415T0530Z/MS41_ms32_classaware_c4_weak_20260415T0530Z_vs_MS32_overlap.json",
+        "staged_in_current_workspace": false
+      },
+      {
+        "kind": "class_indices_npy",
+        "recorded_path": "artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms41_ms32_classaware_c4_weak_20260415T0530Z/class_indices_MS41_ms32_classaware_c4_weak_20260415T0530Z_classcache_top5.npy",
+        "staged_in_current_workspace": false
+      },
+      {
+        "kind": "class_probs_npy",
+        "recorded_path": "artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms41_ms32_classaware_c4_weak_20260415T0530Z/class_probs_MS41_ms32_classaware_c4_weak_20260415T0530Z_classcache_top5.npy",
+        "staged_in_current_workspace": false
+      },
+      {
+        "kind": "remote_log",
+        "recorded_path": "artifacts/logs/MS41_ms32_classaware_c4_weak_20260415T0530Z.log",
+        "staged_in_current_workspace": false
+      }
+    ]
+  },
+  "staged_local_companions": [
+    {
+      "kind": "ms32_parent_summary",
+      "path": "records/ms32_summary.json",
+      "original_path": "artifacts/remote/ms32-pseudo-ms31/MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z_summary.json"
+    },
+    {
+      "kind": "ms32_parent_validation",
+      "path": "records/ms32_validation.json",
+      "original_path": "artifacts/remote/ms32-pseudo-ms31/submission_MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z_c4_validation.json"
+    }
+  ]
+}

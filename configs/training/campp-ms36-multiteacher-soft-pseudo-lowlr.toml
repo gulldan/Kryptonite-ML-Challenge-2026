@@ -1,0 +1,114 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-ms36-multiteacher-soft-pseudo-lowlr"',
+  'tracking.run_name_prefix="campp-ms36-soft-pseudo"',
+  'runtime.num_workers=8',
+  'training.precision="bf16"',
+  'training.batch_size=256',
+  'training.eval_batch_size=256',
+  'training.max_epochs=2',
+  'features.frontend="official_campp"',
+  'features.output_dtype="float32"',
+  'feature_cache.namespace="official-campp-fbank-v1"',
+  'chunking.train_min_crop_seconds=6.0',
+  'chunking.train_max_crop_seconds=6.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+  'silence_augmentation.enabled=true',
+  'silence_augmentation.max_leading_padding_seconds=0.12',
+  'silence_augmentation.max_trailing_padding_seconds=0.25',
+  'silence_augmentation.max_inserted_pauses=2',
+  'silence_augmentation.min_inserted_pause_seconds=0.06',
+  'silence_augmentation.max_inserted_pause_seconds=0.24',
+  'silence_augmentation.pause_ratio_min=0.90',
+  'silence_augmentation.pause_ratio_max=1.35',
+  'augmentation_scheduler.enabled=true',
+  'augmentation_scheduler.warmup_epochs=1',
+  'augmentation_scheduler.ramp_epochs=1',
+  'augmentation_scheduler.max_augmentations_per_sample=1',
+  'augmentation_scheduler.clean_probability_start=0.80',
+  'augmentation_scheduler.clean_probability_end=0.55',
+  'augmentation_scheduler.light_probability_start=0.15',
+  'augmentation_scheduler.light_probability_end=0.30',
+  'augmentation_scheduler.medium_probability_start=0.05',
+  'augmentation_scheduler.medium_probability_end=0.12',
+  'augmentation_scheduler.heavy_probability_start=0.0',
+  'augmentation_scheduler.heavy_probability_end=0.03',
+  'augmentation_scheduler.family_weights.noise=0.90',
+  'augmentation_scheduler.family_weights.reverb=0.65',
+  'augmentation_scheduler.family_weights.distance=0.65',
+  'augmentation_scheduler.family_weights.codec=0.85',
+  'augmentation_scheduler.family_weights.silence=0.80',
+  'augmentation_scheduler.family_weights.speed=0.15',
+]
+
+[data]
+train_manifest = "artifacts/manifests/pseudo_ms36_multiteacher/ms36_multiteacher_soft_mixed_train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/campp-ms36-multiteacher-soft-pseudo-lowlr"
+trials_manifest = ""
+checkpoint_name = "campp_encoder.pt"
+generate_demo_artifacts_if_missing = false
+max_dev_rows = 1024
+
+[model]
+embedding_size = 512
+growth_rate = 32
+bottleneck_scale = 4
+init_channels = 128
+head_channels = 32
+head_res_blocks = [2, 2]
+tdnn_stride = 2
+block_layers = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations = [1, 2, 2]
+config = "batchnorm-relu"
+memory_efficient = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.00002
+min_learning_rate = 0.000002
+momentum = 0.9
+weight_decay = 0.00005
+warmup_epochs = 1
+gradient_accumulation_steps = 1
+grad_clip_norm = 5.0
+early_stopping_enabled = false
+early_stopping_monitor = "train_loss"
+early_stopping_min_delta = 0.0005
+early_stopping_patience_epochs = 2
+early_stopping_min_epochs = 2
+early_stopping_restore_best = true
+early_stopping_stop_train_accuracy = 0.9975
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+pretrained_resources = [
+  "local://artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt",
+  "local://artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms32_pseudo_ms31_20260414T0551Z",
+  "local://artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms31_voxblink2_aug_20260413T2029Z",
+  "local://artifacts/backbone_public/modelscope_campplus_voxceleb_default/ms30_lowlr_official_aug_20260413T2018Z",
+  "local://artifacts/backbone_public/modelscope_campplus_voxceleb_default/full_reference_compare_20260413T2245",
+  "local://artifacts/backbone_public/official_3dspeaker_eres2net_large_20260413T/full_b128_bf16",
+]
+notes = [
+  "Short high-upside probe from the MS32 official CAM++ checkpoint.",
+  "Pseudo targets are built from a multi-teacher public graph: MS32, MS31, MS30, MS1 exact-reference TensorRT cache, and official 3D-Speaker ERes2Net-large H7c.",
+  "Training uses hard ArcMargin only on real participant labels and confidence-weighted soft CE on public pseudo targets; no strict-consensus hard clean finish.",
+  "Public evaluation should keep the MS32 C4 tail settings to isolate encoder/training effects.",
+]

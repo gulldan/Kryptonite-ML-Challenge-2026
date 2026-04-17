@@ -1,0 +1,247 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 920" role="img" aria-labelledby="title desc">
+<title>Public leaderboard hypothesis map</title>
+<desc>Public Precision@10 chart split by model families with milestone labels.</desc>
+<defs>
+<linearGradient id="score-bg" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#eff6ff"/>
+<stop offset="62%" stop-color="#f8fafc"/>
+<stop offset="100%" stop-color="#ffffff"/>
+</linearGradient>
+</defs>
+<rect width="1800" height="920" fill="url(#score-bg)"/>
+<rect x="34" y="28" width="1732" height="854" rx="26" fill="#ffffff" stroke="#dbe4ee"/>
+<text x="72.0" y="76.0" text-anchor="start" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Public LB: карта развития гипотез</text>
+<text x="72.0" y="108.0" text-anchor="start" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="400">Цветные линии показывают семьи моделей; бейджи отмечают ключевые повороты.</text>
+<rect x="1382.0" y="48.0" width="326.0" height="80.0" rx="8" fill="#f8fafc" stroke="#dbe4ee"/>
+<text x="1408.0" y="78.0" text-anchor="start" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Лучший public</text>
+<text x="1408.0" y="113.0" text-anchor="start" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="36" font-weight="800">0.7473</text>
+<text x="1544.0" y="104.0" text-anchor="start" fill="#166534" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">+0.6694 к старту</text>
+<rect x="100" y="142" width="1622" height="74.7" fill="#dcfce7" opacity="0.38"/>
+<text x="120.0" y="204.7" text-anchor="start" fill="#166534" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="700">зона сильных CAM++ веток</text>
+<line x1="100" y1="739.3" x2="1722" y2="739.3" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="744.3" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.0</text>
+<line x1="100" y1="664.7" x2="1722" y2="664.7" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="669.7" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.1</text>
+<line x1="100" y1="590.0" x2="1722" y2="590.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="595.0" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.2</text>
+<line x1="100" y1="515.3" x2="1722" y2="515.3" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="520.3" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.3</text>
+<line x1="100" y1="440.7" x2="1722" y2="440.7" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="445.7" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.4</text>
+<line x1="100" y1="366.0" x2="1722" y2="366.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="371.0" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.5</text>
+<line x1="100" y1="291.3" x2="1722" y2="291.3" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="296.3" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.6</text>
+<line x1="100" y1="216.7" x2="1722" y2="216.7" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="221.7" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.7</text>
+<line x1="100" y1="142.0" x2="1722" y2="142.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="86.0" y="147.0" text-anchor="end" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">0.8</text>
+<line x1="100.0" y1="142" x2="100.0" y2="702" stroke="#e7edf4" stroke-width="1"/>
+<text x="100.0" y="750.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">2026-04-11</text>
+<line x1="491.5" y1="142" x2="491.5" y2="702" stroke="#e7edf4" stroke-width="1"/>
+<text x="491.5" y="750.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">2026-04-12</text>
+<line x1="1050.8" y1="142" x2="1050.8" y2="702" stroke="#e7edf4" stroke-width="1"/>
+<text x="1050.8" y="750.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">2026-04-14</text>
+<line x1="1554.2" y1="142" x2="1554.2" y2="702" stroke="#e7edf4" stroke-width="1"/>
+<text x="1554.2" y="750.0" text-anchor="middle" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">2026-04-15</text>
+<polyline points="100.0,681.2 155.9,662.9 211.9,657.3 267.8,653.5 323.7,649.3 379.7,648.0 435.6,646.1 491.5,608.4 547.4,559.4 603.4,567.2 659.3,562.4 715.2,661.2 771.2,525.7 827.1,527.8 883.0,647.6 939.0,314.1 994.9,545.4 1050.8,220.2 1106.8,215.3 1162.7,188.4 1218.6,218.2 1274.6,218.2 1330.5,232.3 1386.4,225.3 1442.3,223.7 1498.3,303.7 1554.2,187.1 1610.1,181.3 1666.1,183.7 1722.0,214.4" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 7" stroke-linecap="round" stroke-linejoin="round" opacity="0.58"/>
+<line x1="100" y1="702" x2="1722" y2="702" stroke="#334155" stroke-width="1.6"/>
+<line x1="100" y1="142" x2="100" y2="702" stroke="#334155" stroke-width="1.6"/>
+<polyline points="100.0,681.2 155.9,662.9 211.9,657.3 267.8,653.5 323.7,649.3 379.7,648.0 435.6,646.1 715.2,661.2" fill="none" stroke="#0f766e" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="491.5,608.4 547.4,559.4 603.4,567.2 659.3,562.4 771.2,525.7 827.1,527.8 883.0,647.6 1498.3,303.7" fill="none" stroke="#2563eb" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="939.0,314.1 994.9,545.4" fill="none" stroke="#7c3aed" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="1050.8,220.2 1106.8,215.3 1162.7,188.4 1554.2,187.1 1610.1,181.3" fill="none" stroke="#c2410c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="1218.6,218.2 1274.6,218.2 1330.5,232.3 1386.4,225.3 1442.3,223.7 1666.1,183.7 1722.0,214.4" fill="none" stroke="#be123c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 5"/>
+<g>
+<title>Organizer baseline: 0.0779</title>
+<circle cx="100.0" cy="681.2" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>baseline_fixed_participants: 0.1024</title>
+<circle cx="155.9" cy="662.9" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B2_raw_3crop: 0.1098</title>
+<circle cx="211.9" cy="657.3" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B4_trim_3crop: 0.1150</title>
+<circle cx="267.8" cy="653.5" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B7_trim_3crop_reciprocal_top50: 0.1206</title>
+<circle cx="323.7" cy="649.3" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>B8_trim_3crop_reciprocal_local_scaling: 0.1223</title>
+<circle cx="379.7" cy="648.0" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>C4_b8_labelprop_mutual10: 0.1249</title>
+<circle cx="435.6" cy="646.1" r="7" fill="#0f766e" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>P2_campp_h100_b1024_public_c4: 0.1753</title>
+<circle cx="491.5" cy="608.4" r="7" fill="#2563eb" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>P1_eres2netv2_h100_b128_public_c4: 0.2410</title>
+<circle cx="547.4" cy="559.4" r="7" fill="#2563eb" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>F1_eres075_cam025_rankscore_public_c4: 0.2305</title>
+<circle cx="603.4" cy="567.2" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>G6_p1_clusterfirst_mutual20_shared4_penalty020_top300: 0.2369</title>
+<circle cx="659.3" cy="562.4" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>organizer_baseline_e20_earlystop_epoch10_center: 0.1046</title>
+<circle cx="715.2" cy="661.2" r="5.5" fill="#0f766e" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>P3_eres2netv2_g6_pseudo_ft_public_c4: 0.2861</title>
+<circle cx="771.2" cy="525.7" r="7" fill="#2563eb" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>E1_wavlm_domain_ft_public_c4: 0.2833</title>
+<circle cx="827.1" cy="527.8" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>H1_wavlm_base_plus_sv_pretrained_public_c4: 0.1228</title>
+<circle cx="883.0" cy="647.6" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS1_modelscope_campplus_voxceleb_default: 0.5695</title>
+<circle cx="939.0" cy="314.1" r="7" fill="#7c3aed" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS7_campp_from_scratch_official_frontend_recalc: 0.2597</title>
+<circle cx="994.9" cy="545.4" r="5.5" fill="#7c3aed" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS30_campp_ms1_official_lowlr_train_aug_public_c4_20260413T2018Z: 0.6953</title>
+<circle cx="1050.8" cy="220.2" r="7" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS31_campp_ms1_official_voxblink2_aug_public_c4_20260413T2029Z: 0.7018</title>
+<circle cx="1106.8" cy="215.3" r="7" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS32_campp_ms31_filtered_pseudo_lowlr_public_c4_20260414T0551Z: 0.7379</title>
+<circle cx="1162.7" cy="188.4" r="7" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS33c_ms32_reciplocal_only_20260414T1616Z: 0.6980</title>
+<circle cx="1218.6" cy="218.2" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS33_ms32_tail_ablations_20260414T1616Z: 0.6980</title>
+<circle cx="1274.6" cy="218.2" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS34_ms32_strict_consensus_pseudo_clean_20260414T1616Z: 0.6791</title>
+<circle cx="1330.5" cy="232.3" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS35_ms32_gll_weighted_pseudo_public_c4_20260414T1904Z: 0.6884</title>
+<circle cx="1386.4" cy="225.3" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS36b_multiteacher_soft_pseudo_fast_public_c4_20260414T1922Z: 0.6906</title>
+<circle cx="1442.3" cy="223.7" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>H9_official_eres_filtered_pseudo_public_c4_20260414T2113Z: 0.5834</title>
+<circle cx="1498.3" cy="303.7" r="5.5" fill="#2563eb" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS38_campp_weight_soup_public_c4_20260415T0531Z: 0.7396</title>
+<circle cx="1554.2" cy="187.1" r="7" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS41_ms32_classaware_c4_weak_20260415T0530Z: 0.7473</title>
+<circle cx="1610.1" cy="181.3" r="7" fill="#c2410c" stroke="#f59e0b" stroke-width="3.2"/>
+</g>
+<g>
+<title>MS40_rowwise_tail_router_20260415T0611Z: 0.7441</title>
+<circle cx="1666.1" cy="183.7" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<g>
+<title>MS39_campp_ms31_bn_adapter_pseudo_20260415T0639Z: 0.7031</title>
+<circle cx="1722.0" cy="214.4" r="5.5" fill="#be123c" stroke="#ffffff" stroke-width="2.0"/>
+</g>
+<line x1="100.0" y1="681.2" x2="182.0" y2="639.2" stroke="#0f766e" stroke-width="1.3" opacity="0.72"/>
+<rect x="120.0" y="618.2" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#0f766e"/>
+<text x="182.0" y="636.2" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Орг старт</text>
+<text x="182.0" y="653.2" text-anchor="middle" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.0779</text>
+<line x1="435.6" y1="646.1" x2="509.6" y2="584.1" stroke="#0f766e" stroke-width="1.3" opacity="0.72"/>
+<rect x="447.6" y="563.1" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#0f766e"/>
+<text x="509.6" y="581.1" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Graph tail</text>
+<text x="509.6" y="598.1" text-anchor="middle" fill="#0f766e" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.1249</text>
+<line x1="547.4" y1="559.4" x2="625.4" y2="501.4" stroke="#2563eb" stroke-width="1.3" opacity="0.72"/>
+<rect x="563.4" y="480.4" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#2563eb"/>
+<text x="625.4" y="498.4" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">ERes jump</text>
+<text x="625.4" y="515.4" text-anchor="middle" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.2410</text>
+<line x1="771.2" y1="525.7" x2="853.2" y2="459.7" stroke="#2563eb" stroke-width="1.3" opacity="0.72"/>
+<rect x="791.2" y="438.7" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#2563eb"/>
+<text x="853.2" y="456.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">ERes pseudo</text>
+<text x="853.2" y="473.7" text-anchor="middle" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.2861</text>
+<line x1="939.0" y1="314.1" x2="847.0" y2="268.1" stroke="#7c3aed" stroke-width="1.3" opacity="0.72"/>
+<rect x="785.0" y="247.1" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#7c3aed"/>
+<text x="847.0" y="265.1" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">CAM++ base</text>
+<text x="847.0" y="282.1" text-anchor="middle" fill="#7c3aed" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.5695</text>
+<line x1="1050.8" y1="220.2" x2="992.8" y2="166.0" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="930.8" y="145.0" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="992.8" y="163.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">LowLR tune</text>
+<text x="992.8" y="180.0" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.6953</text>
+<line x1="1106.8" y1="215.3" x2="1126.8" y2="166.0" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1064.8" y="145.0" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="1126.8" y="163.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">VoxBlink aug</text>
+<text x="1126.8" y="180.0" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7018</text>
+<line x1="1162.7" y1="188.4" x2="1264.7" y2="166.4" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1202.7" y="145.4" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="1264.7" y="163.4" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Pseudo boost</text>
+<text x="1264.7" y="180.4" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7379</text>
+<line x1="1330.5" y1="232.3" x2="1274.5" y2="328.3" stroke="#be123c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1212.5" y="307.3" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#be123c"/>
+<text x="1274.5" y="325.3" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Strict miss</text>
+<text x="1274.5" y="342.3" text-anchor="middle" fill="#be123c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.6791</text>
+<line x1="1442.3" y1="223.7" x2="1482.3" y2="319.7" stroke="#be123c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1420.3" y="298.7" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#be123c"/>
+<text x="1482.3" y="316.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Soft miss</text>
+<text x="1482.3" y="333.7" text-anchor="middle" fill="#be123c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.6906</text>
+<line x1="1498.3" y1="303.7" x2="1474.3" y2="381.7" stroke="#2563eb" stroke-width="1.3" opacity="0.72"/>
+<rect x="1412.3" y="360.7" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#2563eb"/>
+<text x="1474.3" y="378.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">ERes probe</text>
+<text x="1474.3" y="395.7" text-anchor="middle" fill="#2563eb" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.5834</text>
+<line x1="1554.2" y1="187.1" x2="1446.2" y2="257.1" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1384.2" y="236.1" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="1446.2" y="254.1" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Weight soup</text>
+<text x="1446.2" y="271.1" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7396</text>
+<line x1="1610.1" y1="181.3" x2="1652.0" y2="166.0" stroke="#c2410c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1590.0" y="145.0" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#c2410c"/>
+<text x="1652.0" y="163.0" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Class bonus</text>
+<text x="1652.0" y="180.0" text-anchor="middle" fill="#c2410c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7473</text>
+<line x1="1666.1" y1="183.7" x2="1624.1" y2="279.7" stroke="#be123c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1562.1" y="258.7" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#be123c"/>
+<text x="1624.1" y="276.7" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">Router miss</text>
+<text x="1624.1" y="293.7" text-anchor="middle" fill="#be123c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7441</text>
+<line x1="1722.0" y1="214.4" x2="1644.0" y2="334.4" stroke="#be123c" stroke-width="1.3" opacity="0.72"/>
+<rect x="1582.0" y="313.4" width="124.0" height="42.0" rx="8" fill="#ffffff" stroke="#be123c"/>
+<text x="1644.0" y="331.4" text-anchor="middle" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">BN pseudo</text>
+<text x="1644.0" y="348.4" text-anchor="middle" fill="#be123c" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">0.7031</text>
+<line x1="100" y1="820.0" x2="142" y2="820.0" stroke="#0f766e" stroke-width="5" stroke-linecap="round"/>
+<text x="152.0" y="825.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">Baseline + graph</text>
+<line x1="394" y1="820.0" x2="436" y2="820.0" stroke="#2563eb" stroke-width="5" stroke-linecap="round"/>
+<text x="446.0" y="825.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">ERes / WavLM</text>
+<line x1="688" y1="820.0" x2="730" y2="820.0" stroke="#7c3aed" stroke-width="5" stroke-linecap="round"/>
+<text x="740.0" y="825.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">CAM++ base</text>
+<line x1="982" y1="820.0" x2="1024" y2="820.0" stroke="#c2410c" stroke-width="5" stroke-linecap="round"/>
+<text x="1034.0" y="825.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">CAM++ safe branch</text>
+<line x1="1276" y1="820.0" x2="1318" y2="820.0" stroke="#be123c" stroke-width="5" stroke-linecap="round" stroke-dasharray="7 5"/>
+<text x="1328.0" y="825.0" text-anchor="start" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="400">Pseudo / tail probes</text>
+<text x="911.0" y="882" text-anchor="middle" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15">Порядок public submissions; серый пунктир связывает все отправки во времени</text>
+<text x="27" y="422.0" text-anchor="middle" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="15" transform="rotate(-90 27 422.0)">Precision@10 public</text>
+</svg>
