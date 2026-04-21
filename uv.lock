@@ -855,17 +855,35 @@ name = "kryptonite-ml-challenge-2026"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "mlflow" },
     { name = "numpy" },
+    { name = "pandas" },
     { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "scipy" },
     { name = "soundfile" },
     { name = "soxr" },
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "transformers" },
+]
+
+[package.optional-dependencies]
+modelscope = [
+    { name = "modelscope" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "jsonschema" },
+    { name = "onnx" },
+    { name = "onnxruntime" },
+    { name = "peft" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "silero-vad" },
     { name = "ty" },
 ]
 eda = [
@@ -880,6 +898,24 @@ infer = [
     { name = "nvidia-cufft-cu12" },
     { name = "onnxruntime-gpu" },
     { name = "uvicorn" },
+]
+submit-campp = [
+    { name = "torchaudio" },
+]
+submit-common = [
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "polars" },
+    { name = "pyarrow" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "soxr" },
+]
+submit-w2v-trt = [
+    { name = "peft" },
+    { name = "transformers" },
 ]
 tracking = [
     { name = "mlflow" },
@@ -903,17 +939,32 @@ train = [
 
 [package.metadata]
 requires-dist = [
+    { name = "mlflow", specifier = ">=3.10.1" },
+    { name = "modelscope", marker = "extra == 'modelscope'", specifier = ">=1.24.0" },
     { name = "numpy", specifier = ">=2.4.3" },
+    { name = "pandas", specifier = ">=2.2.0" },
     { name = "polars", specifier = ">=1.39.3" },
+    { name = "pyarrow", specifier = ">=16.1.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "scipy", specifier = ">=1.13.0" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "soxr", specifier = ">=1.0.0" },
+    { name = "torch", specifier = ">=2.10.0" },
+    { name = "torchaudio", specifier = ">=2.10.0" },
+    { name = "transformers", specifier = ">=5.4.0" },
 ]
+provides-extras = ["modelscope"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "jsonschema", specifier = ">=4.25.1" },
+    { name = "onnx", specifier = ">=1.20.1" },
+    { name = "onnxruntime", specifier = ">=1.20.0" },
+    { name = "peft", specifier = ">=0.18.1" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "ruff", specifier = ">=0.15.10" },
+    { name = "silero-vad", specifier = ">=6.2.1,<7" },
     { name = "ty", specifier = ">=0.0.31" },
 ]
 eda = [{ name = "matplotlib", specifier = ">=3.10.8" }]
@@ -926,6 +977,22 @@ infer = [
     { name = "nvidia-cufft-cu12", specifier = ">=11.3.3.83" },
     { name = "onnxruntime-gpu", specifier = ">=1.24.4" },
     { name = "uvicorn", specifier = ">=0.42.0" },
+]
+submit-campp = [{ name = "torchaudio", specifier = ">=2.10.0" }]
+submit-common = [
+    { name = "numpy", specifier = ">=2.4.3" },
+    { name = "pandas", specifier = ">=2.2.0" },
+    { name = "polars", specifier = ">=1.39.3" },
+    { name = "pyarrow", specifier = ">=16.1.0" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "scipy", specifier = ">=1.13.0" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "soxr", specifier = ">=1.0.0" },
+]
+submit-w2v-trt = [
+    { name = "peft", specifier = ">=0.18.1" },
+    { name = "transformers", specifier = ">=5.4.0" },
 ]
 tracking = [
     { name = "mlflow", specifier = ">=3.10.1" },
@@ -1119,6 +1186,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1b/77/73af163432f3c66e2d213045250972e504a6683c76f63dd1abfba441a16a/mlflow_tracing-3.11.1.tar.gz", hash = "sha256:cb63cee16385d081467ec5bee4807fe1af59ddfdf04be4c79e7a7813b1002193", size = 1314550, upload-time = "2026-04-07T14:26:32.785Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/ab/d980c84e7df4224ab8db2457afbe135b430f371ca081a37cf89f8ef18ca1/mlflow_tracing-3.11.1-py3-none-any.whl", hash = "sha256:fa82df64dacf8293b714ae666440fe7c1902c6470c024df389bb91e9de3106d9", size = 1575790, upload-time = "2026-04-07T14:26:30.804Z" },
+]
+
+[[package]]
+name = "modelscope"
+version = "1.35.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "filelock" },
+    { name = "packaging" },
+    { name = "requests" },
+    { name = "setuptools" },
+    { name = "tqdm" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/02/1ae2851caa9249d681001925e9cdf0134b037f7194f9414d1ec90b9deea2/modelscope-1.35.4.tar.gz", hash = "sha256:b787d8d99ddc3fe06e28da0b5ebe394da8341de4b715340ebb1be7bd7c5c8a3a", size = 4566585, upload-time = "2026-04-11T06:18:35.391Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/52/42859aca8eb123ac6fa1b1a003de873948495f4e86330eaf84a60965d753/modelscope-1.35.4-py3-none-any.whl", hash = "sha256:aaa3a35152856f18bc6773264118c832d0b53c1efac6eeff52f303e537be4698", size = 6060506, upload-time = "2026-04-11T06:18:31.573Z" },
 ]
 
 [[package]]
@@ -1450,6 +1534,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b2/a5/acc43c8fa6edbc584d127fb6bbd13ae9ebfc01b9675c74e0da2de15fa4a6/onnx_ir-0.2.0.tar.gz", hash = "sha256:8bad3906691987290789b26d05e0dbff467029a0b1e411e12e4cae02e43503e4", size = 141693, upload-time = "2026-02-24T02:31:10.998Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/df/a99736bcca6b16e36c687ce4996abcf4ce73c514fddd9e730cfcb6a334f2/onnx_ir-0.2.0-py3-none-any.whl", hash = "sha256:eb14d1399c2442bd1ff702719e70074e9cedfa3af5729416a32752c9e0f82591", size = 164100, upload-time = "2026-02-24T02:31:09.454Z" },
+]
+
+[[package]]
+name = "onnxruntime"
+version = "1.24.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flatbuffers" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "protobuf" },
+    { name = "sympy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/38/31db1b232b4ba960065a90c1506ad7a56995cd8482033184e97fadca17cc/onnxruntime-1.24.4-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:cad1c2b3f455c55678ab2a8caa51fb420c25e6e3cf10f4c23653cdabedc8de78", size = 17341875, upload-time = "2026-03-17T22:05:51.669Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/60/c4d1c8043eb42f8a9aa9e931c8c293d289c48ff463267130eca97d13357f/onnxruntime-1.24.4-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1a5c5a544b22f90859c88617ecb30e161ee3349fcc73878854f43d77f00558b5", size = 15172485, upload-time = "2026-03-17T22:03:32.182Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/ab/5b68110e0460d73fad814d5bd11c7b1ddcce5c37b10177eb264d6a36e331/onnxruntime-1.24.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0d640eb9f3782689b55cfa715094474cd5662f2f137be6a6f847a594b6e9705c", size = 17244912, upload-time = "2026-03-17T22:04:37.251Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/f4/6b89e297b93704345f0f3f8c62229bee323ef25682a3f9b4f89a39324950/onnxruntime-1.24.4-cp312-cp312-win_amd64.whl", hash = "sha256:535b29475ca42b593c45fbb2152fbf1cdf3f287315bf650e6a724a0a1d065cdb", size = 12596856, upload-time = "2026-03-17T22:05:41.224Z" },
+    { url = "https://files.pythonhosted.org/packages/43/06/8b8ec6e9e6a474fcd5d772453f627ad4549dfe3ab8c0bf70af5afcde551b/onnxruntime-1.24.4-cp312-cp312-win_arm64.whl", hash = "sha256:e6214096e14b7b52e3bee1903dc12dc7ca09cb65e26664668a4620cc5e6f9a90", size = 12270275, upload-time = "2026-03-17T22:05:31.132Z" },
 ]
 
 [[package]]

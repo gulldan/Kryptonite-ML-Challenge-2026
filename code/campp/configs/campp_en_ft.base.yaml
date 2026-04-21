@@ -1,0 +1,68 @@
+project_root: ../../..
+
+paths:
+  data_root: data/Для участников
+  train_csv: data/Для участников/train.csv
+  test_csv: data/Для участников/test_public.csv
+  audio_header_cache: data/eda/full/acoustic_all/cache/audio_header.parquet
+  experiment_root: data/campp_runs/campp_en_ft
+  external_root: data/campp_assets/external
+  pretrained_root: data/pretrained_models/speaker_verification/campplus
+  mlflow_experiment: kriptio_tembr_campp_en_ft
+
+pretrained:
+  model_id: iic/speech_campplus_sv_en_voxceleb_16k
+  revision: v1.0.2
+  weight_filename: campplus_voxceleb.bin
+  weight_path: data/pretrained_models/speaker_verification/campplus/campplus_voxceleb.bin
+  3dspeaker_commit: 065629c313eaf1a01c65c640c46d77e61e9607b4
+
+model:
+  sample_rate: 16000
+  n_mels: 80
+  embedding_size: 512
+
+data_prep:
+  seed: 42
+  validation_speaker_fraction: 0.1
+  test_speaker_fraction: 0.1
+  min_eval_utterances: 11
+  write_absolute_paths: false
+  speaker_count_bins: [11, 21, 51, 1000000]
+
+training:
+  train_chunk_sec: 3.0
+  eval_chunk_sec: 6.0
+  short_clip_pad_mode: repeat
+  batch_size: 32
+  num_workers: 8
+  log_every_steps: 200
+  epochs: 5
+  backbone_lr: 0.0001
+  classifier_lr: 0.01
+  weight_decay: 0.0001
+  momentum: 0.9
+  nesterov: true
+  margin: 0.2
+  scale: 32.0
+  warmup_epochs: 1
+  mixed_precision: true
+  eval_every_epochs: 1
+  save_every_epochs: 1
+  max_grad_norm: 5.0
+  benchmark_steps: 0
+
+evaluation:
+  ks: [1, 5, 10]
+  compare_modes: [single_crop, segment_mean]
+  primary_mode: segment_mean
+  segment_count: 3
+  long_file_threshold_sec: 6.0
+  retrieval_chunk_size: 1024
+
+mlflow:
+  enabled: true
+  run_name:
+  tags:
+    project: kriptio_tembr
+    model: campplus_en_voxceleb

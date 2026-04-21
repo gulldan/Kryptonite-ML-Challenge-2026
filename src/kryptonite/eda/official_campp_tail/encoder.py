@@ -10,10 +10,10 @@ import numpy as np
 
 from kryptonite.deployment import resolve_project_path
 from kryptonite.models.campp.checkpoint import load_campp_encoder_from_checkpoint
-from kryptonite.serve.export_boundary import load_export_boundary_from_model_metadata
-from kryptonite.serve.tensorrt_engine_config import load_tensorrt_fp16_config
-from kryptonite.serve.tensorrt_engine_models import TensorRTFP16Profile
-from kryptonite.serve.tensorrt_engine_runtime import _select_profile, _TensorRTEngineRunner
+from kryptonite.runtime.export_boundary import load_export_boundary_from_model_metadata
+from kryptonite.runtime.tensorrt_engine_config import load_tensorrt_fp16_config
+from kryptonite.runtime.tensorrt_engine_models import TensorRTFP16Profile
+from kryptonite.runtime.tensorrt_engine_runtime import _select_profile, _TensorRTEngineRunner
 
 from .config import OfficialCamPPTailConfig
 

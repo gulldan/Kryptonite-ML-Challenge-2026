@@ -1,9 +1,11 @@
-# Tests
+# Тесты
 
-Test structure is split by scope:
+Корневой каталог `tests/` предназначен для проверок живого библиотечного кода и
+будущего финального пути сабмита.
 
-- `tests/unit/` for isolated fast checks
+- `tests/unit/` — быстрые изолированные проверки отдельных функций и модулей.
 
-Today the repository only ships `tests/unit/`.
+Исследовательские и архивные тесты должны жить в `research/tests/`, а не в корне.
 
-Add `tests/integration/` and `tests/e2e/` only when those suites actually exist.
+Каталоги `tests/integration/` и `tests/e2e/` нужно добавлять только тогда, когда в
+проекте действительно появятся такие наборы тестов.

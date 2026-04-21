@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from kryptonite.config import load_project_config
-from kryptonite.serve.export_boundary import (
+from kryptonite.runtime.export_boundary import (
     build_export_boundary_contract,
     build_model_bundle_metadata,
     load_export_boundary_from_model_metadata,

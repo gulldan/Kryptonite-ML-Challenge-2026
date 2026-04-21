@@ -259,13 +259,14 @@ def label_propagation_rerank(
 
     if indices.shape != scores.shape:
         raise ValueError("indices and scores must have the same shape")
-    if indices.shape[1] < max(config.edge_top, config.reciprocal_top, config.rank_top, top_k):
+    rank_top = max(config.rank_top, top_k)
+    if indices.shape[1] < max(config.edge_top, config.reciprocal_top, rank_top, top_k):
         raise ValueError("top-k cache is smaller than the requested label-propagation config")
 
     rank_indices, rank_scores, rank_meta = adjusted_ranking(
         indices=indices,
         scores=scores,
-        rank_top=config.rank_top,
+        rank_top=rank_top,
         reciprocal_top=config.reciprocal_top,
         reciprocal_bonus=config.reciprocal_bonus,
         density_penalty=config.density_penalty,

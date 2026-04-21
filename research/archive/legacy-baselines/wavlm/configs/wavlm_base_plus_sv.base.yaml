@@ -1,0 +1,44 @@
+project_root: ../../..
+
+paths:
+  data_root: data/Для участников
+  train_csv: data/Для участников/train.csv
+  test_csv: data/Для участников/test_public.csv
+  audio_header_cache: data/eda/full/acoustic_all/cache/audio_header.parquet
+  experiment_root: data/wavlm_runs/wavlm_base_plus_sv
+  pretrained_root: data/pretrained_models/speaker_verification/wavlm_base_plus_sv
+  mlflow_experiment: kriptio_tembr_wavlm_base_plus_sv
+
+pretrained:
+  model_id: microsoft/wavlm-base-plus-sv
+  revision: main
+
+model:
+  sample_rate: 16000
+  variant: wavlm_base_plus_sv
+
+data_prep:
+  seed: 42
+  validation_speaker_fraction: 0.1
+  test_speaker_fraction: 0.1
+  min_eval_utterances: 11
+  write_absolute_paths: false
+  speaker_count_bins: [11, 21, 51, 1000000]
+
+evaluation:
+  ks: [1, 5, 10]
+  compare_modes: [xvector_full_file, xvector_chunk_mean]
+  primary_mode: xvector_full_file
+  batch_size: 8
+  chunk_sec: 10.0
+  max_load_len_sec: 90.0
+  retrieval_chunk_size: 1024
+  progress_every_rows: 1000
+  pooling: xvector_head
+
+mlflow:
+  enabled: true
+  run_name:
+  tags:
+    project: kriptio_tembr
+    model: wavlm_base_plus_sv

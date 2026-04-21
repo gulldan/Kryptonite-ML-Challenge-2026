@@ -9,18 +9,52 @@ description = "Monorepo scaffold for the Kryptonite Dataton 2026 speaker-recogni
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "mlflow>=3.10.1",
     "numpy>=2.4.3",
+    "pandas>=2.2.0",
     "polars>=1.39.3",
+    "pyarrow>=16.1.0",
+    "pyyaml>=6.0.1",
+    "requests>=2.32.0",
+    "scipy>=1.13.0",
     "soundfile>=0.13.1",
     "soxr>=1.0.0",
+    "torch>=2.10.0",
+    "torchaudio>=2.10.0",
+    "transformers>=5.4.0",
 ]
+
+[project.optional-dependencies]
+modelscope = ["modelscope>=1.24.0"]
 
 [dependency-groups]
 dev = [
   "jsonschema>=4.25.1",
+  "onnx>=1.20.1",
+  "onnxruntime>=1.20.0",
+  "peft>=0.18.1",
   "pytest>=8.4.0",
   "ruff>=0.15.10",
+  "silero-vad>=6.2.1,<7",
   "ty>=0.0.31",
+]
+submit_common = [
+  "numpy>=2.4.3",
+  "pandas>=2.2.0",
+  "polars>=1.39.3",
+  "pyarrow>=16.1.0",
+  "pyyaml>=6.0.1",
+  "requests>=2.32.0",
+  "scipy>=1.13.0",
+  "soundfile>=0.13.1",
+  "soxr>=1.0.0",
+]
+submit_campp = [
+  "torchaudio>=2.10.0",
+]
+submit_w2v_trt = [
+  "peft>=0.18.1",
+  "transformers>=5.4.0",
 ]
 infer = [
   "fastapi>=0.135.1",
@@ -64,8 +98,9 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "code", "utils", "tests"]
 target-version = "py312"
+extend-exclude = ["research/notebooks"]
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "UP"]

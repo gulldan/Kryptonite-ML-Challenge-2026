@@ -6,22 +6,22 @@ from pathlib import Path
 
 import torch
 
-import kryptonite.serve.tensorrt_engine as tensorrt_engine
-import kryptonite.serve.tensorrt_engine_runtime as tensorrt_runtime
+import kryptonite.runtime.tensorrt_engine as tensorrt_engine
+import kryptonite.runtime.tensorrt_engine_runtime as tensorrt_runtime
 from kryptonite.config import load_project_config
 from kryptonite.models import CAMPPlusConfig, CAMPPlusEncoder
-from kryptonite.serve.onnx_export import (
+from kryptonite.runtime.onnx_export import (
     CAMPPONNXExportRequest,
     ONNXSmokeValidation,
     export_campp_checkpoint_to_onnx,
 )
-from kryptonite.serve.tensorrt_engine import (
+from kryptonite.runtime.tensorrt_engine import (
     TensorRTFP16Profile,
     TensorRTFP16SampleResult,
     build_tensorrt_fp16_report,
     write_tensorrt_fp16_report,
 )
-from kryptonite.serve.tensorrt_engine_config import load_tensorrt_fp16_config
+from kryptonite.runtime.tensorrt_engine_config import load_tensorrt_fp16_config
 
 
 def test_tensorrt_fp16_workflow_writes_engine_and_promotes_metadata(
@@ -337,7 +337,7 @@ def _write_tensorrt_config_fixture(
         ],
     )
     monkeypatch.setattr(
-        "kryptonite.serve.onnx_export._run_onnxruntime_smoke",
+        "kryptonite.runtime.onnx_export._run_onnxruntime_smoke",
         lambda **_: ONNXSmokeValidation(
             checker_passed=True,
             onnxruntime_smoke_passed=True,

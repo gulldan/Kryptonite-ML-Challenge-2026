@@ -1,22 +1,24 @@
-# Configs
+# Конфиги
 
-Keep runtime, training, evaluation, and deployment configuration separate from code.
+Папка содержит только общие и будущие финальные конфиги organizer-facing пути.
 
-Current layout:
+Что лежит здесь сейчас:
 
-- `configs/base.toml` for the broad local bootstrap profile
-- `configs/deployment/` for thin training and serving smoke profiles
-- `configs/training/` for model-family and experiment configs
-- `configs/release/` for release and benchmark-oriented presets
-- `configs/corruption/` for corruption-specific checks
+- `base.toml` — общий локальный профиль с базовыми путями и настройками;
+- `schema.json` — схема для проверки конфигурации;
+- будущий `submission.toml` — единый финальный конфиг, который появится после выбора модели.
 
-Deployment profiles carry a `[deployment]` section that pins the expected model bundle and demo subset roots for strict container preflight.
+Что не должно лежать здесь:
 
-Validate and inspect it with:
+- исследовательские training/release/smoke-конфиги;
+- конфиги benchmark-пайплайнов;
+- промежуточные или абляционные профили.
+
+Вся исследовательская конфигурация перенесена в `research/configs/`.
+
+Просмотр итогового конфига:
 
 ```bash
-uv run python scripts/show_config.py --config configs/base.toml
-uv run python scripts/show_config.py --config configs/base.toml --override runtime.seed=123
-uv run python scripts/show_config.py --config configs/deployment/train.toml
-uv run python scripts/show_config.py --config configs/deployment/infer.toml
+uv run python research/scripts/show_config.py --config configs/base.toml
+uv run python research/scripts/show_config.py --config configs/base.toml --override runtime.seed=123
 ```

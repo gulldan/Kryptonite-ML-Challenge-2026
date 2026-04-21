@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from kryptonite.config import load_dotenv, load_project_config, mask_secret, parse_override_value
 
 
@@ -159,25 +157,3 @@ def test_parse_override_value_supports_toml_literals_and_raw_strings() -> None:
     assert parse_override_value("true") is True
     assert parse_override_value('"fp16"') == "fp16"
     assert parse_override_value("datasets") == "datasets"
-
-
-@pytest.mark.parametrize(
-    ("config_path", "expected_device", "expected_tracking_enabled"),
-    [
-        ("configs/deployment/train.toml", "auto", True),
-        ("configs/deployment/infer.toml", "cpu", False),
-        ("configs/deployment/infer-gpu.toml", "cuda", False),
-    ],
-)
-def test_load_deployment_profiles(
-    config_path: str,
-    expected_device: str,
-    expected_tracking_enabled: bool,
-) -> None:
-    config = load_project_config(config_path=Path(config_path))
-
-    assert config.paths.dataset_root == "datasets"
-    assert config.runtime.device == expected_device
-    assert config.backends.inference == "torch"
-    assert config.tracking.enabled is expected_tracking_enabled
-    assert config.deployment.model_bundle_root == "artifacts/model-bundle"

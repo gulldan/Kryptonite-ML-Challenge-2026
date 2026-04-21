@@ -1,0 +1,61 @@
+title = "Kryptonite MS1 CAM++ TensorRT FP16 batch-256 segment6 engine"
+report_id = "kryptonite-2026-ms1-campp-tensorrt-fp16-b256-segment6"
+summary = """
+Build a TensorRT FP16 control engine for the ModelScope CAM++ VoxCeleb encoder
+with a single public-inference profile optimized for batch-256 6-second
+segment traffic. This is an aggressive H100 throughput hypothesis after packed
+frontend cache removes most CPU file-open overhead.
+"""
+project_root = "."
+output_root = "artifacts/release/ms1-campp/fp16-b256-segment6"
+
+validation_commands = [
+  "uv run python research/scripts/export_campp_onnx.py --config configs/base.toml --checkpoint artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt --output-root artifacts/model-bundle-campp-ms1-onnx --model-version campp-ms1-modelscope-voxceleb-onnx --sample-frame-count 600",
+  "uv run python research/scripts/build_tensorrt_fp16_engine.py --config research/configs/release/tensorrt-fp16-ms1-b256-segment6.toml",
+]
+
+notes = [
+  "This is a throughput control, not the promoted serving engine.",
+  "The profile targets packed-cache public recompute with 6-second official CAM++ Fbank segments.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle-campp-ms1-onnx/metadata.json"
+engine_output_path = "artifacts/model-bundle-campp-ms1-onnx/model_b256_segment6.plan"
+
+[build]
+workspace_size_mib = 4096
+promote_validated_backend = false
+require_onnxruntime_parity = false
+
+[[build.profiles]]
+profile_id = "segment6_b256"
+min_batch_size = 1
+opt_batch_size = 256
+max_batch_size = 256
+min_frame_count = 80
+opt_frame_count = 600
+max_frame_count = 800
+
+[evaluation]
+seed = 20260413
+warmup_iterations = 10
+benchmark_iterations = 50
+max_mean_abs_diff = 0.03
+max_cosine_distance = 0.001
+min_speedup_ratio = 1.05
+
+[[evaluation.samples]]
+sample_id = "segment6_b1"
+batch_size = 1
+frame_count = 600
+
+[[evaluation.samples]]
+sample_id = "segment6_b128"
+batch_size = 128
+frame_count = 600
+
+[[evaluation.samples]]
+sample_id = "segment6_b256"
+batch_size = 256
+frame_count = 600

@@ -1,0 +1,4 @@
+_base_: wavlm_base_plus_sv.base.yaml
+
+paths:
+  mlflow_tracking_uri: ""

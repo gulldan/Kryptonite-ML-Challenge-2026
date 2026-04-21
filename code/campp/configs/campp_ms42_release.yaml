@@ -1,0 +1,50 @@
+project_root: ../../..
+
+paths:
+  data_root: data/Для участников
+  test_csv: data/Для участников/test_public.csv
+  experiment_root: data/campp_runs/ms42_release/submissions/CAMPP_MS42_RELEASE
+
+pretrained:
+  weight_path: data/pretrained_models/speaker_verification/campplus/ms31_official_pseudo_filtered_lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt
+
+run:
+  run_id: CAMPP_MS42_RELEASE
+  device: cuda
+  search_device: cuda
+
+official_tail:
+  batch_size: 64
+  frontend_workers: 16
+  frontend_prefetch: 256
+  search_batch_size: 4096
+  top_cache_k: 200
+  mode: segment_mean
+  eval_chunk_seconds: 6.0
+  segment_count: 3
+  long_file_threshold_seconds: 6.0
+  pad_mode: repeat
+  force_embeddings: true
+
+classifier:
+  class_batch_size: 4096
+  class_top_k: 5
+  class_scale: 32.0
+  force_classifier: true
+
+graph:
+  class_overlap_top_k: 3
+  class_overlap_weight: 0.03
+  same_top1_bonus: 0.01
+  same_query_topk_bonus: 0.005
+  edge_top: 10
+  reciprocal_top: 20
+  rank_top: 100
+  iterations: 5
+  label_min_size: 5
+  label_max_size: 120
+  label_min_candidates: 3
+  shared_top: 20
+  shared_min_count: 0
+  reciprocal_bonus: 0.03
+  density_penalty: 0.02

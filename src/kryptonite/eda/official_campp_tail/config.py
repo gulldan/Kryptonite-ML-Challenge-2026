@@ -34,6 +34,7 @@ class OfficialCamPPTailConfig:
     frontend_pack_fast_path: bool = False
     search_batch_size: int = 2048
     top_cache_k: int = 100
+    output_top_k: int = 10
     sample_rate_hz: int = 16_000
     num_mel_bins: int = 80
     mode: str = "segment_mean"
@@ -128,6 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--search-batch-size", type=int, default=2048)
     parser.add_argument("--top-cache-k", type=int, default=100)
+    parser.add_argument("--output-top-k", type=int, default=10)
     parser.add_argument("--sample-rate-hz", type=int, default=16_000)
     parser.add_argument("--num-mel-bins", type=int, default=80)
     parser.add_argument(

@@ -10,8 +10,8 @@ import torch
 from kryptonite.config import load_project_config
 from kryptonite.models import CAMPPlusConfig, CAMPPlusEncoder
 from kryptonite.models.campp.layers import ContextAwareMaskingLayer
-from kryptonite.serve.export_boundary import load_export_boundary_from_model_metadata
-from kryptonite.serve.onnx_export import (
+from kryptonite.runtime.export_boundary import load_export_boundary_from_model_metadata
+from kryptonite.runtime.onnx_export import (
     CAMPPONNXExportRequest,
     export_campp_checkpoint_to_onnx,
 )

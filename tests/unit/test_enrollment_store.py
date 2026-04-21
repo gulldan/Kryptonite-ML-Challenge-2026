@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kryptonite.serve.enrollment_store import RuntimeEnrollmentStore
+from kryptonite.runtime.enrollment_store import RuntimeEnrollmentStore
 
 
 def test_runtime_enrollment_store_roundtrips_records(tmp_path: Path) -> None:

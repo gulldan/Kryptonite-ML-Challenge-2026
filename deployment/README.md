@@ -1,76 +1,65 @@
 # Deployment
 
-Keep Dockerfiles and deployment-facing notes here. The actual runtime and HTTP logic lives in
-`src/kryptonite/serve/`, while `apps/api/main.py` stays a thin CLI wrapper.
+Основная инструкция по запуску находится в [../README.md](../README.md).
 
-## Current Surface
+## Runtime Contract
 
-The repository currently ships three maintained Docker targets:
+- `docker/submission.Dockerfile` собирает только code/runtime слой. Каталог
+  `data/` не копируется в image.
+- Веса не вшиваются в image. Их докачивает `./run.sh` рантаймом в
+  host-mounted `data/models/...` через [`artifacts.toml`](./artifacts.toml).
+- Build ставит только зависимости выбранного submit path:
+  - `w2v-trt`: `submit_common` + `submit_w2v_trt`
+  - `campp-pt`: `submit_common` + точный `torch`/`torchaudio` runtime для CAM++
 
-- `train.Dockerfile` installs the locked `train` and `tracking` groups and runs `scripts/training_env_smoke.py --config configs/deployment/train.toml`.
-- `infer.Dockerfile` installs the locked `infer` and `train` groups, runs `scripts/infer_smoke.py --config configs/deployment/infer.toml`, and starts `apps/api/main.py`.
-- `infer.gpu.Dockerfile` uses the CUDA runtime base, runs `scripts/infer_smoke.py --config configs/deployment/infer-gpu.toml`, and starts the same API entrypoint with `runtime.device = "cuda"`.
+## Manual Docker Smoke Check
 
-The build-stage smoke is advisory by default: it validates packaging, imports, backend selection,
-and config wiring without requiring a populated `datasets/` or `artifacts/` tree.
-
-## Build And Smoke
-
-Build from the repository root:
+Дефолтный organizer-facing путь `w2v-trt`:
 
 ```bash
-docker build -f deployment/docker/train.Dockerfile -t kryptonite-train .
-docker build -f deployment/docker/infer.Dockerfile -t kryptonite-infer .
-docker build -f deployment/docker/infer.gpu.Dockerfile -t kryptonite-infer-gpu .
+docker build -f deployment/docker/submission.Dockerfile \
+  -t kryptonite-submit:w2v-trt .
+
+docker run --rm --gpus all \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  kryptonite-submit:w2v-trt \
+  ./run.sh --container-only \
+    --test-csv "data/Для участников/test_public.csv" \
+    --data-root "data/Для участников" \
+    --dry-run
 ```
 
-Run the smoke commands:
+Альтернативный ручной прогон `campp-pt`:
 
 ```bash
-docker run --rm kryptonite-train
-docker run --rm kryptonite-infer python scripts/infer_smoke.py --config configs/deployment/infer.toml
-docker run --rm --gpus all kryptonite-infer-gpu python scripts/infer_smoke.py --config configs/deployment/infer-gpu.toml
+docker build --build-arg SUBMIT_MODEL=campp-pt \
+  -f deployment/docker/submission.Dockerfile \
+  -t kryptonite-submit:campp-pt .
+
+docker run --rm --gpus all \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  kryptonite-submit:campp-pt \
+  ./run.sh --container-only \
+    --model campp-pt \
+    --test-csv "data/Для участников/test_public.csv" \
+    --data-root "data/Для участников" \
+    --dry-run
 ```
 
-Run the API directly from the checkout:
+Batch size и ширина ответа для обеих моделей переопределяются через
+organizer-facing entrypoint, без редактирования YAML-конфигов:
 
 ```bash
-uv run python apps/api/main.py --config configs/deployment/infer.toml --host <bind-host> --port 8080
-uv run python apps/api/main.py --config configs/deployment/infer-gpu.toml --host <bind-host> --port 8080
+CAMPP_BATCH_SIZE=384 ./run.sh --model campp-pt --test-csv "data/Для участников/test_public.csv" --data-root "data/Для участников"
+W2V_BATCH_SIZE=1536 ./run.sh --test-csv "data/Для участников/test_public.csv" --data-root "data/Для участников"
+TOP_K=100 ./run.sh --test-csv "data/Для участников/test_public.csv" --data-root "data/Для участников"
 ```
 
-## Strict Artifact Mode
+`TOP_K` соответствует внутреннему `--output-top-k` / `output_top_k` в tail-скриптах.
+По умолчанию используется `10` соседей.
 
-Both smoke scripts and the API entrypoint support strict artifact checks:
-
-```bash
-uv run python scripts/infer_smoke.py --config configs/deployment/infer.toml --require-artifacts
-uv run python apps/api/main.py --config configs/deployment/infer.toml --require-artifacts
-```
-
-Strict mode requires the deployment roots declared in the selected config, including:
-
-- `artifacts/manifests/demo_manifest.jsonl`
-- `artifacts/model-bundle/model.onnx`
-- `artifacts/model-bundle/metadata.json`
-- `artifacts/demo-subset/demo_subset.json`
-- non-empty `artifacts/demo-subset/enrollment/`
-- non-empty `artifacts/demo-subset/test/`
-- non-empty `artifacts/enrollment-cache/`
-
-## Compose
-
-The root [`compose.yml`](../compose.yml) starts the advisory CPU service, and
-[`compose.gpu.yml`](../compose.gpu.yml) overrides it for the CUDA image:
-
-```bash
-docker compose up --build
-docker compose -f compose.yml -f compose.gpu.yml up --build
-```
-
-The `/demo` route works without a dedicated frontend bundle. If `apps/web/dist` is absent, the
-service returns a small fallback HTML page and the JSON endpoints under `/demo/api/*` remain
-available.
-
-Strict artifact validation stays opt-in because the real deployment inputs do not exist on every
-development machine.
+Первый cold build может быть заметно тяжёлым из-за базового образа
+`nvcr.io/nvidia/pytorch`, но это не связано с весами модели: веса остаются
+во внешнем `data/models/...` и materialize-ятся только рантаймом.

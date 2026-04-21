@@ -253,7 +253,7 @@ def _write_retrieval_tables(
     if embedding_eval is None:
         _write_status_csv(
             out_root / "retrieval_status.csv",
-            "embedding_eval.parquet missing; run scripts/run_eda_retrieval_eval.py",
+            "embedding_eval.parquet missing; run research/scripts/run_eda_retrieval_eval.py",
         )
         written.append(_artifact_row(out_root / "retrieval_status.csv", "retrieval status"))
         write_retrieval_empty_breakdowns(out_root)

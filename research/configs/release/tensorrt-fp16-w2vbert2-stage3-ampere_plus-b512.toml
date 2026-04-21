@@ -1,0 +1,49 @@
+title = "Kryptonite W2V-BERT 2.0 stage3 TensorRT FP16 engine (Ampere+ runtime, max batch 512)"
+project_root = "."
+onnx_path = "artifacts/model-bundle-w2vbert2-stage3-onnx/model.onnx"
+engine_path = "artifacts/model-bundle-w2vbert2-stage3-onnx/model.plan"
+output_root = "artifacts/release/w2vbert2-stage3/fp16-ampere-plus-b512"
+output_name = "embedding"
+workspace_size_mib = 32768
+fp16 = true
+version_compatible = true
+hardware_compatibility = "ampere_plus"
+builder_image = "nvcr.io/nvidia/pytorch:25.06-py3"
+
+[[profiles]]
+profile_id = "crop6"
+
+[profiles.inputs.input_features]
+min = [1, 299, 160]
+opt = [512, 299, 160]
+max = [512, 299, 160]
+
+[profiles.inputs.attention_mask]
+min = [1, 299]
+opt = [512, 299]
+max = [512, 299]
+
+[validation]
+enabled = true
+max_mean_abs_diff = 0.05
+max_cosine_distance = 0.01
+
+[[validation.samples]]
+sample_id = "crop6_b1"
+shapes = { input_features = [1, 299, 160], attention_mask = [1, 299] }
+
+[benchmark]
+warmup_iterations = 10
+benchmark_iterations = 50
+
+[[benchmark.samples]]
+sample_id = "crop6_b1"
+shapes = { input_features = [1, 299, 160], attention_mask = [1, 299] }
+
+[[benchmark.samples]]
+sample_id = "crop6_b256"
+shapes = { input_features = [256, 299, 160], attention_mask = [256, 299] }
+
+[[benchmark.samples]]
+sample_id = "crop6_b512"
+shapes = { input_features = [512, 299, 160], attention_mask = [512, 299] }

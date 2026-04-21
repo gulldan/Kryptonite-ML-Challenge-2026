@@ -1,0 +1,110 @@
+base_config = "configs/base.toml"
+project_overrides = [
+  'tracking.enabled=true',
+  'tracking.experiment="campp-ms1-official-participants-lowlr"',
+  'tracking.run_name_prefix="campp-ms1-official-lowlr"',
+  'runtime.num_workers=8',
+  'training.precision="bf16"',
+  'training.batch_size=256',
+  'training.eval_batch_size=256',
+  'training.max_epochs=8',
+  'features.frontend="official_campp"',
+  'features.output_dtype="float32"',
+  'feature_cache.namespace="official-campp-fbank-v1"',
+  'chunking.train_min_crop_seconds=6.0',
+  'chunking.train_max_crop_seconds=6.0',
+  'chunking.train_num_crops=1',
+  'chunking.eval_max_full_utterance_seconds=6.0',
+  'chunking.eval_chunk_seconds=6.0',
+  'chunking.eval_chunk_overlap_seconds=1.5',
+  'chunking.eval_pooling="mean"',
+  'vad.mode="none"',
+  'silence_augmentation.enabled=true',
+  'silence_augmentation.max_leading_padding_seconds=0.20',
+  'silence_augmentation.max_trailing_padding_seconds=0.45',
+  'silence_augmentation.max_inserted_pauses=3',
+  'silence_augmentation.min_inserted_pause_seconds=0.08',
+  'silence_augmentation.max_inserted_pause_seconds=0.35',
+  'silence_augmentation.pause_ratio_min=0.85',
+  'silence_augmentation.pause_ratio_max=1.65',
+  'augmentation_scheduler.enabled=true',
+  'augmentation_scheduler.warmup_epochs=1',
+  'augmentation_scheduler.ramp_epochs=4',
+  'augmentation_scheduler.max_augmentations_per_sample=2',
+  'augmentation_scheduler.clean_probability_start=0.65',
+  'augmentation_scheduler.clean_probability_end=0.35',
+  'augmentation_scheduler.light_probability_start=0.30',
+  'augmentation_scheduler.light_probability_end=0.35',
+  'augmentation_scheduler.medium_probability_start=0.05',
+  'augmentation_scheduler.medium_probability_end=0.20',
+  'augmentation_scheduler.heavy_probability_start=0.0',
+  'augmentation_scheduler.heavy_probability_end=0.10',
+  'augmentation_scheduler.family_weights.noise=1.10',
+  'augmentation_scheduler.family_weights.reverb=0.85',
+  'augmentation_scheduler.family_weights.distance=0.90',
+  'augmentation_scheduler.family_weights.codec=1.05',
+  'augmentation_scheduler.family_weights.silence=1.00',
+  'augmentation_scheduler.family_weights.speed=0.35',
+]
+
+[data]
+train_manifest = "artifacts/manifests/participants_fixed/train_manifest.jsonl"
+dev_manifest = "artifacts/manifests/participants_fixed/dev_manifest.jsonl"
+output_root = "artifacts/baselines/campp-ms1-official-participants-lowlr"
+trials_manifest = ""
+checkpoint_name = "campp_encoder.pt"
+generate_demo_artifacts_if_missing = false
+
+[model]
+embedding_size = 512
+growth_rate = 32
+bottleneck_scale = 4
+init_channels = 128
+head_channels = 32
+head_res_blocks = [2, 2]
+tdnn_stride = 2
+block_layers = [12, 24, 16]
+block_kernel_sizes = [3, 3, 3]
+block_dilations = [1, 2, 2]
+config = "batchnorm-relu"
+memory_efficient = true
+
+[objective]
+classifier_blocks = 0
+classifier_hidden_dim = 512
+scale = 32.0
+margin = 0.2
+easy_margin = false
+
+[optimization]
+optimizer_name = "adamw"
+scheduler_name = "cosine"
+learning_rate = 0.0001
+min_learning_rate = 0.00001
+momentum = 0.9
+weight_decay = 0.00005
+warmup_epochs = 1
+gradient_accumulation_steps = 1
+grad_clip_norm = 5.0
+early_stopping_enabled = true
+early_stopping_monitor = "train_loss"
+early_stopping_min_delta = 0.0005
+early_stopping_patience_epochs = 3
+early_stopping_min_epochs = 4
+early_stopping_restore_best = true
+early_stopping_stop_train_accuracy = 0.9975
+
+[provenance]
+ruleset = "standard"
+initialization = "pretrained"
+pretrained_resources = [
+  "local://artifacts/backbone_public/modelscope_campplus_voxceleb_default/converted/modelscope_campplus_voxceleb_encoder.pt",
+  "modelscope://iic/speech_campplus_sv_en_voxceleb_16k",
+]
+notes = [
+  "Stage-wise adaptation probe from the exact MS1 ModelScope CAM++ branch.",
+  "Training and dev export use features.frontend=official_campp: torchaudio.compliance.kaldi.fbank(dither=0.0) with utterance mean normalization.",
+  "Training uses fixed 6s crops to match the public segment_mean 6s frontend.",
+  "Light public-shift augmentation emphasizes silence/pause, codec/channel, distance, noise, and speed perturbations without overwhelming the pretrained geometry.",
+  "Public evaluation must use research/scripts/run_official_campp_tail.py with mode=segment_mean, eval_chunk_seconds=6.0, segment_count=3.",
+]

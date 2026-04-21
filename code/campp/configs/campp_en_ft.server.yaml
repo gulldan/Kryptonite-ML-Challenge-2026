@@ -1,0 +1,11 @@
+_base_: campp_en_ft.base.yaml
+
+paths:
+  data_root: /path/to/dataset_root
+  train_csv: /path/to/dataset_root/train.csv
+  test_csv: /path/to/dataset_root/test_public.csv
+  audio_header_cache: /path/to/eda/full/acoustic_all/cache/audio_header.parquet
+  experiment_root: /path/to/experiment_root/campp_en_ft
+  external_root: /path/to/campp_assets/external
+  pretrained_root: /path/to/pretrained_models/speaker_verification/campplus
+  mlflow_tracking_uri: ""

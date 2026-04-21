@@ -1,0 +1,37 @@
+[models]
+"campp-pt" = ["campp-checkpoint"]
+"w2v-trt" = ["w2v-plan", "w2v-teacher-bundle"]
+
+[artifacts.campp-checkpoint]
+source = "yandex_public"
+public_key = "https://disk.yandex.ru/d/lE7q3-zoJ94Ywg"
+filename = "campp_ms31_official_pseudo_filtered_lowlr_20260414T055357Z.tar.zst"
+archive_type = "tar.zst"
+archive_sha256 = "97b757e46a835e37c0eac96908e5ca90db2ce7b3eb4ea0575e5d3ffb342eabf1"
+archive_member = "artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt"
+dest_path = "data/models/campp/campp_encoder.pt"
+target_sha256 = "14906459330f3dea5b53a32cd7bc8cb929f0bc65909d919bdf37f940a52f9c6e"
+url_env = "KRYPTONITE_CAMPP_CHECKPOINT_URL"
+
+[artifacts."w2v-plan"]
+source = "yandex_public"
+public_key = "https://disk.yandex.ru/d/A4xcALa6xDpn-w"
+filename = "model.plan"
+dest_path = "data/models/w2v_trt/model.plan"
+target_sha256 = "994ccc6c74d5753e84b05a5ecd076c6614f0eaf066be20103686eb654df632f2"
+url_env = "KRYPTONITE_W2V_PLAN_URL"
+
+[artifacts."w2v-teacher-bundle"]
+source = "gdrive_file"
+file_id = "1yq1CPO81ePZrrPMnjunP_yoF45ZoeqCt"
+filename = "kryptonite_top2_minimal_20260417.tar"
+archive_type = "tar"
+archive_sha256 = "191b78b6d09aec6882d1152751f0959b7220f6201d72c7b3434f0d5ab676a3f9"
+archive_prefix = "artifacts/baselines/w2vbert2-mfa-lmft-stage3/20260416T073610Z-787cea6b9872/teacher_peft"
+dest_dir = "data/models/w2v_trt/teacher_peft"
+required_files = [
+  "checkpoint_metadata.json",
+  "heads.pt",
+  "feature_extractor/preprocessor_config.json",
+]
+url_env = "KRYPTONITE_W2V_TEACHER_BUNDLE_URL"

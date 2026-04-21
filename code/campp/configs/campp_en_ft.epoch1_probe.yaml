@@ -1,0 +1,6 @@
+_base_: campp_en_ft.local.yaml
+
+training:
+  epochs: 1
+  num_workers: 10
+  log_every_steps: 100

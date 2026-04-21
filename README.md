@@ -1,21 +1,169 @@
 # Kryptonite ML Challenge 2026
 
-Репозиторий содержит решение задачи поиска похожих голосов.
+Репозиторий команды **Квадрицепс** для задачи распознавания дикторов по голосу.
+Главная пользовательская точка входа — [`run.sh`](./run.sh), который собирает
+финальный `submission.csv` из тестового CSV и аудиофайлов.
 
-На вход подаётся тестовый CSV со списком аудиофайлов. На выходе получается
-`submission.csv`: для каждого аудиофайла указаны 10 самых похожих файлов из той же
-тестовой выборки.
+## Быстрый старт для submission
 
-Итоговый рейтинг считается по закрытой private-выборке. Открытый public leaderboard
-использовался только как внешний ориентир.
+По умолчанию запускается финальный путь `w2v-trt`: скрипт собирает Docker-образ,
+докачивает недостающие веса выбранной модели в `data/models/...` и записывает
+итоговый файл в корень репозитория как `submission.csv`.
 
-## Исходная задача
+```bash
+./run.sh --test-csv "/path/to/test_public.csv" --data-root "/path/to/data_root"
+```
 
-Задача: разработать модель распознавания по голосу, устойчивую к искажениям
-аудиосигнала в реальных сценариях эксплуатации речевых интерфейсов и систем обработки
-звука.
+Пример для локальной раскладки данных:
 
-Модель должна быть устойчивой к:
+```bash
+./run.sh \
+  --test-csv "data/Для участников/test_public.csv" \
+  --data-root "data/Для участников"
+```
+
+Если в CSV строки имеют вид `test_public/000001.flac`, то `--data-root` должен
+указывать на папку, внутри которой лежит каталог `test_public/`.
+
+В host mode можно передавать и абсолютные пути вне репозитория: wrapper сам
+примонтирует внешний `CSV` и `data-root` в контейнер.
+
+Результаты запуска:
+
+| Путь | Что появится |
+| --- | --- |
+| `submission.csv` | Итоговый файл для загрузки |
+| `data/submission_entrypoint/` | Промежуточные артефакты, валидация и служебные файлы |
+| `data/models/` | Автоматически скачанные веса и runtime-артефакты |
+
+Минимальные параметры:
+
+| Параметр | Назначение |
+| --- | --- |
+| `--test-csv` | CSV со списком файлов и колонкой `filepath` |
+| `--data-root` | Корневая папка для путей из `filepath` |
+| `--output-dir` | Куда писать промежуточные файлы; по умолчанию `data/submission_entrypoint` |
+| `--model` | Модель для submission; по умолчанию `w2v-trt`, альтернатива `campp-pt` |
+| `--offline` | Не скачивать недостающие веса из сети |
+
+Полные organizer-facing параметры:
+
+| Параметр | По умолчанию | Назначение |
+| --- | --- | --- |
+| `--model` | `w2v-trt` | Выбор модели: `w2v-trt` или `campp-pt` |
+| `--test-csv` | нет | Путь к входному CSV |
+| `--data-root` | нет | Корневая папка для путей из `filepath` |
+| `--output-dir` | `data/submission_entrypoint` | Куда писать промежуточные файлы |
+| `--device` | `cuda` | Устройство инференса |
+| `--batch-size` | зависит от модели | Переопределение основного размера батча |
+| `--top-k` | `10` | Сколько соседей писать в `submission.csv`; внутри tail-скриптов передаётся как `--output-top-k` / `output_top_k` |
+| `--offline` | выключен | Запретить скачивание весов из сети |
+| `--dry-run` | выключен | Только показать команды без запуска |
+
+Параметры моделей по умолчанию:
+
+| Модель | Бэкенд | Батч | Дополнительно |
+| --- | --- | --- | --- |
+| `w2v-trt` | TensorRT | `512` | `num-workers=4`, `prefetch-factor=1`, `search-batch-size=4096`, `top-cache-k=300`, `crop-seconds=6.0`, `n-crops=3`, `precision=bf16` |
+| `campp-pt` | PyTorch | `256` | `frontend-workers=16`, `frontend-prefetch=256`, `search-batch-size=4096`, `top-cache-k=200`, `class-batch-size=4096`, `class-top-k=5` |
+
+Примеры переопределения:
+
+```bash
+./run.sh \
+  --model campp-pt \
+  --batch-size 96 \
+  --test-csv "/path/to/test_public.csv" \
+  --data-root "/path/to/data_root"
+
+CAMPP_BATCH_SIZE=384 ./run.sh \
+  --model campp-pt \
+  --test-csv "/path/to/test_public.csv" \
+  --data-root "/path/to/data_root"
+
+W2V_BATCH_SIZE=1536 ./run.sh \
+  --test-csv "/path/to/test_public.csv" \
+  --data-root "/path/to/data_root"
+
+TOP_K=100 ./run.sh \
+  --test-csv "/path/to/test_public.csv" \
+  --data-root "/path/to/data_root"
+
+./run.sh \
+  --offline \
+  --test-csv "/path/to/test_public.csv" \
+  --data-root "/path/to/data_root"
+```
+
+Для organizer-facing запуска размер батча задаётся через `run.sh`: либо флагом
+`--batch-size`, либо model-specific env (`CAMPP_BATCH_SIZE`, `W2V_BATCH_SIZE`).
+Ширина ответа задаётся через `--top-k` или `TOP_K`; это значение прокидывается в
+исследовательские tail-скрипты как `output_top_k`. Редактировать research-конфиги
+под конкретную GPU не требуется.
+
+Что скачивается автоматически:
+
+| Модель | Артефакты |
+| --- | --- |
+| `w2v-trt` | TensorRT engine `data/models/w2v_trt/model.plan` и teacher bundle `data/models/w2v_trt/teacher_peft/` |
+| `campp-pt` | Checkpoint `data/models/campp/campp_encoder.pt` |
+
+## Навигация
+
+| Что нужно найти | Путь | Зачем |
+| --- | --- | --- |
+| Финальный отчёт | [docs/kryptonite-tembr-final-report.pdf](./docs/kryptonite-tembr-final-report.pdf) | Описание подхода, результата и выводов для организаторов |
+| Презентация | [docs/kryptonite-tembr-presentation.pdf](./docs/kryptonite-tembr-presentation.pdf) | Краткая защита решения в формате слайдов |
+| EDA notebook | [research/notebooks/eda.ipynb](./research/notebooks/eda.ipynb) | Разведочный анализ данных и артефактов |
+| Графики | [research/docs/assets/](./research/docs/assets/) | Готовые изображения для README, отчёта и анализа экспериментов |
+| Лог экспериментов | [docs/experiment_log.md](./docs/experiment_log.md) | Краткая история запусков, public leaderboard и принятых решений |
+| Контракт входа/выхода | [docs/model-task-contract.md](./docs/model-task-contract.md) | Формат входного CSV и итогового `submission.csv` |
+| Manifest весов | [deployment/artifacts.toml](./deployment/artifacts.toml) | Список runtime-артефактов и публичных ссылок на веса |
+| Research-раздел | [research/README.md](./research/README.md) | Полная исследовательская часть: EDA, trails, скрипты и архивы |
+
+## Структура репозитория
+
+| Путь | Назначение |
+| --- | --- |
+| `docs/` | Финальная документация, отчёт, контракт и журнал экспериментов. |
+| `configs/` | Общие и будущие финальные runtime-конфиги. |
+| `scripts/` | Корневые CLI-вспомогательные скрипты. Основной entrypoint живёт в `run.sh`. |
+| `deployment/` | Docker, manifest весов и материалы финального runtime. |
+| `code/campp/` | Основной CAM++ baseline и финальный MS42-style runtime. |
+| `research/archive/legacy-baselines/wavlm/` | Архивный WavLM baseline; не участвует в текущем финальном submit path. |
+| `src/kryptonite/` | Общий библиотечный код проекта. |
+| `tests/` | Тесты живого кода и финального пути. |
+| `research/` | EDA, notebooks, журнал экспериментов, benchmark-скрипты, архивы и historical runbooks. |
+| `artifacts/` | Локальные выходные файлы, логи, кеши и recorded runtime results. |
+| `data/` | Локальные данные, веса, логи, runs и submissions. |
+
+## Текущий лучший public-кандидат
+
+На текущем снимке репозитория лучший зафиксированный public-результат — `0.8344`.
+Он получен финальным `w2v-trt` / W2V-путём, который используется в быстром старте
+по умолчанию.
+
+Подробности по кандидату зафиксированы в
+[`research/docs/trails/current-public-submission-artifact.md`](./research/docs/trails/current-public-submission-artifact.md).
+
+## Графики
+
+Готовые графики лежат в [`research/docs/assets/`](./research/docs/assets/):
+
+- [`public-lb-score.svg`](./research/docs/assets/public-lb-score.svg) — динамика public leaderboard score.
+- [`speed-comparison.svg`](./research/docs/assets/speed-comparison.svg) — сравнение скорости полного формирования submission.
+
+![Динамика public leaderboard score](./research/docs/assets/public-lb-score.svg)
+
+![Сравнение скорости полного формирования submission](./research/docs/assets/speed-comparison.svg)
+
+## Задача
+
+Организаторы поставили задачу построить модель распознавания по голосу, устойчивую
+к искажениям аудиосигнала в реальных сценариях эксплуатации речевых интерфейсов и
+систем обработки звука.
+
+Решение должно быть устойчиво к:
 
 - искажениям акустической среды;
 - посторонним шумам;
@@ -25,9 +173,9 @@
 
 Материалы организаторов:
 
-- [Файл постановки](<./docs/orgs/Файл постановки.pdf>)
-- [Критерии оценки](<./docs/orgs/Критерии оценки.pdf>)
-- [Шаблон отчёта](<./docs/orgs/Шаблон отчета.docx>)
+- [Файл постановки](<./research/archive/org-materials/Файл постановки.pdf>)
+- [Критерии оценки](<./research/archive/org-materials/Критерии оценки.pdf>)
+- [Шаблон отчета](<./research/archive/org-materials/Шаблон отчета.docx>)
 - [Датасет](https://cloud.mail.ru/public/nfCM/TJyFmWocA)
 - [Шаблон submission CSV](https://lk.dataton-kryptonite.ru/storage/docs/doc-1775874035.csv)
 
@@ -41,126 +189,3 @@
 - Сахабутдинов Рустам
 - Роман Громов
 - Алексей Галиев
-
-## Главное
-
-1. Самодостаточный отчёт по решению: [docs/challenge-solution-report.md](./docs/challenge-solution-report.md)
-2. Как получить и проверить `submission.csv`: [docs/release-runbook.md](./docs/release-runbook.md)
-3. Ускорение инференса и команды ONNX/TensorRT:
-   [docs/inference-acceleration.md](./docs/inference-acceleration.md)
-4. Что лежит в репозитории и зачем: [docs/repository-file-inventory.md](./docs/repository-file-inventory.md)
-5. Полный leaderboard и лабораторный журнал: [docs/challenge-experiment-history.md](./docs/challenge-experiment-history.md)
-6. Подробные trail-записи экспериментов: [docs/trails/](./docs/trails/)
-7. Финальный evidence bundle: [artifacts/release-bundles/ms41-final-evidence-v1/submission_bundle.md](./artifacts/release-bundles/ms41-final-evidence-v1/submission_bundle.md)
-
-## Текущий лучший кандидат
-
-- идентификатор запуска: `MS41_ms32_classaware_c4_weak_20260415T0530Z`
-- score на открытой части теста: `0.7473`
-- recorded path файла отправки в release workspace:
-  `artifacts/submissions/MS41_ms32_classaware_c4_weak_20260415T0530Z_submission.csv`
-- SHA-256:
-  `8b58013c3a710ef7e4c9f2fc5466ee9b2918d2ee271b5eaaa095b4976e194e84`
-
-Repo-versioned documentary bundle для этого кандидата лежит в
-[artifacts/release-bundles/ms41-final-evidence-v1/submission_bundle.md](./artifacts/release-bundles/ms41-final-evidence-v1/submission_bundle.md).
-
-Этот score не является финальной оценкой. Он показывает качество на открытой части теста.
-Для private используется тот же пайплайн инференса и постобработки.
-
-## Динамика Public LB
-
-![Динамика public leaderboard score](./docs/assets/public-lb-score.svg)
-
-Цветные линии показывают только базовые семейства моделей: `Organizer baseline`,
-`CAM++`, `w2v-BERT 2.0` и `ERes / WavLM`. Здесь `Organizer baseline` включает и
-исходный baseline от организаторов, и наши ранние улучшения той же базовой
-модели. Псевдо-лейблинг, C4-tail, router, soup и другие надстройки не вынесены
-в отдельные цвета. Бейджи отмечают поворотные точки.
-
-Пересборка графика из таблицы истории:
-
-```bash
-uv run python scripts/render_public_lb_chart.py
-```
-
-## Сравнение скорости
-
-![Сравнение скорости полного формирования submission](./docs/assets/speed-comparison.svg)
-
-Этот график сравнивает полное формирование public `submission.csv` на `remote-gpu`
-`GPU1` после подготовки моделей/engines. Экспорт ONNX и сборка TensorRT записаны
-в журнале как preparation phase, но не входят в speed score.
-
-Пересборка графика:
-
-```bash
-uv run --group train python scripts/collect_speed_family_results.py
-uv run python scripts/render_speed_comparison_chart.py
-```
-
-## Как устроено решение
-
-Коротко:
-
-1. Прочитать аудиофайлы.
-2. Привести звук к единому формату.
-3. Построить числовой вектор голоса для каждого файла.
-4. Найти ближайших соседей.
-5. Улучшить список соседей графовой постобработкой.
-6. Записать `submission.csv`.
-7. Проверить файл валидатором.
-
-Подробное объяснение находится в [docs/challenge-solution-report.md](./docs/challenge-solution-report.md).
-
-## Быстрый запуск
-
-Требования:
-
-- Python `3.12`
-- `uv`
-- Linux
-- CUDA GPU для полного пересчёта
-- данные организаторов в `datasets/Для участников/`
-
-Финальное обучение запускалось на GPU внутри Docker-образа
-`nvcr.io/nvidia/pytorch:26.03-py3`. Для инференса можно использовать тот же образ или
-совместимое CUDA-окружение с зависимостями из `uv`.
-
-Установка зависимостей:
-
-```bash
-uv sync --dev --group train --group infer --group eda
-```
-
-Точные команды для получения финального `submission.csv` находятся в
-[docs/release-runbook.md](./docs/release-runbook.md).
-
-Проверка готового файла:
-
-```bash
-uv run python scripts/validate_submission.py \
-  --template-csv datasets/Для\ участников/test_public.csv \
-  --submission-csv submission.csv \
-  --output-json artifacts/release/submission_validation.json
-```
-
-Ожидаемый результат: `passed=True`, без ошибок формата.
-
-## Структура репозитория
-
-| Путь | Простое назначение |
-| --- | --- |
-| `src/kryptonite/` | Основной код решения. |
-| `scripts/` | Команды запуска обучения, инференса, EDA и проверок. |
-| `configs/` | Конфиги обучения и инференса. |
-| `docs/` | Отчёт, история экспериментов, runbook и пояснения для жюри. |
-| `tests/` | Тесты и проверки контрактов. |
-| `baseline/` | Исходная baseline-ветка и исправления для сравнения. |
-| `apps/`, `deployment/` | API и Docker-инфраструктура. Не основной путь для финального `submission.csv`. |
-| `artifacts/` | Локальные веса, кеши, отчёты и отправки. Не хранится в git. |
-| `datasets/` | Локальные данные. Не хранится в git. |
-
-Подробный реестр файлов находится в [docs/repository-file-inventory.md](./docs/repository-file-inventory.md).
-
-Правила репозитория и используемые инструменты разработки описаны в [AGENTS.md](./AGENTS.md).

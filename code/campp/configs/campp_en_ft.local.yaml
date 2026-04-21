@@ -1,0 +1,9 @@
+_base_: campp_en_ft.base.yaml
+
+paths:
+  mlflow_tracking_uri: ""
+
+training:
+  batch_size: 200
+  log_every_steps: 200
+  epochs: 10

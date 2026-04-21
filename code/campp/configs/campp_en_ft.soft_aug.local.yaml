@@ -1,0 +1,26 @@
+_base_: campp_en_ft.soft_noaug.local.yaml
+
+augmentations:
+  enabled: true
+  max_augments_per_sample: 1
+  noise:
+    probability: 0.5
+    snr_db_min: 10.0
+    snr_db_max: 20.0
+  reverb:
+    probability: 0.2
+    impulse_ms_min: 30.0
+    impulse_ms_max: 120.0
+    decay_power_min: 2.0
+    decay_power_max: 6.0
+    dry_wet_min: 0.15
+    dry_wet_max: 0.35
+  band_limit:
+    probability: 0.2
+    lowpass_hz_min: 2200.0
+    lowpass_hz_max: 4200.0
+    highpass_hz_min: 80.0
+    highpass_hz_max: 300.0
+  silence_shift:
+    probability: 0.2
+    max_shift_sec: 0.35

@@ -1,0 +1,15 @@
+_base_: campp_en_ft.local.yaml
+
+training:
+  epochs: 5
+  batch_size: 320
+  num_workers: 12
+  prefetch_factor: 6
+  persistent_workers: true
+  log_every_steps: 100
+  backbone_lr: 1.0e-5
+  classifier_lr: 2.0e-3
+  freeze_backbone_epochs: 1
+
+augmentations:
+  enabled: false

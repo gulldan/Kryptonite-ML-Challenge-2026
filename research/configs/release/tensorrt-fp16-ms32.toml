@@ -1,0 +1,79 @@
+title = "Kryptonite MS32 CAM++ TensorRT FP16 engine"
+report_id = "kryptonite-2026-ms32-campp-tensorrt-fp16"
+summary = """
+Собрать TensorRT FP16 engine для MS32 CAM++ encoder, который является encoder-веткой
+финального MS41 pipeline, и сравнить embeddings и latency с исходным PyTorch
+checkpoint на детерминированных feature-tensor samples.
+"""
+project_root = "."
+output_root = "artifacts/release/ms32-campp/fp16"
+
+validation_commands = [
+  "uv run python research/scripts/export_campp_onnx.py --config configs/base.toml --checkpoint artifacts/baselines/campp-ms31-official-pseudo-filtered-lowlr/20260414T055357Z-f1f2fa87143a/campp_encoder.pt --output-root artifacts/model-bundle-campp-ms32-onnx --model-version campp-ms32-filtered-pseudo-onnx --sample-frame-count 600",
+  "uv run python research/scripts/build_tensorrt_fp16_engine.py --config research/configs/release/tensorrt-fp16-ms32.toml",
+]
+
+notes = [
+  "Этот workflow таргетирует MS32 encoder, который строит embeddings и top-200 cache для финального MS41 class-aware graph tail.",
+  "Граница TensorRT начинается с official 80-bin Fbank features; raw audio decode, Fbank, segmenting, retrieval и graph tail остаются вне TensorRT.",
+  "Для критерия скорости жюри нужен полный end-to-end замер на полном test CSV/audio, а не только encoder benchmark.",
+]
+
+[artifacts]
+model_bundle_metadata_path = "artifacts/model-bundle-campp-ms32-onnx/metadata.json"
+engine_output_path = "artifacts/model-bundle-campp-ms32-onnx/model.plan"
+
+[build]
+workspace_size_mib = 4096
+promote_validated_backend = true
+require_onnxruntime_parity = false
+
+[[build.profiles]]
+profile_id = "short"
+min_batch_size = 1
+opt_batch_size = 16
+max_batch_size = 32
+min_frame_count = 80
+opt_frame_count = 120
+max_frame_count = 180
+
+[[build.profiles]]
+profile_id = "mid"
+min_batch_size = 1
+opt_batch_size = 32
+max_batch_size = 64
+min_frame_count = 80
+opt_frame_count = 256
+max_frame_count = 384
+
+[[build.profiles]]
+profile_id = "segment6"
+min_batch_size = 1
+opt_batch_size = 64
+max_batch_size = 64
+min_frame_count = 80
+opt_frame_count = 600
+max_frame_count = 800
+
+[evaluation]
+seed = 20260415
+warmup_iterations = 10
+benchmark_iterations = 50
+max_mean_abs_diff = 0.03
+max_cosine_distance = 0.001
+min_speedup_ratio = 1.05
+
+[[evaluation.samples]]
+sample_id = "short"
+batch_size = 1
+frame_count = 100
+
+[[evaluation.samples]]
+sample_id = "mid"
+batch_size = 1
+frame_count = 240
+
+[[evaluation.samples]]
+sample_id = "segment6"
+batch_size = 1
+frame_count = 600
