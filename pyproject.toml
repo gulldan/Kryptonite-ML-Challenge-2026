@@ -74,7 +74,7 @@ train = [
   "onnxscript>=0.6.2",
   "pandas==2.2.2",
   "peft>=0.18.1",
-  "setuptools>=81.0.0",
+  "setuptools>=83.0.0",
   "silero-vad>=6.2.1,<7",
   "torch>=2.10.0",
   "torchaudio>=2.10.0",
